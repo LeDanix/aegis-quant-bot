@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  aegis-quant:
+    image: python:3.11-slim
+    container_name: aegis-quant-bot
+    working_dir: /app
+    volumes:
+      - ../:/app
+    command: python web_app/server.py
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Europe/Madrid
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
