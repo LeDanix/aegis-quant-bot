@@ -10,7 +10,7 @@ import os
 import json
 import threading
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 
 class BotConfigStore:
@@ -27,8 +27,54 @@ class BotConfigStore:
 
         self._ensure_defaults()
 
+    def get_state_path(self, env: Optional[str] = None) -> str:
+        """Devuelve la ruta del fichero de estado según el entorno (PAPER vs LIVE_REAL)."""
+        if env is None:
+            try:
+                if os.path.exists(self.config_path):
+                    with open(self.config_path, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        env = cfg.get("environment", "PAPER")
+                else:
+                    env = "PAPER"
+            except Exception:
+                env = "PAPER"
+
+        if env == "LIVE_REAL":
+            return os.path.join(self.data_dir, "bot_live_state_real.json")
+        else:
+            # Para Paper Trading mantenemos compatibilidad con bot_live_state.json existente
+            return self.state_path
+
+    def get_ledger_path(self, env: Optional[str] = None) -> str:
+        """Devuelve el fichero de auditoría contable inmutable JSONL según el entorno."""
+        if env is None:
+            try:
+                if os.path.exists(self.config_path):
+                    with open(self.config_path, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                        env = cfg.get("environment", "PAPER")
+                else:
+                    env = "PAPER"
+            except Exception:
+                env = "PAPER"
+
+        if env == "LIVE_REAL":
+            return os.path.join(self.data_dir, "ledger_real_trades.jsonl")
+        else:
+            return os.path.join(self.data_dir, "ledger_paper_trades.jsonl")
+
+    def append_trade_ledger(self, order_entry: Dict[str, Any]) -> None:
+        """Escribe una entrada inmutable en el libro contable de operaciones (JSONL) para auditoría e IRPF."""
+        with self._lock:
+            ledger_path = self.get_ledger_path()
+            with open(ledger_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(order_entry, ensure_ascii=False) + "\n")
+
     def _default_config(self) -> Dict[str, Any]:
         return {
+            # Entorno de operativa: "PAPER" (Simulado / Sandbox) | "LIVE_REAL" (Dinero Real en Mercado)
+            "environment": "PAPER",
             # Modo de operación: "AUTO_100" (Por defecto 100% automático) | "COPILOT_CONFIRM"
             "execution_mode": "AUTO_100",
             # Estado del demonio: True = Bot encendido vigilando horario | False = Bot parado
@@ -97,8 +143,10 @@ class BotConfigStore:
             if not os.path.exists(self.config_path):
                 with open(self.config_path, "w", encoding="utf-8") as f:
                     json.dump(self._default_config(), f, indent=2, ensure_ascii=False)
-            if not os.path.exists(self.state_path):
-                with open(self.state_path, "w", encoding="utf-8") as f:
+            # Asegurar estado por defecto si no existe
+            cur_state_path = self.get_state_path()
+            if not os.path.exists(cur_state_path):
+                with open(cur_state_path, "w", encoding="utf-8") as f:
                     json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
 
     def get_config(self) -> Dict[str, Any]:
@@ -123,21 +171,37 @@ class BotConfigStore:
             cfg["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+            # Si el entorno cambió, asegurar que existe el fichero de estado de ese entorno
+            target_state_path = self.get_state_path(cfg.get("environment", "PAPER"))
+            if not os.path.exists(target_state_path):
+                with open(target_state_path, "w", encoding="utf-8") as f:
+                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+
             return cfg
 
     def get_state(self) -> Dict[str, Any]:
         with self._lock:
-            with open(self.state_path, "r", encoding="utf-8") as f:
+            p = self.get_state_path()
+            if not os.path.exists(p):
+                with open(p, "w", encoding="utf-8") as f:
+                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+            with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
 
     def save_state(self, state: Dict[str, Any]) -> None:
         with self._lock:
-            with open(self.state_path, "w", encoding="utf-8") as f:
+            p = self.get_state_path()
+            with open(p, "w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2, ensure_ascii=False)
 
     def append_log(self, msg: str, level: str = "INFO") -> None:
         with self._lock:
-            with open(self.state_path, "r", encoding="utf-8") as f:
+            p = self.get_state_path()
+            if not os.path.exists(p):
+                with open(p, "w", encoding="utf-8") as f:
+                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+            with open(p, "r", encoding="utf-8") as f:
                 state = json.load(f)
             entry = {
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -147,5 +211,5 @@ class BotConfigStore:
             logs: List[Dict[str, str]] = state.get("logs", [])
             logs.insert(0, entry)
             state["logs"] = logs[:120]  # Mantener los últimos 120 eventos
-            with open(self.state_path, "w", encoding="utf-8") as f:
+            with open(p, "w", encoding="utf-8") as f:
                 json.dump(state, f, indent=2, ensure_ascii=False)

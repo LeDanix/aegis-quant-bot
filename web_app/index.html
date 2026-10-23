@@ -407,11 +407,11 @@
             <!-- ZOOM PERIOD BUTTONS & SCALE TOGGLE -->
             <div class="flex flex-wrap items-center gap-2">
               <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 text-xs">
-                <button onclick="zoomToPeriod('2007-01-01', '2026-10-21')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">All</button>
-                <button onclick="zoomToPeriod('2007-10-01', '2009-06-01')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2008 Crash</button>
-                <button onclick="zoomToPeriod('2011-04-01', '2012-03-01')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">Euro 2011</button>
-                <button onclick="zoomToPeriod('2019-11-01', '2020-12-31')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">COVID 2020</button>
-                <button onclick="zoomToPeriod('2021-11-01', '2023-03-01')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2022 Inflation</button>
+                <button id="btn-period-all" onclick="zoomToPeriod('2007-01-01', '2026-10-21', 'btn-period-all')" class="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-700 text-white shadow-xs">All</button>
+                <button id="btn-period-2008" onclick="zoomToPeriod('2007-10-01', '2009-06-01', 'btn-period-2008')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2008 Crash</button>
+                <button id="btn-period-2011" onclick="zoomToPeriod('2011-04-01', '2012-03-01', 'btn-period-2011')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">Euro 2011</button>
+                <button id="btn-period-2020" onclick="zoomToPeriod('2019-11-01', '2020-12-31', 'btn-period-2020')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">COVID 2020</button>
+                <button id="btn-period-2022" onclick="zoomToPeriod('2021-11-01', '2023-03-01', 'btn-period-2022')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2022 Inflation</button>
               </div>
 
               <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">

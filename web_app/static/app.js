@@ -285,6 +285,57 @@ function initMainCharts() {
 
   echarts.connect([mainChart, ddChart]);
 
+  let isZoomSyncing = false;
+  mainChart.on('datazoom', (params) => {
+    if (isZoomSyncing || !ddChart) return;
+    isZoomSyncing = true;
+    try {
+      if (params.batch && params.batch.length > 0) {
+        const b = params.batch[0];
+        ddChart.dispatchAction({
+          type: 'dataZoom',
+          start: b.start,
+          end: b.end,
+          startValue: b.startValue,
+          endValue: b.endValue,
+        });
+      } else if (params.start !== undefined && params.end !== undefined) {
+        ddChart.dispatchAction({
+          type: 'dataZoom',
+          start: params.start,
+          end: params.end,
+        });
+      }
+    } finally {
+      setTimeout(() => { isZoomSyncing = false; }, 20);
+    }
+  });
+
+  ddChart.on('datazoom', (params) => {
+    if (isZoomSyncing || !mainChart) return;
+    isZoomSyncing = true;
+    try {
+      if (params.batch && params.batch.length > 0) {
+        const b = params.batch[0];
+        mainChart.dispatchAction({
+          type: 'dataZoom',
+          start: b.start,
+          end: b.end,
+          startValue: b.startValue,
+          endValue: b.endValue,
+        });
+      } else if (params.start !== undefined && params.end !== undefined) {
+        mainChart.dispatchAction({
+          type: 'dataZoom',
+          start: params.start,
+          end: params.end,
+        });
+      }
+    } finally {
+      setTimeout(() => { isZoomSyncing = false; }, 20);
+    }
+  });
+
   mainChart.on('click', (params) => {
     if (params.componentType === 'series' && params.seriesType === 'scatter' && params.data && params.data.tradeObj) {
       renderTradeStory(params.data.tradeObj);
@@ -308,12 +359,50 @@ function setChartScale(scaleType) {
   updateMainCharts();
 }
 
-function zoomToPeriod(startDate, endDate) {
-  if (!mainChart) return;
-  mainChart.dispatchAction({
+function zoomToPeriod(startDate, endDate, btnId = '') {
+  if (!mainChart || !APP_DATA) return;
+  const modeData = APP_DATA.modes[ACTIVE_MODE_ID];
+  const curve = modeData.monthly_curve || [];
+  if (curve.length === 0) return;
+  const dates = curve.map((pt) => pt.date);
+
+  // Find exact matching / clamped category dates from actual time series
+  let sIdx = dates.findIndex((d) => d >= startDate);
+  if (sIdx === -1) sIdx = 0;
+
+  let eIdx = -1;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (dates[i] <= endDate) {
+      eIdx = i;
+      break;
+    }
+  }
+  if (eIdx === -1 || eIdx < sIdx) eIdx = dates.length - 1;
+
+  const actualStart = dates[sIdx];
+  const actualEnd = dates[eIdx];
+
+  const zoomAction = {
     type: 'dataZoom',
-    startValue: startDate,
-    endValue: endDate,
+    startValue: actualStart,
+    endValue: actualEnd,
+  };
+
+  mainChart.dispatchAction(zoomAction);
+  if (ddChart) {
+    ddChart.dispatchAction(zoomAction);
+  }
+
+  // Highlight active period button if btnId is provided
+  const periodBtns = ['btn-period-all', 'btn-period-2008', 'btn-period-2011', 'btn-period-2020', 'btn-period-2022'];
+  periodBtns.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id === btnId) {
+      el.className = 'px-2.5 py-1 rounded text-xs font-semibold bg-emerald-700 text-white shadow-xs';
+    } else {
+      el.className = 'px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700';
+    }
   });
 }
 
@@ -526,6 +615,9 @@ function updateMainCharts() {
         formatter: (v) => v + '%',
       },
     },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0] },
+    ],
     series: [
       {
         name: 'S&P 500 Drawdown',

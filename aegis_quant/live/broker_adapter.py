@@ -6,6 +6,7 @@ Implementa el Patrón Strategy/Adapter:
   3. IBKRPaperBrokerAdapter  : Adaptador preparado para Interactive Brokers (IB Gateway) para futuro paso a real en Europa.
 """
 
+import time
 import json
 import urllib.request
 import urllib.error
@@ -232,6 +233,22 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         state["last_scan_time"] = now_str
         self.store.save_state(state)
 
+        # Registro contable inmutable para auditoría e IRPF
+        for o in executed_orders:
+            self.store.append_trade_ledger({
+                "timestamp": now_str,
+                "environment": self.store.get_config().get("environment", "PAPER"),
+                "order_id": f"ORD-{int(time.time() * 1000)}",
+                "symbol": o.get("symbol"),
+                "side": o.get("side"),
+                "qty": o.get("qty"),
+                "price_usd": o.get("price"),
+                "notional_usd": o.get("notional_usd"),
+                "motor": o.get("motor"),
+                "reason": o.get("reason"),
+                "status": "FILLED",
+            })
+
         msg = f"Sincronización Paper completada: {len(executed_orders)} órdenes ejecutadas | {len(new_positions)} posiciones activas."
         self.store.append_log(msg, "SUCCESS")
         return True, executed_orders, msg
@@ -273,6 +290,21 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         state["positions"] = []
         state["orders_history"] = (orders + state.get("orders_history", []))[:100]
         self.store.save_state(state)
+
+        for o in orders:
+            self.store.append_trade_ledger({
+                "timestamp": now_str,
+                "environment": self.store.get_config().get("environment", "PAPER"),
+                "order_id": f"ORD-KILL-{int(time.time() * 1000)}",
+                "symbol": o.get("symbol"),
+                "side": o.get("side"),
+                "qty": o.get("qty"),
+                "price_usd": o.get("price"),
+                "notional_usd": o.get("notional_usd"),
+                "motor": o.get("motor"),
+                "reason": o.get("reason"),
+                "status": "FILLED",
+            })
 
         msg = f"Cierre de emergencia ejecutado: {len(orders)} posiciones liquidadas a efectivo (${total_eq:,.2f} en caja)."
         self.store.append_log(msg, "WARN")
