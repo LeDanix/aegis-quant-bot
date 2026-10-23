@@ -1,0 +1,26 @@
+[project]
+name = "aegis-quant"
+version = "0.1.0"
+description = "Institutional-grade Quantitative Trading Engine (Mode 3 Multi-Engine + VTS Volatility Regime Filtering)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Aegis Quant Team", email = "dev@aegis-quant.local"}
+]
+dependencies = [
+    "requests>=2.31.0",
+    "urllib3>=2.0.0"
+]
+
+[project.scripts]
+aegis-server = "web_app.server:main"
+
+[tool.poetry]
+packages = [{include = "aegis_quant"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"

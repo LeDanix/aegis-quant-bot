@@ -298,21 +298,36 @@ class LiveBotController:
             self.store.save_state(fresh)
             return {"ok": True, "message": f"Cuenta Paper Trading reiniciada a ${cap:,.2f}."}
 
+        if action == "TEST_SIGNAL":
+            cfg = self.store.get_config()
+            notifier = MultiChannelNotifier(cfg)
+            ok, msg = notifier.signal.send_message(
+                "Aegis-Quant Signal Alert: Connection verified successfully. Real-time trading updates active."
+            )
+            self.store.append_log(f"Signal notification test: {msg}", "INFO" if ok else "WARN")
+            return {"ok": ok, "message": msg}
+
+        if action == "TEST_TELEGRAM":
+            cfg = self.store.get_config()
+            notifier = MultiChannelNotifier(cfg)
+            ok, msg = notifier.telegram.send_message(
+                "<b>Aegis-Quant Telegram Alert</b>\nConnection verified successfully. Real-time trading updates active."
+            )
+            self.store.append_log(f"Telegram notification test: {msg}", "INFO" if ok else "WARN")
+            return {"ok": ok, "message": msg}
+
         if action == "TEST_NOTIFICATION":
             cfg = self.store.get_config()
             notifier = MultiChannelNotifier(cfg)
             ok, msg = notifier.notify(
-                "<b>Prueba de Conexion Movil Aegis-Quant</b>\n"
-                "Servidor conectado correctamente. Recibiras aqui cada operacion del bot."
+                "<b>Aegis-Quant Mobile Alert</b>\nServer connected. You will receive each trade execution here."
             )
-            self.store.append_log(f"Prueba de notificacion movil: {msg}", "INFO" if ok else "WARN")
+            self.store.append_log(f"Mobile notification test: {msg}", "INFO" if ok else "WARN")
             return {"ok": ok, "message": msg}
 
-        return {"ok": False, "message": f"Acción desconocida: {action}"}
+        return {"ok": False, "message": f"Unknown action: {action}"}
 
     def _send_mobile_alert(self, text: str) -> None:
         cfg = self.store.get_config()
-        if cfg.get("notify_channel", "NONE") == "NONE":
-            return
         notifier = MultiChannelNotifier(cfg)
         notifier.notify(text)

@@ -1,7 +1,7 @@
 /**
  * Aegis-Quant | Frontend Controller (app.js)
- * Estilo minimalista blanco y verde, sin emojis ni textos redundantes.
- * Enfoque unificado en Modo 3 Élite vs S&P 500.
+ * Institutional Minimalist Theme (Green & White), English Language Standard.
+ * Unified on Mode 3 Élite vs S&P 500 (2007–2026).
  */
 
 let APP_DATA = null;
@@ -10,77 +10,76 @@ let ACTIVE_MOTOR_FILTER = 'TOP_IMPACT'; // 'NONE', 'TOP_IMPACT', 'M1_PULLBACK', 
 let CHART_SCALE = 'value'; // 'value' | 'log'
 let LIVE_CONFIG_INITIALIZED = false;
 
-// Instancias de Apache ECharts
+// Apache ECharts Instances
 let mainChart = null;
 let ddChart = null;
-let crisisBarChart = null;
 let subperiodsChart = null;
 let monteCarloChart = null;
 let frictionChart = null;
 
-// Metadatos de motores
+// Engine Metadata & Explanations
 const MOTOR_META = {
   M1_PULLBACK: {
     id: 'M1_PULLBACK',
-    shortName: 'Motor 1: Compras en Caídas Rápidas (Pullback)',
+    shortName: 'Engine 1: Oversold Pullback (M1)',
     badge: 'M1 Pullback',
     color: '#059669',
     symbolShape: 'circle',
-    plainExplanation: 'El mercado estaba en tendencia alcista primaria (sobre la media de 200 días), pero sufrió caídas bruscas acumuladas durante 3 sesiones consecutivas (RSI(2) < 10). El bot compró esperando una reversión rápida a la media.',
+    plainExplanation: 'Market was in a primary bull trend (above 200-day moving average) but suffered an abrupt 3-day drop (RSI(2) < 10). The engine bought cheap shares expecting a sharp 3 to 5 day mean reversion.',
   },
   M2_VIX_DIV: {
     id: 'M2_VIX_DIV',
-    shortName: 'Motor 2: Divergencia de Volatilidad (VIX)',
-    badge: 'M2 Giro VIX',
+    shortName: 'Engine 2: Volatility Divergence (M2)',
+    badge: 'M2 VIX Div',
     color: '#0284c7',
     symbolShape: 'diamond',
-    plainExplanation: 'El índice de volatilidad VIX se disparó por pánico en los últimos 5 días, pero comenzó a contraerse mientras el precio de los índices seguía deprimido. Señal de agotamiento en la presión vendedora.',
+    plainExplanation: 'The CBOE VIX fear index spiked on institutional panic over the last 5 days but began deflating while index prices remained depressed. Clear sign of selling exhaustion.',
   },
   M3_BEAR_SHORT: {
     id: 'M3_BEAR_SHORT',
-    shortName: 'Motor 3: Posiciones Cortas en Régimen Bajista',
-    badge: 'M3 Cortos Crisis',
+    shortName: 'Engine 3: Bear Market Short (M3)',
+    badge: 'M3 Crisis Short',
     color: '#e11d48',
     symbolShape: 'triangle',
-    plainExplanation: 'El mercado se encontraba en tendencia bajista confirmada (bajo la media de 200 días y con alta volatilidad). Tras un rebote técnico débil de 2 días, el bot abrió posición corta para rentabilizar la caída.',
+    plainExplanation: 'The market was in a confirmed secular bear regime (below 200-day moving average with high volatility). Following a weak 2-day bear rally, the engine shorted the index to profit from the downtrend.',
   },
   M4_CTA_TREND: {
     id: 'M4_CTA_TREND',
-    shortName: 'Motor 4: Seguimiento de Tendencias CTA (Materias Primas y Bonos)',
-    badge: 'M4 CTA Tendencias',
+    shortName: 'Engine 4: Multi-Asset CTA Trends (M4)',
+    badge: 'M4 CTA Trend',
     color: '#d97706',
     symbolShape: 'rect',
-    plainExplanation: 'Ruptura alcista por canales Donchian de 20 días en activos no correlacionados (Oro GLD, Petróleo USO, Soja o Bonos TLT). Captura flujos institucionales hacia activos refugio o materias primas.',
+    plainExplanation: 'Breakout above 20-day Donchian channels in uncorrelated crisis hedges (Gold GLD, Crude Oil USO, Soybeans SOYB, or Long Treasuries TLT). Captures persistent commodity and safe-haven flows.',
   },
   M5_VOL_CRUSH: {
     id: 'M5_VOL_CRUSH',
-    shortName: 'Motor 5: Compra Institucional Post-Pánico (Vol-Crush)',
+    shortName: 'Engine 5: Post-Panic Vol-Crush (M5)',
     badge: 'M5 Vol-Crush',
     color: '#7c3aed',
     symbolShape: 'pin',
-    plainExplanation: 'La estructura temporal de volatilidad (VIX frente a VIX3M) colapsó más de un 5% en una sola sesión. Marca el punto de inflexión donde las instituciones recompran riesgo tras una tormenta.',
+    plainExplanation: 'The volatility term structure backwardation (VIX over VIX3M) collapsed by more than 5% in a single session. Signals the exact pivot where major institutions re-enter risk assets.',
   },
   CORE_BULL: {
     id: 'CORE_BULL',
-    shortName: 'Núcleo S&P 500 y Nasdaq 100',
-    badge: 'Core Inteligente',
+    shortName: 'Intelligent Core Indexing (SPY/QQQ)',
+    badge: 'Core Bull',
     color: '#065f46',
     symbolShape: 'circle',
-    plainExplanation: 'Asignación núcleo pasiva cuando la estructura de volatilidad está en contango normal (VIX < VIX3M). El capital genera rendimiento sostenido sin costes de rotación innecesarios.',
+    plainExplanation: 'Passive core allocation during healthy Contango regimes (VIX < VIX3M). Capital compounds without turnover drag.',
   },
 };
 
 const ASSET_NAMES = {
   SPY: 'S&P 500 ETF (SPY)',
   QQQ: 'Nasdaq 100 ETF (QQQ)',
-  GLD: 'Oro Físico ETF (GLD)',
-  TLT: 'Bonos Tesoro 20+ Años (TLT)',
-  USO: 'Petróleo Crudo WTI (USO)',
-  SOYB: 'Soja Futuros ETF (SOYB)',
-  ZS: 'Futuros de Soja (ZS / SOYB)',
+  GLD: 'Physical Gold ETF (GLD)',
+  TLT: '20+ Year Treasury Bond ETF (TLT)',
+  USO: 'WTI Crude Oil ETF (USO)',
+  SOYB: 'Soybeans Futures ETF (SOYB)',
+  ZS: 'Soybeans Futures (ZS / SOYB)',
 };
 
-// Formateadores numéricos
+// Numeric Formatters
 function fmtUSD(val) {
   return '$' + Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
@@ -91,14 +90,13 @@ function fmtPct(val, sign = true) {
   return prefix + n.toFixed(2) + '%';
 }
 
-// Inicialización de la aplicación
+// Application Lifecycle
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     const res = await fetch('/api/summary');
     APP_DATA = await res.json();
 
     initMotorFilterButtons();
-    initMainCharts();
     renderMotorBreakdownCards();
     renderDefaultTradeStory();
     renderYearlyTable();
@@ -107,28 +105,27 @@ window.addEventListener('DOMContentLoaded', async () => {
     renderLiveScan();
     await fetchLiveStatus(true);
 
-    // Sondeo de estado en vivo cada 5 segundos
+    // Live status polling every 5 seconds
     setInterval(() => {
       fetchLiveStatus(false);
     }, 5000);
 
     window.addEventListener('resize', handleWindowResize);
   } catch (err) {
-    console.error('Error al inicializar la aplicación:', err);
+    console.error('Initialization error:', err);
   }
 });
 
 function handleWindowResize() {
   if (mainChart) mainChart.resize();
   if (ddChart) ddChart.resize();
-  if (crisisBarChart) crisisBarChart.resize();
   if (subperiodsChart) subperiodsChart.resize();
   if (monteCarloChart) monteCarloChart.resize();
   if (frictionChart) frictionChart.resize();
 }
 
 // ============================================================================
-// NAVEGACIÓN PRINCIPAL Y SUBPESTAÑAS
+// MAIN VIEW NAVIGATION & SUB-TABS
 // ============================================================================
 function switchMainView(viewId) {
   const tabControl = document.getElementById('main-tab-control');
@@ -148,10 +145,16 @@ function switchMainView(viewId) {
     viewPerf.classList.remove('hidden');
     viewControl.classList.add('hidden');
 
+    // Wait for container to be rendered with actual width before initializing ECharts
     setTimeout(() => {
-      if (mainChart) mainChart.resize();
-      if (ddChart) ddChart.resize();
-    }, 60);
+      if (!mainChart || !ddChart) {
+        initMainCharts();
+      } else {
+        mainChart.resize();
+        ddChart.resize();
+        updateMainCharts();
+      }
+    }, 50);
   }
 }
 
@@ -171,18 +174,22 @@ function switchPerfSubTab(subId) {
 
   if (subId === 'chart') {
     setTimeout(() => {
-      if (mainChart) mainChart.resize();
-      if (ddChart) ddChart.resize();
-    }, 60);
+      if (!mainChart || !ddChart) {
+        initMainCharts();
+      } else {
+        mainChart.resize();
+        ddChart.resize();
+      }
+    }, 50);
   } else if (subId === 'crisis') {
     setTimeout(() => {
       initCrisisAndRobustnessCharts();
-    }, 60);
+    }, 50);
   }
 }
 
 // ============================================================================
-// MODAL DE CONFIGURACIÓN (ALPACA Y TELEGRAM / SIGNAL)
+// CONFIGURATION MODAL
 // ============================================================================
 function openConfigModal() {
   const modal = document.getElementById('config-modal');
@@ -197,7 +204,7 @@ function closeConfigModal() {
 }
 
 // ============================================================================
-// FILTROS DE MOTOR EN EL GRÁFICO PRINCIPAL
+// ENGINE FILTERS ON CHART
 // ============================================================================
 function initMotorFilterButtons() {
   const container = document.getElementById('motor-filter-buttons');
@@ -207,19 +214,18 @@ function initMotorFilterButtons() {
   const breakdown = modeData.engine_breakdown || {};
 
   const filters = [
-    { id: 'TOP_IMPACT', label: 'Top 35 Operaciones Clave', color: '#059669' },
-    { id: 'NONE', label: 'Ocultar Puntos (Solo Curvas)', color: '#64748b' },
-    { id: 'M1_PULLBACK', label: `M1 Pullback (${breakdown.M1_PULLBACK?.trades || 0})`, color: '#059669' },
-    { id: 'M2_VIX_DIV', label: `M2 Giro VIX (${breakdown.M2_VIX_DIV?.trades || 0})`, color: '#0284c7' },
-    { id: 'M3_BEAR_SHORT', label: `M3 Cortos Crisis (${breakdown.M3_BEAR_SHORT?.trades || 0})`, color: '#e11d48' },
-    { id: 'M4_CTA_TREND', label: `M4 CTA Tendencias (${breakdown.M4_CTA_TREND?.trades || 0})`, color: '#d97706' },
+    { id: 'TOP_IMPACT', label: 'Top 35 Key Trades' },
+    { id: 'NONE', label: 'Hide Markers (Lines Only)' },
+    { id: 'M1_PULLBACK', label: `M1 Pullback (${breakdown.M1_PULLBACK?.trades || 0})` },
+    { id: 'M2_VIX_DIV', label: `M2 VIX Div (${breakdown.M2_VIX_DIV?.trades || 0})` },
+    { id: 'M3_BEAR_SHORT', label: `M3 Crisis Short (${breakdown.M3_BEAR_SHORT?.trades || 0})` },
+    { id: 'M4_CTA_TREND', label: `M4 CTA Trend (${breakdown.M4_CTA_TREND?.trades || 0})` },
   ];
 
   if (breakdown.M5_VOL_CRUSH) {
     filters.push({
       id: 'M5_VOL_CRUSH',
       label: `M5 Vol-Crush (${breakdown.M5_VOL_CRUSH.trades})`,
-      color: '#7c3aed',
     });
   }
 
@@ -230,7 +236,7 @@ function initMotorFilterButtons() {
         ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
         : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-300';
       return `
-        <button onclick="setMotorFilter('${f.id}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${cls}">
+        <button onclick="setMotorFilter('${f.id}')" class="px-2.5 py-1 rounded-md text-xs font-semibold border transition ${cls}">
           ${f.label}
         </button>
       `;
@@ -263,12 +269,16 @@ function jumpToMotorOnChart(motorId) {
 }
 
 // ============================================================================
-// GRÁFICO FINANCIERO ECHARTS (ESTILO INSTITUCIONAL BLANCO / VERDE)
+// APACHE ECHARTS 5 EQUITY & DRAWDOWN CHARTS
 // ============================================================================
 function initMainCharts() {
   const chartEl = document.getElementById('main-equity-chart');
   const ddEl = document.getElementById('drawdown-chart');
-  if (!chartEl || !ddEl) return;
+  if (!chartEl || !ddEl || !APP_DATA) return;
+
+  // Destroy previous instances if any
+  if (mainChart) mainChart.dispose();
+  if (ddChart) ddChart.dispose();
 
   mainChart = echarts.init(chartEl);
   ddChart = echarts.init(ddEl);
@@ -333,14 +343,12 @@ function getFilteredScatterTrades(modeData, curveDates) {
 
     return {
       name: `${t.engine_id} (${t.symbol})`,
-      value: [closestDate, t.equity_after_usd],
+      value: [closestDate, t.eq_at_exit],
       tradeObj: t,
       itemStyle: {
         color: isWin ? mMeta.color : '#e11d48',
         borderColor: '#ffffff',
         borderWidth: 1.5,
-        shadowBlur: 3,
-        shadowColor: 'rgba(0,0,0,0.15)',
       },
       symbol: mMeta.symbolShape || 'circle',
       symbolSize: 8,
@@ -352,10 +360,12 @@ function updateMainCharts() {
   if (!mainChart || !ddChart || !APP_DATA) return;
 
   const modeData = APP_DATA.modes[ACTIVE_MODE_ID];
-  const curve = modeData.equity_curve || [];
-  const dates = curve.map((pt) => pt[0]);
-  const modeValues = curve.map((pt) => pt[1]);
-  const sp500Values = (APP_DATA.benchmark.equity_curve || []).map((pt) => pt[1]);
+  const curve = modeData.monthly_curve || [];
+  if (curve.length === 0) return;
+
+  const dates = curve.map((pt) => pt.date);
+  const modeValues = curve.map((pt) => pt.bot_eq);
+  const sp500Values = curve.map((pt) => pt.spy_eq);
 
   const scatterData = getFilteredScatterTrades(modeData, dates);
 
@@ -363,7 +373,7 @@ function updateMainCharts() {
     backgroundColor: '#ffffff',
     animation: false,
     grid: {
-      left: '52px',
+      left: '56px',
       right: '24px',
       top: '32px',
       bottom: '36px',
@@ -391,7 +401,7 @@ function updateMainCharts() {
       },
     },
     legend: {
-      data: ['Modo 3 Élite (5 Motores + VTS)', 'S&P 500 (Buy & Hold)'],
+      data: ['Mode 3 Élite (5 Engines + VTS)', 'S&P 500 (Buy & Hold)'],
       right: '16px',
       top: '6px',
       textStyle: { color: '#475569', fontSize: 11, fontFamily: 'Inter' },
@@ -429,7 +439,7 @@ function updateMainCharts() {
         itemStyle: { color: '#94a3b8' },
       },
       {
-        name: 'Modo 3 Élite (5 Motores + VTS)',
+        name: 'Mode 3 Élite (5 Engines + VTS)',
         type: 'line',
         data: modeValues,
         smooth: false,
@@ -444,7 +454,7 @@ function updateMainCharts() {
         },
       },
       {
-        name: 'Operaciones',
+        name: 'Trade Executions',
         type: 'scatter',
         data: scatterData,
         z: 10,
@@ -454,9 +464,9 @@ function updateMainCharts() {
             return `
               <div class="font-sans text-xs">
                 <div class="font-bold text-slate-800">${t.engine_id} · ${t.direction} ${t.symbol}</div>
-                <div class="text-slate-500 text-[11px]">${t.entry_date} → ${t.exit_date} (${t.holding_days}d)</div>
+                <div class="text-slate-500 text-[11px]">${t.entry_date} → ${t.exit_date} (${t.days}d)</div>
                 <div class="mt-1 font-mono font-bold ${t.portfolio_ret_pct >= 0 ? 'text-emerald-700' : 'text-red-700'}">
-                  Resultado: ${fmtPct(t.portfolio_ret_pct)} ($${t.portfolio_pnl_usd.toFixed(2)})
+                  Portfolio Gain: ${fmtPct(t.portfolio_ret_pct)} ($${t.eq_at_exit.toFixed(2)})
                 </div>
               </div>
             `;
@@ -468,15 +478,15 @@ function updateMainCharts() {
 
   mainChart.setOption(mainOption, true);
 
-  // Subgráfico Drawdown
-  const ddValues = modeData.drawdown_curve.map((pt) => pt[1]);
-  const spDdValues = (APP_DATA.benchmark.drawdown_curve || []).map((pt) => pt[1]);
+  // Drawdown Sub-Chart
+  const ddValues = curve.map((pt) => pt.bot_dd);
+  const spDdValues = curve.map((pt) => pt.spy_dd);
 
   const ddOption = {
     backgroundColor: '#ffffff',
     animation: false,
     grid: {
-      left: '52px',
+      left: '56px',
       right: '24px',
       top: '12px',
       bottom: '24px',
@@ -518,7 +528,7 @@ function updateMainCharts() {
     },
     series: [
       {
-        name: 'Drawdown S&P 500',
+        name: 'S&P 500 Drawdown',
         type: 'line',
         data: spDdValues,
         showSymbol: false,
@@ -526,7 +536,7 @@ function updateMainCharts() {
         areaStyle: { color: 'rgba(203, 213, 225, 0.3)' },
       },
       {
-        name: 'Drawdown Modo 3 Élite',
+        name: 'Mode 3 Élite Drawdown',
         type: 'line',
         data: ddValues,
         showSymbol: false,
@@ -540,13 +550,12 @@ function updateMainCharts() {
 }
 
 // ============================================================================
-// TARJETA LATERAL DE DETALLE DE OPERACIÓN
+// TRADE STORY DETAIL CARD
 // ============================================================================
 function renderDefaultTradeStory() {
   if (!APP_DATA) return;
   const trades = APP_DATA.modes[ACTIVE_MODE_ID].trades || [];
   if (trades.length === 0) return;
-  // Operación representativa (ej. la de mayor rentabilidad)
   const best = [...trades].sort((a, b) => b.portfolio_ret_pct - a.portfolio_ret_pct)[0];
   renderTradeStory(best);
 }
@@ -569,25 +578,25 @@ function renderTradeStory(t) {
 
       <div class="border-t border-b border-slate-100 py-2.5 space-y-1.5 font-mono text-xs">
         <div class="flex justify-between">
-          <span class="text-slate-500 font-sans">Periodo:</span>
-          <span class="font-medium text-slate-800">${t.entry_date} → ${t.exit_date} (${t.holding_days}d)</span>
+          <span class="text-slate-500 font-sans">Holding Period:</span>
+          <span class="font-medium text-slate-800">${t.entry_date} → ${t.exit_date} (${t.days}d)</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-500 font-sans">Resultado en cartera:</span>
-          <span class="font-bold ${retColor}">${fmtPct(t.portfolio_ret_pct)} ($${t.portfolio_pnl_usd.toFixed(2)})</span>
+          <span class="text-slate-500 font-sans">Portfolio Return:</span>
+          <span class="font-bold ${retColor}">${fmtPct(t.portfolio_ret_pct)}</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-500 font-sans">Retorno del activo:</span>
-          <span class="font-medium text-slate-800">${fmtPct(t.asset_ret_pct)}</span>
+          <span class="text-slate-500 font-sans">Asset Price Move:</span>
+          <span class="font-medium text-slate-800">${fmtPct(t.raw_ret_pct)} ($${t.entry_price} → $${t.exit_price})</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-500 font-sans">Motivo de salida:</span>
-          <span class="font-medium text-slate-800 text-[11px]">${t.exit_reason || 'Condición de toma de beneficios'}</span>
+          <span class="text-slate-500 font-sans">Exit Rule:</span>
+          <span class="font-medium text-slate-800 text-[11px]">${t.exit_reason || 'Target Profit Exit'}</span>
         </div>
       </div>
 
       <div>
-        <h4 class="text-xs font-semibold text-slate-900 uppercase tracking-wider text-[11px]">Lógica del algoritmo:</h4>
+        <h4 class="text-xs font-semibold text-slate-900 uppercase tracking-wider text-[11px]">Quantitative Edge:</h4>
         <p class="text-xs text-slate-600 mt-1 leading-relaxed">${meta.plainExplanation}</p>
       </div>
     </div>
@@ -595,7 +604,7 @@ function renderTradeStory(t) {
 }
 
 // ============================================================================
-// RESUMEN DE LOS 5 MOTORES EN LA VISTA GRÁFICO
+// ENGINE BREAKDOWN CARDS
 // ============================================================================
 function renderMotorBreakdownCards() {
   const container = document.getElementById('motor-breakdown-cards');
@@ -603,7 +612,6 @@ function renderMotorBreakdownCards() {
 
   const modeData = APP_DATA.modes[ACTIVE_MODE_ID];
   const breakdown = modeData.engine_breakdown || {};
-
   const order = ['M1_PULLBACK', 'M2_VIX_DIV', 'M3_BEAR_SHORT', 'M4_CTA_TREND', 'M5_VOL_CRUSH'];
 
   container.innerHTML = order
@@ -612,21 +620,21 @@ function renderMotorBreakdownCards() {
       const meta = MOTOR_META[mKey];
       if (!b) return '';
 
-      const winColor = b.win_rate_pct >= 60 ? 'text-emerald-700' : 'text-slate-700';
+      const winColor = b.win_rate >= 60 ? 'text-emerald-700' : 'text-slate-700';
 
       return `
         <div class="p-3 rounded-lg border border-slate-200 bg-white hover:border-brand-500 transition cursor-pointer" onclick="jumpToMotorOnChart('${mKey}')">
           <div class="flex items-center justify-between">
             <span class="text-xs font-semibold text-slate-900">${meta.shortName}</span>
-            <span class="text-[11px] font-mono font-bold text-brand-800 bg-brand-50 px-2 py-0.5 rounded border border-brand-100">${b.trades} ops</span>
+            <span class="text-[11px] font-mono font-bold text-brand-800 bg-brand-50 px-2 py-0.5 rounded border border-brand-100">${b.trades} trades</span>
           </div>
           <div class="grid grid-cols-3 gap-2 mt-2 font-mono text-xs text-slate-600">
             <div>
-              <span class="text-[10px] text-slate-400 block font-sans">Acierto</span>
-              <span class="font-bold ${winColor}">${b.win_rate_pct}%</span>
+              <span class="text-[10px] text-slate-400 block font-sans">Win Rate</span>
+              <span class="font-bold ${winColor}">${b.win_rate}%</span>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block font-sans">Beneficio Neto</span>
+              <span class="text-[10px] text-slate-400 block font-sans">Net P&amp;L</span>
               <span class="font-bold text-slate-900">${fmtUSD(b.total_pnl_usd)}</span>
             </div>
             <div>
@@ -641,78 +649,61 @@ function renderMotorBreakdownCards() {
 }
 
 // ============================================================================
-// ROBUSTEZ Y COMPARATIVA EN CRISIS (SUBPESTAÑA 3)
+// CRISIS & ROBUSTNESS ANALYTICS (SUB-TAB 3)
 // ============================================================================
 function initCrisisAndRobustnessCharts() {
   if (!APP_DATA) return;
-  const modeData = APP_DATA.modes[ACTIVE_MODE_ID];
 
-  // 1. Gráfico de Crisis
-  const crisisEl = document.getElementById('crisis-bar-chart');
-  if (crisisEl) {
-    if (!crisisBarChart) crisisBarChart = echarts.init(crisisEl);
-    const ct = modeData.crisis_table || [];
-    const categories = ct.map((c) => c.crisis_name.split(' (')[0]);
-    const m3Vals = ct.map((c) => c.mode_ret_pct);
-    const spVals = ct.map((c) => c.sp500_ret_pct);
+  // 1. Subperiods Chart
+  const subEl = document.getElementById('subperiods-chart');
+  if (subEl) {
+    if (subperiodsChart) subperiodsChart.dispose();
+    subperiodsChart = echarts.init(subEl);
+    const sp = APP_DATA.robustness?.subperiods || [];
+    const periods = sp.map((s) => s.period.split(' (')[0]);
+    const m3Vals = sp.map((s) => s.bot_cum_ret_pct);
+    const spVals = sp.map((s) => s.spy_cum_ret_pct);
 
-    crisisBarChart.setOption({
+    subperiodsChart.setOption({
       backgroundColor: '#ffffff',
-      grid: { left: '44px', right: '16px', top: '32px', bottom: '28px' },
-      tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>${p[0].seriesName}: ${p[0].value}%<br/>${p[1].seriesName}: ${p[1].value}%` },
-      legend: { data: ['Modo 3 Élite', 'S&P 500'], top: 0, textStyle: { color: '#64748b', fontSize: 11 } },
-      xAxis: { type: 'category', data: categories, axisLabel: { color: '#64748b', fontSize: 11 } },
+      grid: { left: '48px', right: '16px', top: '32px', bottom: '28px' },
+      tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>${p[0].seriesName}: +${p[0].value}%<br/>${p[1].seriesName}: ${p[1].value}%` },
+      legend: { data: ['Mode 3 Élite', 'S&P 500'], top: 0, textStyle: { color: '#64748b', fontSize: 11 } },
+      xAxis: { type: 'category', data: periods, axisLabel: { color: '#64748b', fontSize: 11 } },
       yAxis: { type: 'value', axisLabel: { formatter: '{value}%', color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
       series: [
-        { name: 'Modo 3 Élite', type: 'bar', data: m3Vals, itemStyle: { color: '#059669', borderRadius: [4, 4, 0, 0] } },
+        { name: 'Mode 3 Élite', type: 'bar', data: m3Vals, itemStyle: { color: '#059669', borderRadius: [4, 4, 0, 0] } },
         { name: 'S&P 500', type: 'bar', data: spVals, itemStyle: { color: '#94a3b8', borderRadius: [4, 4, 0, 0] } },
       ],
     }, true);
   }
 
-  // 2. Gráfico de Subperiodos
-  const subEl = document.getElementById('subperiods-chart');
-  if (subEl) {
-    if (!subperiodsChart) subperiodsChart = echarts.init(subEl);
-    const sp = modeData.subperiods || [];
-    const periods = sp.map((s) => s.period);
-    const m3Cagr = sp.map((s) => s.mode_cagr_pct);
-    const spCagr = sp.map((s) => s.sp500_cagr_pct);
-
-    subperiodsChart.setOption({
-      backgroundColor: '#ffffff',
-      grid: { left: '44px', right: '16px', top: '32px', bottom: '28px' },
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['Modo 3 Élite (CAGR)', 'S&P 500 (CAGR)'], top: 0, textStyle: { color: '#64748b', fontSize: 11 } },
-      xAxis: { type: 'category', data: periods, axisLabel: { color: '#64748b', fontSize: 11 } },
-      yAxis: { type: 'value', axisLabel: { formatter: '{value}%', color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
-      series: [
-        { name: 'Modo 3 Élite (CAGR)', type: 'bar', data: m3Cagr, itemStyle: { color: '#059669', borderRadius: [4, 4, 0, 0] } },
-        { name: 'S&P 500 (CAGR)', type: 'bar', data: spCagr, itemStyle: { color: '#94a3b8', borderRadius: [4, 4, 0, 0] } },
-      ],
-    }, true);
-  }
-
-  // 3. Monte Carlo
+  // 2. Monte Carlo Simulation Chart
   const mcEl = document.getElementById('montecarlo-chart');
   if (mcEl) {
-    if (!monteCarloChart) monteCarloChart = echarts.init(mcEl);
-    const mc = modeData.monte_carlo || { p10_equity: 180000, p50_equity: 280000, p90_equity: 420000 };
+    if (monteCarloChart) monteCarloChart.dispose();
+    monteCarloChart = echarts.init(mcEl);
+    const mc = APP_DATA.robustness?.monte_carlo || {};
+    const p5 = mc.p5_pessimistic?.final_equity || 57979;
+    const p25 = mc.p25_conservative?.final_equity || 92332;
+    const p50 = mc.p50_median?.final_equity || 126900;
+    const p75 = mc.p75_optimistic?.final_equity || 173767;
+    const p95 = mc.p95_extreme?.final_equity || 263010;
 
     monteCarloChart.setOption({
       backgroundColor: '#ffffff',
       grid: { left: '60px', right: '16px', top: '24px', bottom: '28px' },
-      tooltip: { trigger: 'axis' },
-      xAxis: { type: 'category', data: ['Percentil 10 (Adverso)', 'Percentil 50 (Mediana)', 'Percentil 90 (Favorable)'], axisLabel: { color: '#64748b', fontSize: 10 } },
+      tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}: $${Number(p[0].value).toLocaleString('en-US', { maximumFractionDigits: 0 })}` },
+      xAxis: { type: 'category', data: ['P5 (Worst)', 'P25 (Cons)', 'P50 (Median)', 'P75 (Opt)', 'P95 (Extreme)'], axisLabel: { color: '#64748b', fontSize: 10 } },
       yAxis: { type: 'value', axisLabel: { formatter: (v) => '$' + Math.round(v / 1000) + 'k', color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
       series: [
         {
-          name: 'Capital Final Simulado',
+          name: 'Ending Capital',
           type: 'bar',
-          data: [mc.p10_equity, mc.p50_equity, mc.p90_equity],
+          data: [p5, p25, p50, p75, p95],
           itemStyle: {
             color: function (params) {
-              const colors = ['#f59e0b', '#059669', '#047857'];
+              const colors = ['#f59e0b', '#10b981', '#059669', '#047857', '#064e3b'];
               return colors[params.dataIndex];
             },
             borderRadius: [4, 4, 0, 0],
@@ -722,29 +713,30 @@ function initCrisisAndRobustnessCharts() {
     }, true);
   }
 
-  // 4. Fricción y Comisiones
+  // 3. Friction & Slippage Chart
   const frEl = document.getElementById('friction-chart');
   if (frEl) {
-    if (!frictionChart) frictionChart = echarts.init(frEl);
-    const fr = modeData.friction_analysis || [
-      { fee_pct: 0.0, net_cagr: 18.38 },
-      { fee_pct: 0.05, net_cagr: 17.25 },
-      { fee_pct: 0.1, net_cagr: 16.12 },
-      { fee_pct: 0.2, net_cagr: 13.88 },
-      { fee_pct: 0.3, net_cagr: 11.65 },
+    if (frictionChart) frictionChart.dispose();
+    frictionChart = echarts.init(frEl);
+    const fr = APP_DATA.robustness?.friction_test || [
+      { scenario: '0 bps', cagr_pct: 18.35 },
+      { scenario: '5 bps', cagr_pct: 17.25 },
+      { scenario: '10 bps', cagr_pct: 16.16 },
+      { scenario: '20 bps', cagr_pct: 14.01 },
+      { scenario: '35 bps', cagr_pct: 10.86 },
     ];
 
     frictionChart.setOption({
       backgroundColor: '#ffffff',
       grid: { left: '44px', right: '16px', top: '24px', bottom: '28px' },
-      tooltip: { trigger: 'axis', formatter: (p) => `Comisión: ${p[0].name}%<br/>CAGR Neto: ${p[0].value}%` },
-      xAxis: { type: 'category', data: fr.map((f) => f.fee_pct + '%'), axisLabel: { color: '#64748b', fontSize: 11 } },
+      tooltip: { trigger: 'axis', formatter: (p) => `${p[0].name}<br/>Net CAGR: ${p[0].value}%` },
+      xAxis: { type: 'category', data: fr.map((f) => f.scenario.split(' (')[0]), axisLabel: { color: '#64748b', fontSize: 11 } },
       yAxis: { type: 'value', min: 8, axisLabel: { formatter: '{value}%', color: '#64748b' }, splitLine: { lineStyle: { color: '#f1f5f9' } } },
       series: [
         {
-          name: 'CAGR Neto',
+          name: 'Net CAGR',
           type: 'line',
-          data: fr.map((f) => f.net_cagr),
+          data: fr.map((f) => f.cagr_pct),
           itemStyle: { color: '#059669' },
           lineStyle: { width: 2.5, color: '#059669' },
         },
@@ -758,16 +750,13 @@ function renderYearlyTable() {
   if (!tbody || !APP_DATA) return;
 
   const modeData = APP_DATA.modes[ACTIVE_MODE_ID];
-  const mYears = modeData.yearly_returns || {};
-  const spYears = APP_DATA.benchmark.yearly_returns || {};
+  const yearly = modeData.yearly || [];
 
-  const allYears = Array.from(new Set([...Object.keys(mYears), ...Object.keys(spYears)])).sort().reverse();
-
-  tbody.innerHTML = allYears
-    .map((yr) => {
-      const mVal = mYears[yr] ?? 0;
-      const spVal = spYears[yr] ?? 0;
-      const alpha = mVal - spVal;
+  tbody.innerHTML = yearly
+    .map((y) => {
+      const mVal = y.bot_ret_pct;
+      const spVal = y.spy_ret_pct;
+      const alpha = y.alpha_pct;
 
       const mColor = mVal >= 0 ? 'text-emerald-700 font-semibold' : 'text-red-700 font-semibold';
       const spColor = spVal >= 0 ? 'text-slate-800' : 'text-red-700';
@@ -775,7 +764,7 @@ function renderYearlyTable() {
 
       return `
         <tr class="hover:bg-slate-50 transition">
-          <td class="py-2.5 px-4 font-bold text-slate-800">${yr}</td>
+          <td class="py-2.5 px-4 font-bold text-slate-800">${y.year}</td>
           <td class="py-2.5 px-4 text-right ${mColor}">${fmtPct(mVal)}</td>
           <td class="py-2.5 px-4 text-right ${spColor}">${fmtPct(spVal)}</td>
           <td class="py-2.5 px-4 text-right ${alphaColor}">${fmtPct(alpha)}</td>
@@ -786,7 +775,7 @@ function renderYearlyTable() {
 }
 
 // ============================================================================
-// SIMULADOR DE CAPITAL PERSONALIZADO (SUBPESTAÑA 4)
+// PORTFOLIO SIMULATOR (SUB-TAB 4)
 // ============================================================================
 function updateCustomSimulator() {
   if (!APP_DATA) return;
@@ -805,18 +794,17 @@ function updateCustomSimulator() {
   const spCagr = APP_DATA.benchmark.cagr_pct / 100;
   const spFinal = cap * Math.pow(1 + spCagr, years);
 
-  // Ajuste por fricción en Modo 3
   const baseCagr = APP_DATA.modes[ACTIVE_MODE_ID].cagr_pct;
   const netCagr = Math.max(0.01, (baseCagr - (fee * 100 * 0.22)) / 100);
   const m3Final = cap * Math.pow(1 + netCagr, years);
 
   document.getElementById('sim-res-spy').textContent = fmtUSD(spFinal);
   document.getElementById('sim-res-m3elite').textContent = fmtUSD(m3Final);
-  document.getElementById('sim-res-cagr').textContent = `CAGR Neto Estimado: ${(netCagr * 100).toFixed(2)}% anual`;
+  document.getElementById('sim-res-cagr').textContent = `Estimated Net CAGR: ${(netCagr * 100).toFixed(2)}% / year`;
 }
 
 // ============================================================================
-// TABLA HISTÓRICA DE 725 OPERACIONES (SUBPESTAÑA 4)
+// 725 TRADES TABLE
 // ============================================================================
 function renderTradesTable() {
   const tbody = document.getElementById('trades-table-tbody');
@@ -847,11 +835,11 @@ function renderTradesTable() {
   }
 
   if (countLabel) {
-    countLabel.textContent = `Mostrando ${Math.min(trades.length, 50)} de ${trades.length} operaciones registradas`;
+    countLabel.textContent = `Displaying ${Math.min(trades.length, 50)} of ${trades.length} recorded trade executions`;
   }
 
   if (trades.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">No hay operaciones que coincidan con los filtros seleccionados.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">No trades found matching selected filters.</td></tr>`;
     return;
   }
 
@@ -869,8 +857,8 @@ function renderTradesTable() {
           <td class="py-2 px-3 font-bold text-slate-900">${t.symbol}</td>
           <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${dirCls}">${t.direction}</span></td>
           <td class="py-2 px-3 text-right ${retColor} font-bold">${fmtPct(t.portfolio_ret_pct)}</td>
-          <td class="py-2 px-3 text-right text-slate-700 font-bold">$${t.portfolio_pnl_usd.toFixed(2)}</td>
-          <td class="py-2 px-3 text-slate-500 text-[11px] text-right">${t.holding_days}d</td>
+          <td class="py-2 px-3 text-right text-slate-700 font-bold">$${t.eq_at_exit.toFixed(2)}</td>
+          <td class="py-2 px-3 text-slate-500 text-[11px] text-right">${t.days}d</td>
         </tr>
       `;
     })
@@ -878,7 +866,7 @@ function renderTradesTable() {
 }
 
 // ============================================================================
-// RADAR DE MERCADO EN VIVO (PESTAÑA PRINCIPAL CONTROL)
+// DAILY MARKET RADAR
 // ============================================================================
 function renderLiveScan() {
   if (!APP_DATA || !APP_DATA.live_scan) return;
@@ -891,7 +879,7 @@ function renderLiveScan() {
 
   if (dateEl) dateEl.textContent = live.as_of_date || '--';
   if (badgeEl) badgeEl.textContent = live.vts_state || 'CONTANGO';
-  if (detailEl) detailEl.textContent = `VIX: ${live.vix_close} | VIX3M: ${live.vix3m_close} | Ratio VTS: ${live.vts_ratio}`;
+  if (detailEl) detailEl.textContent = `VIX: ${live.vix_close} | VIX3M: ${live.vix3m_close} | VTS Ratio: ${live.vts_ratio}`;
 
   if (gridEl && live.assets) {
     gridEl.innerHTML = live.assets
@@ -906,7 +894,7 @@ function renderLiveScan() {
               <span class="text-[11px] text-slate-500">${ASSET_NAMES[a.symbol] || ''}</span>
             </div>
             <div class="flex items-center gap-4 text-[11px] font-mono">
-              <span class="text-slate-600">Precio: $${a.last_close}</span>
+              <span class="text-slate-600">Close: $${a.last_close}</span>
               <span class="${trendCls}">${a.sma200_trend}</span>
               <span class="font-bold ${isCore ? 'text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded' : 'text-slate-400'}">
                 ${isCore ? a.core_weight_pct + '% Core' : '0%'}
@@ -920,7 +908,7 @@ function renderLiveScan() {
 }
 
 // ============================================================================
-// CONTROL DEL BOT EN VIVO (CENTRO DE OPERACIONES)
+// BOT CONTROL CENTER (LIVE STATE & COMMANDS)
 // ============================================================================
 async function fetchLiveStatus(initForm = false) {
   try {
@@ -929,7 +917,7 @@ async function fetchLiveStatus(initForm = false) {
     renderLiveControlCenter(data, initForm || !LIVE_CONFIG_INITIALIZED);
     LIVE_CONFIG_INITIALIZED = true;
   } catch (err) {
-    console.error('Error al obtener estado del bot:', err);
+    console.error('Error fetching live bot status:', err);
   }
 }
 
@@ -940,7 +928,7 @@ function renderLiveControlCenter(data, populateForm = false) {
   const acct = state.account || {};
   const conn = data.broker_connection || { ok: true, message: '' };
 
-  // 1. Estado en cabecera
+  // 1. Header Badges
   const hdrDot = document.getElementById('hdr-status-dot');
   const hdrStatus = document.getElementById('hdr-status-text');
   const hdrBroker = document.getElementById('hdr-broker-text');
@@ -949,38 +937,40 @@ function renderLiveControlCenter(data, populateForm = false) {
   if (hdrDot) hdrDot.className = `w-2 h-2 rounded-full ${botRunning ? 'bg-brand-600' : 'bg-amber-500'}`;
   if (hdrStatus) {
     hdrStatus.textContent = botRunning
-      ? (cfg.execution_mode === 'AUTO_100' ? 'Activo · 100% Automático' : 'Activo · Modo Copiloto')
-      : 'Pausado';
+      ? (cfg.execution_mode === 'AUTO_100' ? 'Active · 100% Automated' : 'Active · Copilot Mode')
+      : 'Paused';
   }
   if (hdrBroker) {
-    hdrBroker.textContent = cfg.broker_provider === 'ALPACA_PAPER' ? 'Alpaca Paper API' : 'Simulador Paper Local';
+    hdrBroker.textContent = cfg.broker_provider === 'ALPACA_PAPER'
+      ? 'Alpaca Paper API'
+      : (cfg.broker_provider === 'ALPACA_LIVE' ? 'Alpaca Live API' : 'Local Paper Broker');
   }
 
-  // 2. Badges en panel de control
+  // 2. Control Bar Badges
   const statusBadge = document.getElementById('pt-bot-status-badge');
   const toggleBtn = document.getElementById('btn-toggle-bot');
   if (statusBadge && toggleBtn) {
     if (botRunning) {
-      statusBadge.textContent = 'ACTIVO (24/7)';
+      statusBadge.textContent = 'ACTIVE (24/7)';
       statusBadge.className = 'px-2.5 py-0.5 rounded text-xs font-semibold bg-brand-50 text-brand-800 border border-brand-100 font-mono';
-      toggleBtn.textContent = 'Pausar Bot';
+      toggleBtn.textContent = 'Pause Bot';
       toggleBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition';
     } else {
-      statusBadge.textContent = 'PAUSADO';
+      statusBadge.textContent = 'PAUSED';
       statusBadge.className = 'px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono';
-      toggleBtn.textContent = 'Reanudar Bot';
+      toggleBtn.textContent = 'Resume Bot';
       toggleBtn.className = 'px-3.5 py-2 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white transition';
     }
   }
 
   const modeBadge = document.getElementById('pt-mode-badge');
   if (modeBadge) {
-    modeBadge.textContent = cfg.execution_mode === 'AUTO_100' ? '100% Automático' : 'Modo Copiloto';
+    modeBadge.textContent = cfg.execution_mode === 'AUTO_100' ? '100% Automated Mode' : 'Copilot Mode';
   }
 
   const brokerBadge = document.getElementById('pt-broker-badge');
   if (brokerBadge) {
-    brokerBadge.textContent = cfg.broker_provider === 'ALPACA_PAPER' ? 'Alpaca Paper' : 'Paper Local';
+    brokerBadge.textContent = cfg.broker_provider === 'ALPACA_PAPER' ? 'Alpaca Paper' : 'Local Paper';
   }
 
   const connMsg = document.getElementById('pt-connection-msg');
@@ -994,7 +984,7 @@ function renderLiveControlCenter(data, populateForm = false) {
   const schedLabel = document.getElementById('pt-sched-label');
   if (schedLabel) schedLabel.textContent = (cfg.schedule_time_cet || '21:55') + ' CET';
 
-  // 3. Banner Copiloto si hay propuesta pendiente
+  // 3. Copilot Banner
   const copilotBanner = document.getElementById('pt-copilot-banner');
   const copilotDesc = document.getElementById('pt-copilot-desc');
   const pending = state.pending_confirmations || [];
@@ -1004,14 +994,14 @@ function renderLiveControlCenter(data, populateForm = false) {
       const syms = Object.keys(p.targets || {})
         .map((s) => `${s} (${(p.targets[s].weight * 100).toFixed(0)}%)`)
         .join(', ');
-      copilotDesc.textContent = `Propuesta pendiente (${p.trigger_source}): Cartera asignada → ${syms}`;
+      copilotDesc.textContent = `Pending proposal (${p.trigger_source}): Target Allocation → ${syms}`;
       copilotBanner.classList.remove('hidden');
     } else {
       copilotBanner.classList.add('hidden');
     }
   }
 
-  // 4. Métricas de la cuenta Paper
+  // 4. Financial Metric Cards
   const totalEq = Number(acct.total_equity_usd || 10000);
   const initialCap = Number(acct.initial_capital || 10000);
   const totalRet = Number(acct.total_return_pct || 0);
@@ -1021,7 +1011,7 @@ function renderLiveControlCenter(data, populateForm = false) {
 
   const retEl = document.getElementById('pt-total-ret');
   if (retEl) {
-    retEl.textContent = `Retorno: ${fmtPct(totalRet)} (Capital base: ${fmtUSD(initialCap)})`;
+    retEl.textContent = `Return: ${fmtPct(totalRet)} (Base: ${fmtUSD(initialCap)})`;
     retEl.className = `text-xs font-mono mt-0.5 font-semibold ${totalRet >= 0 ? 'text-emerald-700' : 'text-red-700'}`;
   }
 
@@ -1030,7 +1020,7 @@ function renderLiveControlCenter(data, populateForm = false) {
 
   const positions = state.positions || [];
   const posCountEl = document.getElementById('pt-pos-count');
-  if (posCountEl) posCountEl.textContent = `${positions.length} posiciones activas`;
+  if (posCountEl) posCountEl.textContent = `${positions.length} active positions`;
 
   const cashEl = document.getElementById('pt-cash-value');
   if (cashEl) cashEl.textContent = fmtUSD(acct.cash_usd || 0);
@@ -1039,13 +1029,13 @@ function renderLiveControlCenter(data, populateForm = false) {
   if (ddEl) ddEl.textContent = `${Number(acct.current_dd_pct || 0).toFixed(2)}%`;
 
   const ddLimitEl = document.getElementById('pt-dd-limit-label');
-  if (ddLimitEl) ddLimitEl.textContent = `Límite parada: ${cfg.daily_kill_switch_dd_pct || -8.0}%`;
+  if (ddLimitEl) ddLimitEl.textContent = `Kill switch limit: ${cfg.daily_kill_switch_dd_pct || -8.0}%`;
 
-  // 5. Tabla de Posiciones Abiertas
+  // 5. Open Positions Table
   const posTbody = document.getElementById('pt-positions-tbody');
   if (posTbody) {
     if (positions.length === 0) {
-      posTbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">100% en liquidez (efectivo). Pulsa "Escanear y Sincronizar Ahora" para evaluar las condiciones de entrada.</td></tr>`;
+      posTbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-400 font-sans">100% in cash liquidity. Click "Scan & Sync Now" to evaluate daily entry rules.</td></tr>`;
     } else {
       posTbody.innerHTML = positions
         .map((p) => {
@@ -1066,12 +1056,12 @@ function renderLiveControlCenter(data, populateForm = false) {
     }
   }
 
-  // 6. Tabla de Órdenes Ejecutadas
+  // 6. Orders Table
   const orders = state.orders_history || [];
   const ordTbody = document.getElementById('pt-orders-tbody');
   if (ordTbody) {
     if (orders.length === 0) {
-      ordTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400 font-sans">Sin órdenes registradas todavía.</td></tr>`;
+      ordTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400 font-sans">No orders executed yet.</td></tr>`;
     } else {
       ordTbody.innerHTML = orders
         .slice(0, 25)
@@ -1093,7 +1083,7 @@ function renderLiveControlCenter(data, populateForm = false) {
     }
   }
 
-  // 7. Consola de Logs
+  // 7. System Logs Console
   const logs = state.logs || [];
   const logsBox = document.getElementById('pt-logs-box');
   if (logsBox) {
@@ -1109,7 +1099,7 @@ function renderLiveControlCenter(data, populateForm = false) {
       .join('');
   }
 
-  // 8. Rellenar inputs si es primera carga
+  // 8. Populate Form Inputs
   if (populateForm) {
     const setVal = (id, v) => {
       const el = document.getElementById(id);
@@ -1135,21 +1125,22 @@ function renderLiveControlCenter(data, populateForm = false) {
     setChk('chk-m4', em.M4_CTA_TREND !== false);
     setChk('chk-m5', em.M5_VOL_CRUSH !== false);
 
-    // Modal
+    // Modal Inputs
     setVal('cfg-broker-provider', cfg.broker_provider || 'LOCAL_PAPER');
-    setVal('cfg-alpaca-endpoint', cfg.alpaca_endpoint || 'PAPER');
+    setVal('cfg-alpaca-endpoint', cfg.alpaca_endpoint || 'https://paper-api.alpaca.markets');
     setVal('cfg-alpaca-key', cfg.alpaca_api_key || '');
     setVal('cfg-alpaca-secret', cfg.alpaca_secret_key || '');
-    setVal('cfg-notify-channel', cfg.notify_channel || 'NONE');
-    setVal('cfg-sig-url', cfg.signal_api_url || 'http://127.0.0.1:8085/v2/send');
-    setVal('cfg-sig-phone', cfg.signal_recipient_phone || '');
+
+    setVal('cfg-mobile-phone', cfg.mobile_phone || cfg.signal_recipient_phone || '');
+    setVal('cfg-sig-url', cfg.signal_api_url || 'https://api.callmebot.com/signal/send.php');
+    setVal('cfg-sig-apikey', cfg.signal_apikey || '');
     setVal('cfg-tg-token', cfg.telegram_bot_token || '');
     setVal('cfg-tg-chat', cfg.telegram_chat_id || '');
   }
 }
 
 // ============================================================================
-// ACCIONES EN VIVO Y DISPARADORES
+// LIVE ACTIONS & SETTINGS PERSISTENCE
 // ============================================================================
 async function triggerLiveAction(actionName, simulateMotor = null) {
   try {
@@ -1163,10 +1154,10 @@ async function triggerLiveAction(actionName, simulateMotor = null) {
       renderLiveControlCenter(data.status, false);
     }
     if (data.result && data.result.message) {
-      showConfigFeedback(data.result.message);
+      showConfigFeedback(data.result.message, actionName.includes('TEST_'));
     }
   } catch (err) {
-    console.error('Error al ejecutar acción:', err);
+    console.error('Error executing live action:', err);
   }
 }
 
@@ -1174,6 +1165,8 @@ async function saveLiveConfigFromUI(fromModal = false) {
   const getVal = (id) => document.getElementById(id)?.value?.trim();
   const getNum = (id) => Number(document.getElementById(id)?.value);
   const getChk = (id) => document.getElementById(id)?.checked;
+
+  const mobilePhone = getVal('cfg-mobile-phone') || '';
 
   const payload = {
     execution_mode: getVal('cfg-exec-mode'),
@@ -1194,9 +1187,10 @@ async function saveLiveConfigFromUI(fromModal = false) {
     alpaca_endpoint: getVal('cfg-alpaca-endpoint'),
     alpaca_api_key: getVal('cfg-alpaca-key'),
     alpaca_secret_key: getVal('cfg-alpaca-secret'),
-    notify_channel: getVal('cfg-notify-channel'),
+    mobile_phone: mobilePhone,
+    signal_recipient_phone: mobilePhone,
     signal_api_url: getVal('cfg-sig-url'),
-    signal_recipient_phone: getVal('cfg-sig-phone'),
+    signal_apikey: getVal('cfg-sig-apikey'),
     telegram_bot_token: getVal('cfg-tg-token'),
     telegram_chat_id: getVal('cfg-tg-chat'),
   };
@@ -1211,10 +1205,10 @@ async function saveLiveConfigFromUI(fromModal = false) {
     if (data.status) {
       renderLiveControlCenter(data.status, true);
     }
-    const msg = 'Parámetros actualizados y aplicados.';
+    const msg = 'Configuration saved and hot-reloaded.';
     showConfigFeedback(msg, fromModal);
   } catch (err) {
-    console.error('Error al guardar configuración:', err);
+    console.error('Error saving configuration:', err);
   }
 }
 
@@ -1225,5 +1219,5 @@ function showConfigFeedback(msg, inModal = false) {
   el.classList.remove('hidden');
   setTimeout(() => {
     el.classList.add('hidden');
-  }, 4000);
+  }, 4500);
 }

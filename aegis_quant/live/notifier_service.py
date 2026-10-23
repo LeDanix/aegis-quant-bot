@@ -1,8 +1,11 @@
 """
-Servicio Orientado a Objetos de Notificaciones Móviles (aegis_quant/live/notifier_service.py).
-Soporta:
-  1. Telegram Bot API (HTTPS directo sin instalar demonios extra en el Ubuntu Server).
-  2. Signal REST API (Compatible con contenedor local signal-cli-rest-api o CallMeBot Signal).
+Object-Oriented Mobile Notification Service (aegis_quant/live/notifier_service.py).
+Supports:
+  1. Signal Messenger:
+     - Direct HTTP via CallMeBot Signal Gateway (free personal API)
+     - Local Docker signal-cli-rest-api daemon (e.g. http://127.0.0.1:8085/v2/send)
+  2. Telegram Bot API:
+     - Direct HTTPS via Telegram official Bot API
 """
 
 import json
@@ -13,7 +16,7 @@ from typing import Dict, Any, Tuple
 
 
 class BaseNotifier(ABC):
-    """Interfaz base para todos los canales de notificación móvil."""
+    """Base interface for mobile notification channels."""
 
     @abstractmethod
     def send_message(self, text: str) -> Tuple[bool, str]:
@@ -21,7 +24,7 @@ class BaseNotifier(ABC):
 
 
 class TelegramNotifier(BaseNotifier):
-    """Cliente ligero para la API oficial de Telegram Bots."""
+    """Lightweight client for official Telegram Bot API."""
 
     def __init__(self, bot_token: str, chat_id: str):
         self.bot_token = (bot_token or "").strip()
@@ -32,7 +35,7 @@ class TelegramNotifier(BaseNotifier):
 
     def send_message(self, text: str) -> Tuple[bool, str]:
         if not self.is_configured():
-            return False, "Telegram no configurado (Falta Bot Token o Chat ID)."
+            return False, "Telegram not configured (Bot Token or Chat ID missing)."
 
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = json.dumps(
@@ -53,96 +56,101 @@ class TelegramNotifier(BaseNotifier):
         try:
             with urllib.request.urlopen(req, timeout=8) as resp:
                 if resp.status == 200:
-                    return True, "Mensaje enviado correctamente a Telegram."
-                return False, f"Telegram devolvió código HTTP {resp.status}"
+                    return True, "Message delivered successfully to Telegram."
+                return False, f"Telegram API returned HTTP status {resp.status}"
         except Exception as exc:
-            return False, f"Error al conectar con Telegram API: {exc}"
+            return False, f"Telegram connection error: {exc}"
 
 
 class SignalRestNotifier(BaseNotifier):
     """
-    Cliente para Signal:
-      - Soporta un endpoint local `signal-cli-rest-api` en el Ubuntu Server (ej. http://127.0.0.1:8085/v2/send)
-      - O un webhook URL GET/POST compatible (como CallMeBot Signal).
+    Client for Signal Messenger:
+      - CallMeBot Gateway (free personal Signal API: api.callmebot.com/signal/send.php)
+      - Or local signal-cli-rest-api container on Ubuntu Server.
     """
 
-    def __init__(self, api_url: str, sender_phone: str, recipient_phone: str):
+    def __init__(self, api_url: str, phone: str, apikey: str = ""):
         self.api_url = (api_url or "").strip()
-        self.sender_phone = (sender_phone or "").strip()
-        self.recipient_phone = (recipient_phone or "").strip()
+        self.phone = (phone or "").strip()
+        self.apikey = (apikey or "").strip()
 
     def is_configured(self) -> bool:
-        return bool(self.api_url and self.recipient_phone)
+        return bool(self.phone and (self.api_url or self.apikey))
 
     def send_message(self, text: str) -> Tuple[bool, str]:
         if not self.is_configured():
-            return False, "Signal no configurado (Falta URL de API o Teléfono destino)."
+            return False, "Signal not configured (Missing phone number or gateway URL/apikey)."
+
+        # Strip basic HTML tags for plain Signal formatting
+        clean_text = (
+            text.replace("<b>", "")
+            .replace("</b>", "")
+            .replace("<code>", "")
+            .replace("</code>", "")
+        )
 
         try:
-            # Soporte CallMeBot si el usuario pega una URL de api.callmebot.com
-            if "callmebot.com" in self.api_url:
-                clean_txt = urllib.parse.quote(text)
-                full_url = f"{self.api_url}&text={clean_txt}" if "?" in self.api_url else f"{self.api_url}?phone={urllib.parse.quote(self.recipient_phone)}&apikey={urllib.parse.quote(self.sender_phone)}&text={clean_txt}"
-                with urllib.request.urlopen(full_url, timeout=8) as resp:
+            target_url = self.api_url or "https://api.callmebot.com/signal/send.php"
+
+            # 1. CallMeBot endpoint handling
+            if "callmebot.com" in target_url:
+                encoded_msg = urllib.parse.quote(clean_text)
+                encoded_phone = urllib.parse.quote(self.phone)
+                encoded_key = urllib.parse.quote(self.apikey)
+                full_url = f"{target_url}?phone={encoded_phone}&apikey={encoded_key}&text={encoded_msg}"
+                with urllib.request.urlopen(full_url, timeout=10) as resp:
                     return (resp.status == 200), f"CallMeBot Signal HTTP {resp.status}"
 
-            # Estándar signal-cli-rest-api en Ubuntu Server
+            # 2. Local Docker signal-cli-rest-api
             payload = json.dumps(
                 {
-                    "message": text,
-                    "number": self.sender_phone or self.recipient_phone,
-                    "recipients": [self.recipient_phone],
+                    "message": clean_text,
+                    "number": self.phone,
+                    "recipients": [self.phone],
                 }
             ).encode("utf-8")
             req = urllib.request.Request(
-                self.api_url,
+                target_url,
                 data=payload,
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 return (resp.status in (200, 201)), f"Signal REST HTTP {resp.status}"
         except Exception as exc:
-            return False, f"Error al enviar por Signal REST: {exc}"
+            return False, f"Signal gateway error: {exc}"
 
 
 class MultiChannelNotifier:
-    """Orquestador que envía notificaciones al móvil según la preferencia del usuario."""
+    """Dispatches notifications across configured active channels (Signal and/or Telegram)."""
 
     def __init__(self, config: Dict[str, Any]):
-        self.channel = config.get("notify_channel", "TELEGRAM")
-        self.telegram = TelegramNotifier(
-            config.get("telegram_bot_token", ""),
-            config.get("telegram_chat_id", ""),
-        )
+        phone = config.get("mobile_phone") or config.get("signal_recipient_phone", "")
         self.signal = SignalRestNotifier(
-            config.get("signal_api_url", ""),
-            config.get("signal_sender_phone", ""),
-            config.get("signal_recipient_phone", ""),
+            api_url=config.get("signal_api_url", "https://api.callmebot.com/signal/send.php"),
+            phone=phone,
+            apikey=config.get("signal_apikey", ""),
+        )
+        self.telegram = TelegramNotifier(
+            bot_token=config.get("telegram_bot_token", ""),
+            chat_id=config.get("telegram_chat_id", ""),
         )
 
     def notify(self, text: str) -> Tuple[bool, str]:
-        if self.channel == "NONE":
-            return True, "Notificaciones desactivadas por configuración."
-
         results = []
         any_ok = False
 
-        if self.channel in ("TELEGRAM", "BOTH"):
+        if self.signal.is_configured():
+            ok, msg = self.signal.send_message(text)
+            any_ok = any_ok or ok
+            results.append(f"Signal: {msg}")
+
+        if self.telegram.is_configured():
             ok, msg = self.telegram.send_message(text)
             any_ok = any_ok or ok
             results.append(f"Telegram: {msg}")
 
-        if self.channel in ("SIGNAL", "BOTH"):
-            # Limpiar etiquetas HTML básicas para Signal en texto plano
-            plain = (
-                text.replace("<b>", "")
-                .replace("</b>", "")
-                .replace("<code>", "")
-                .replace("</code>", "")
-            )
-            ok, msg = self.signal.send_message(plain)
-            any_ok = any_ok or ok
-            results.append(f"Signal: {msg}")
+        if not results:
+            return True, "No mobile notification channels configured."
 
         return any_ok, " | ".join(results)

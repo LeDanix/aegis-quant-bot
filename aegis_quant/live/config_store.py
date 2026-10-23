@@ -55,13 +55,13 @@ class BotConfigStore:
             "alpaca_api_key": "",
             "alpaca_secret_key": "",
             "alpaca_endpoint": "https://paper-api.alpaca.markets",
-            # Configuración de Notificaciones Móviles (Telegram / Signal)
-            "notify_channel": "TELEGRAM",  # "TELEGRAM" | "SIGNAL" | "BOTH" | "NONE"
+            # Mobile Alert Channels (Signal & Telegram)
+            "mobile_phone": "",
+            "signal_api_url": "https://api.callmebot.com/signal/send.php",
+            "signal_apikey": "",
+            "signal_recipient_phone": "",
             "telegram_bot_token": "",
             "telegram_chat_id": "",
-            "signal_api_url": "http://127.0.0.1:8085/v2/send",
-            "signal_sender_phone": "",
-            "signal_recipient_phone": "",
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
