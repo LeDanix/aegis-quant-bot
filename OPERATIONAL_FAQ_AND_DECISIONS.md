@@ -158,3 +158,4 @@ Aegis-Quant no utiliza apalancamiento estático x3, sino **apalancamiento dinám
 | **2026-10-25** | Simulación Fiscal IRPF & Costes Operacionales | Incorporación en la web de la pestaña `5. Fiscalidad España & Rentabilidad Neta`. Integración de comisiones IBKR, spreads, TER e IRPF progresivo. |
 | **2026-10-25** | Vehículos Operativos en España | Adopción oficial de ETFs UCITS equivalentes de réplica física acumulativa (`CSPX`, `EQQQ`, `SGLD`, `DTLA`, `CRUD`). |
 | **2026-10-25** | Seguridad en Control de Versiones | Protección de credenciales en `.gitignore` y sincronización con GitHub mediante Personal Access Token. |
+| **2026-10-25** | Política de Apalancamiento | **Descarte definitivo de futuros o productos con apalancamiento estático x3** debido al decaimiento por volatilidad (*volatility drag*) y riesgo de ruina. Se ratifica el uso exclusivo del apalancamiento adaptativo y dinámico (Meta-Kelly y Volatility Targeting) ya integrado en el motor. |
