@@ -38,6 +38,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Live sensitive API credentials (uncomment if you add live secrets and push to public Git)
-# data/bot_live_config.json
-# .env
+# Live sensitive API credentials and runtime state
+data/bot_live_config.json
+data/bot_live_state.json
+data/bot_live_state_real.json
+data/ledger_*.jsonl
+.env

@@ -232,11 +232,42 @@ class IBKRBrokerAdapter(BaseBrokerAdapter):
 
 | Resource | Value / Path | Purpose |
 | :--- | :--- | :--- |
-| **Web UI** | `http://localhost:8080` | Real-time monitoring & manual control |
-| **Live Status API** | `http://localhost:8080/api/live/status` | JSON health & state check endpoint |
-| **Audit Summary API**| `http://localhost:8080/api/summary` | Historical backtest & robustness metrics |
+| **Web UI** | `http://localhost:8085` | Real-time monitoring & manual control |
+| **Live Status API** | `http://localhost:8085/api/live/status` | JSON health & state check endpoint |
+| **Audit Summary API**| `http://localhost:8085/api/summary` | Historical backtest & robustness metrics |
 | **Config Store** | `data/bot_live_config.json` | Hot-reloaded bot parameters |
 | **Paper State** | `data/bot_live_state.json` | Simulated account & open positions |
 | **Real State** | `data/bot_live_state_real.json` | Live money account & open positions |
 | **Real Audit Ledger**| `data/ledger_real_trades.jsonl` | Append-only transaction ledger for IRPF tax |
 | **Emergency Kill** | Web UI Button / `POST /api/live/action` (`KILL_SWITCH`) | Instant liquidation of all positions to cash |
+
+---
+
+## 7. Próximo Paso Crítico: Operabilidad de ETFs en España (Regulación PRIIPs / KID vs Alternativas UCITS en IBKR)
+
+> [!IMPORTANT]
+> **Recordatorio Operativo para la Próxima Sesión:**  
+> Actualmente, en modo Paper Trading se operan los tickers estadounidenses de referencia (`SPY`, `QQQ`, `GLD`, `TLT`, `USO`, `ZS/SOYB`).  
+> Sin embargo, para un inversor particular residente en España / Unión Europea, la normativa **PRIIPs / MiFID II** exige que cualquier fondo o ETF cuente con un documento **KID (Key Information Document)** en el idioma local. Los ETFs domiciliados en EE.UU. no lo emiten, por lo que brókers como Interactive Brokers (IBKR España/Irlanda) restringen su compra directa al contado para clientes minoristas.
+
+### Alternativas de Implementación para Paso a Real desde España:
+
+1. **Mapeo a ETFs Equivalentes UCITS (Recomendado para operativa directa al contado en EUR/USD):**
+   - **`SPY` (S&P 500)** → **`CSPX`** (iShares Core S&P 500 UCITS ETF - USD) o **`SXR8`** (Xetra en EUR, acumulativo, sin retención de dividendos).
+   - **`QQQ` (Nasdaq 100)** → **`EQQQ`** (Invesco EQQQ Nasdaq-100 UCITS ETF) o **`CSNDX`** (iShares Nasdaq 100).
+   - **`GLD` (Oro Físico)** → **`SGLD`** (Invesco Physical Gold ETC) o **`EGLN`** / **`4GLD`**.
+   - **`TLT` (Bonos Tesoro 20+ Años)** → **`DTLA`** (iShares $ Treasury Bond 20+yr UCITS ETF) o **`IDTL`**.
+   - **`USO` (Petróleo WTI)** → **`CRUD`** (WisdomTree WTI Crude Oil ETC).
+   - **`ZS` (Soja Agrícola)** → **`SOYB`** (Teucrium) o **`A0KRK2`** (WisdomTree Soybeans ETC).
+
+2. **Asignación mediante Opciones Financieras (IBKR):**
+   - Los inversores minoristas en España **SÍ tienen permitido operar opciones sobre ETFs de EE.UU.** en Interactive Brokers.
+   - Vender un *Put In-the-Money* o *Cash-Secured Put* en `SPY` o `QQQ` provoca que al vencimiento se asignen las acciones físicas directamente a la cuenta del inversor, eludiendo la restricción de compra al contado de PRIIPs de forma 100% legal.
+
+3. **Estatus de Cliente Profesional Electivo (MiFID II):**
+   - Si se cumplen 2 de 3 requisitos (patrimonio financiero > 500.000 €, 10 operaciones relevantes por trimestre, o 1 año de experiencia profesional en sector financiero), se puede solicitar a IBKR el estatus profesional, desbloqueando la compra directa de ETFs USA.
+
+4. **Futuros Financieros (Micro E-mini):**
+   - Operar directamente contratos de futuros del CME en Interactive Brokers (`MES` para S&P 500, `MNQ` para Nasdaq 100), los cuales no están afectados por la normativa PRIIPs de fondos minoristas.
+
+*Este análisis se profundizará y parametrizará en el adaptador de bróker durante la siguiente fase de integración en dinero real.*

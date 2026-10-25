@@ -7,9 +7,9 @@ services:
     working_dir: /app
     volumes:
       - ../:/app
-    command: python web_app/server.py
+    command: python web_app/server.py 8085
     ports:
-      - "8080:8080"
+      - "8085:8085"
     environment:
       - TZ=Europe/Madrid
       - PYTHONUNBUFFERED=1

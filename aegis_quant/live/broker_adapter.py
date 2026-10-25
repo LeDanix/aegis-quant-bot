@@ -175,13 +175,24 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
 
         # 2. Abrir o ajustar posiciones objetivo
         used_cash = 0.0
-        for int_sym, info in target_weights.items():
+        active_targets = [
+            (int_sym, info)
+            for int_sym, info in target_weights.items()
+            if float(info.get("weight", 0.0)) > 0.001
+        ]
+        total_weight = sum(float(info.get("weight", 0.0)) for _, info in active_targets)
+
+        for idx, (int_sym, info) in enumerate(active_targets):
             w = float(info.get("weight", 0.0))
-            if w <= 0.001:
-                continue
             b_sym = self.map_symbol(int_sym, cfg)
             px = self.get_live_price(b_sym)
-            target_usd = round(total_eq * w, 2)
+
+            # Si la suma de pesos es 100%, asegurar que el último activo cuadre al céntimo
+            if abs(total_weight - 1.0) < 0.005 and idx == len(active_targets) - 1:
+                target_usd = round(total_eq - used_cash, 2)
+            else:
+                target_usd = round(total_eq * w, 2)
+
             qty = round(target_usd / max(0.01, px), 4)
             used_cash += target_usd
 
@@ -201,7 +212,7 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
                         "side": side,
                         "qty": round(abs(diff_usd) / max(0.01, px), 4),
                         "price": px,
-                        "notional_usd": abs(diff_usd),
+                        "notional_usd": round(abs(diff_usd), 2),
                         "motor": info.get("motor", "CORE_BULL"),
                         "reason": info.get("reason", reason_summary),
                         "status": "FILLED",
@@ -228,6 +239,7 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
 
         acct["cash_usd"] = round(max(0.0, total_eq - used_cash), 2)
         acct["positions_value_usd"] = round(used_cash, 2)
+        acct["total_equity_usd"] = round(acct["cash_usd"] + acct["positions_value_usd"], 2)
         state["positions"] = new_positions
         state["orders_history"] = (executed_orders + state.get("orders_history", []))[:100]
         state["last_scan_time"] = now_str

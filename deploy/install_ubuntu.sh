@@ -29,10 +29,11 @@ Wants=network-online.target
 Type=simple
 User=${RUN_USER}
 WorkingDirectory=${PROJECT_DIR}
-ExecStart=/usr/bin/python3 ${PROJECT_DIR}/web_app/server.py
+ExecStart=/usr/bin/python3 ${PROJECT_DIR}/web_app/server.py 8085
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+Environment=TZ=Europe/Madrid
 
 [Install]
 WantedBy=multi-user.target
@@ -53,11 +54,11 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo "✅ SERVICIO AEGIS-QUANT ACTIVO Y BLINDADO (Auto-arranque activado)"
 echo "------------------------------------------------------------------------------"
-echo " 🌐 Acceso en Red Local : http://${LOCAL_IP}:8080"
+echo " 🌐 Acceso en Red Local : http://${LOCAL_IP}:8085"
 if [ -n "${TS_IP}" ]; then
-    echo " 📱 Acceso Móvil VPN Tailscale: http://${TS_IP}:8080"
+    echo " 📱 Acceso Móvil VPN Tailscale: http://${TS_IP}:8085"
     echo " 🔒 (Opcional) Para activar HTTPS en Tailscale ejecuta:"
-    echo "    sudo tailscale serve --bg 8080"
+    echo "    sudo tailscale serve --bg 8085"
 fi
 echo "------------------------------------------------------------------------------"
 echo " Comandos útiles en Ubuntu:"

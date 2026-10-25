@@ -31,7 +31,7 @@ aegis-quant/
 │   └── robustness/
 │       └── robustness_analyzer.py  # Monte Carlo (1,000 runs), Execution Friction stress tests & subperiod validation
 ├── web_app/
-│   ├── server.py                   # High-performance REST API & web dashboard backend (port 8080)
+│   ├── server.py                   # High-performance REST API & web dashboard backend (port 8085)
 │   ├── index.html                  # Minimalist institutional single-page frontend (White & Emerald theme)
 │   └── static/
 │       └── app.js                  # Apache ECharts 5, state management, modal forms, and live monitoring
@@ -61,9 +61,9 @@ Launch the integrated web server and REST control plane:
 poetry run aegis-server
 ```
 Navigate to:
-- **Web UI**: `http://localhost:8080` (or via private LAN / Tailscale VPN on mobile devices)
-- **Live Status API**: `http://localhost:8080/api/live/status`
-- **Quantitative Summary API**: `http://localhost:8080/api/summary`
+- **Web UI**: `http://localhost:8085` (or via private LAN / Tailscale VPN on mobile devices)
+- **Live Status API**: `http://localhost:8085/api/live/status`
+- **Quantitative Summary API**: `http://localhost:8085/api/summary`
 
 ### 3. CLI Scripts
 

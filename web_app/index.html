@@ -391,6 +391,9 @@
         <button id="subtab-simulator" onclick="switchPerfSubTab('simulator')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
           4. Portfolio Simulator &amp; Trade Log
         </button>
+        <button id="subtab-tax" onclick="switchPerfSubTab('tax')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
+          5. Fiscalidad España &amp; Rentabilidad Neta (IRPF)
+        </button>
       </div>
 
       <!-- SUB-TAB 1: EQUITY CHART & ENGINES -->
@@ -646,6 +649,138 @@
               </thead>
               <tbody id="trades-table-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
             </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SUB-TAB 5: FISCALIDAD ESPAÑA & RENTABILIDAD NETA (IRPF) -->
+      <div id="perf-view-tax" class="space-y-6 hidden">
+        
+        <!-- HEADER BANNER -->
+        <div class="panel p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-slate-50 via-white to-brand-50/30">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2.5 py-0.5 rounded font-bold bg-brand-100 text-brand-800 uppercase tracking-wider font-mono">Simulación Fiscal IRPF</span>
+              <h2 class="text-sm font-bold text-slate-900">Impacto Fiscal Real en España (Base del Ahorro 2007–2026)</h2>
+            </div>
+            <p class="text-xs text-slate-600 mt-1">
+              Simulación auditada deduciendo impuestos anualmente según los tramos progresivos reales del IRPF (19% a 28%) y compensando ejercicios negativos a 4 años.
+            </p>
+          </div>
+          <div class="text-right shrink-0">
+            <span class="text-xs text-slate-500 block">Fricción Fiscal Media (Tax Drag):</span>
+            <span class="text-sm font-extrabold text-amber-700 font-mono">-3.48% CAGR</span>
+          </div>
+        </div>
+
+        <!-- 4 KPI SUMMARY CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="panel p-4 space-y-1 border-l-4 border-emerald-500">
+            <span class="text-xs text-slate-500 font-medium">Capital Final Neto (En Mano)</span>
+            <div id="tax-kpi-net-cap" class="text-xl font-black text-emerald-700 font-mono">$154,415.01</div>
+            <div class="text-[11px] text-emerald-600 font-semibold font-mono">+1,444.15% neto (14.67% CAGR)</div>
+          </div>
+
+          <div class="panel p-4 space-y-1 border-l-4 border-brand-500">
+            <span class="text-xs text-slate-500 font-medium">Capital Bruto (Antes de IRPF)</span>
+            <div id="tax-kpi-gross-cap" class="text-xl font-black text-brand-800 font-mono">$281,068.69</div>
+            <div class="text-[11px] text-brand-600 font-semibold font-mono">+2,710.69% bruto (18.15% CAGR)</div>
+          </div>
+
+          <div class="panel p-4 space-y-1 border-l-4 border-amber-500">
+            <span class="text-xs text-slate-500 font-medium">Total IRPF Pagado a Hacienda</span>
+            <div id="tax-kpi-total-tax" class="text-xl font-black text-amber-700 font-mono">$36,384.01</div>
+            <div class="text-[11px] text-slate-500 font-medium">Liquidado en campaña de Renta</div>
+          </div>
+
+          <div class="panel p-4 space-y-1 border-l-4 border-purple-500">
+            <span class="text-xs text-slate-500 font-medium">Ventaja Neta vs S&amp;P 500 Buy &amp; Hold</span>
+            <div id="tax-kpi-ratio-spy" class="text-xl font-black text-purple-700 font-mono">3.41x Más Capital</div>
+            <div class="text-[11px] text-purple-600 font-semibold font-mono">$154k vs $45.3k neto S&amp;P 500</div>
+          </div>
+        </div>
+
+        <!-- TAX COMPARISON CHART -->
+        <div class="panel p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Curva de Capital Real: Bruto vs Neto (Tras IRPF) vs S&amp;P 500</h3>
+              <p class="text-xs text-slate-500">Comparativa histórica de $10,000 iniciales descontando el pago de impuestos anual en IRPF.</p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-mono">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#1e40af] inline-block"></span> Modo 3 Élite Bruto</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#059669] inline-block"></span> Modo 3 Élite Neto (IRPF)</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#dc2626] inline-block"></span> S&amp;P 500 Buy &amp; Hold</span>
+            </div>
+          </div>
+          <div id="tax-equity-chart" class="w-full h-[400px]"></div>
+        </div>
+
+        <!-- TAX YEARLY BREAKDOWN TABLE -->
+        <div class="panel p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900">Auditoría Fiscal Anual: Liquidación de IRPF y Compensación de Pérdidas</h3>
+            <span class="text-xs text-slate-500 font-mono">Tramos Ahorro: 19% (&lt;6k) | 21% (6-50k) | 23% (50-200k) | 27-28% (&gt;200k)</span>
+          </div>
+          <div class="overflow-x-auto max-h-[380px]">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-y border-slate-200">
+                <tr>
+                  <th class="py-2.5 px-3">Año</th>
+                  <th class="py-2.5 px-3 text-right">Cap. Inicial</th>
+                  <th class="py-2.5 px-3 text-right">Retorno Bruto</th>
+                  <th class="py-2.5 px-3 text-right">Ganancia Bruta</th>
+                  <th class="py-2.5 px-3 text-right">Pérdida Comp.</th>
+                  <th class="py-2.5 px-3 text-right">Base Imponible</th>
+                  <th class="py-2.5 px-3 text-right">IRPF Pagado</th>
+                  <th class="py-2.5 px-3 text-right">Tipo Efectivo</th>
+                  <th class="py-2.5 px-3 text-right">Pérdida Pendiente</th>
+                  <th class="py-2.5 px-3 text-right font-bold text-slate-900">Cap. Final Neto</th>
+                  <th class="py-2.5 px-3 text-right text-emerald-700">Retorno Neto</th>
+                </tr>
+              </thead>
+              <tbody id="tax-yearly-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PRACTICAL SPANISH TAX GUIDE -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="panel p-4 space-y-2">
+            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <span>🏛️</span> Separación Total de Bases (Sueldo vs Bot)
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              En España, tus rendimientos del trabajo (nómina o facturas de autónomo) van a la <b>Base General</b>. Las ganancias generadas por la compra-venta de ETFs del bot van a la <b>Base del Ahorro</b>. <b>Tu salario nunca hace subir de tramo a las ganancias del bot</b> ni viceversa.
+            </p>
+          </div>
+
+          <div class="panel p-4 space-y-2">
+            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <span>🔄</span> Compensación de Pérdidas a 4 Años
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Si en un ejercicio el bot sufriese un año negativo, <b>no pagas ningún impuesto ese año</b> y el saldo negativo se arrastra para compensar al 100% las ganancias de los <b>4 ejercicios fiscales siguientes</b>, protegiendo tu capital antes de volver a tributar.
+            </p>
+          </div>
+
+          <div class="panel p-4 space-y-2">
+            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <span>📦</span> Ventaja de ETFs UCITS Acumulativos
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Al operar réplicas UCITS europeas acumulativas (ej. CSPX o SXR8), los dividendos de las empresas se reinvierten automáticamente dentro del valor liquidativo del ETF. <b>No sufren retención en origen del 15% (EE.UU.) ni retención en España</b>, maximizando el interés compuesto.
+            </p>
+          </div>
+
+          <div class="panel p-4 space-y-2">
+            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <span>📋</span> Bróker Extranjero (IBKR) y Modelo 720
+            </h4>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              En Interactive Brokers (IBKR Irlanda), no se practica retención automática en España; tú incluyes el informe anual de ganancias en tu declaración de la Renta. Si el valor total de tu cartera en el extranjero supera los <b>50.000 € a 31 de diciembre</b>, deberás presentar el <b>Modelo 720</b> informativo (sin coste impositivo).
+            </p>
           </div>
         </div>
 

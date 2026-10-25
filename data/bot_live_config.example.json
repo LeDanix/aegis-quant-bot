@@ -1,0 +1,29 @@
+{
+  "execution_mode": "AUTO_100",
+  "bot_running": true,
+  "broker_provider": "LOCAL_PAPER",
+  "allocated_capital_usd": 10000,
+  "risk_per_trade_pct": 2.5,
+  "max_fast_slot_pct": 55,
+  "max_cta_slot_pct": 40,
+  "daily_kill_switch_dd_pct": -8,
+  "schedule_time_cet": "21:55",
+  "use_soyb_etf_for_zs": true,
+  "enabled_motors": {
+    "M1_PULLBACK": true,
+    "M2_VIX_DIV": true,
+    "M3_BEAR_SHORT": true,
+    "M4_CTA_TREND": true,
+    "M5_VOL_CRUSH": true
+  },
+  "alpaca_api_key": "",
+  "alpaca_secret_key": "",
+  "alpaca_endpoint": "https://paper-api.alpaca.markets",
+  "notify_channel": "SIGNAL",
+  "signal_api_url": "https://signal.callmebot.com/signal/send.php",
+  "signal_sender_phone": "",
+  "signal_recipient_phone": "",
+  "updated_at": "2026-10-23 14:18:50",
+  "mobile_phone": "",
+  "signal_apikey": ""
+}

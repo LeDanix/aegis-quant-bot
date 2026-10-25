@@ -1,6 +1,6 @@
 """
 Servidor Web y Centro de Mando REST Orientado a Objetos para Aegis-Quant Studio (web_app/server.py).
-Escucha en 0.0.0.0:8080 (accesible en local http://localhost:8080 y por VPN Tailscale desde el móvil).
+Escucha en 0.0.0.0:8085 (accesible en local http://localhost:8085 y por VPN Tailscale desde el móvil).
 Endpoints:
   - GET  /api/summary     : Dataset completo de los 4 modos, 725 operaciones, robustez y escáner.
   - GET  /api/live/status : Estado en tiempo real del Bot Paper Trading, cartera, órdenes y logs.
@@ -99,22 +99,59 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": False, "error": "Ruta POST no encontrada"}, 404)
 
     def log_message(self, format, *args):
+        sys.stderr.write("[%s] %s - %s\n" % (self.log_date_time_string(), self.client_address[0], format % args))
+        sys.stderr.flush()
+
+
+def _get_tailscale_ip() -> str:
+    try:
+        import subprocess
+        res = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0 and res.stdout.strip():
+            return res.stdout.strip()
+    except Exception:
         pass
+    return ""
 
 
-def run_server(port: int = 8080):
+def run_server(port: int = 8085):
     # Inicializar el controlador en vivo al arrancar el servidor
     AegisRequestHandler.get_controller()
     # Escuchar en 0.0.0.0 para permitir acceso desde localhost y desde Tailscale VPN en el móvil
     server_address = ("0.0.0.0", port)
     httpd = HTTPServer(server_address, AegisRequestHandler)
+    ts_ip = _get_tailscale_ip()
     print("=" * 78)
     print(f"AEGIS-QUANT WEB STUDIO & PAPER TRADING CONTROL CENTER ACTIVO")
     print(f"  -> Acceso Local PC      : http://localhost:{port}")
-    print(f"  -> Acceso Móvil Tailscale: http://<IP-TAILSCALE-SERVIDOR>:{port}")
+    if ts_ip:
+        print(f"  -> Acceso Móvil Tailscale: http://{ts_ip}:{port}")
+    else:
+        print(f"  -> Acceso Móvil Tailscale: http://<IP-TAILSCALE-SERVIDOR>:{port}")
     print("=" * 78)
+    sys.stdout.flush()
     httpd.serve_forever()
 
 
+def main():
+    port = 8085
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            pass
+    elif "PORT" in os.environ:
+        try:
+            port = int(os.environ["PORT"])
+        except ValueError:
+            pass
+    elif "AEGIS_PORT" in os.environ:
+        try:
+            port = int(os.environ["AEGIS_PORT"])
+        except ValueError:
+            pass
+    run_server(port)
+
+
 if __name__ == "__main__":
-    run_server(8080)
+    main()

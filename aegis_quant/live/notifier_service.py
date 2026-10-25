@@ -98,8 +98,15 @@ class SignalRestNotifier(BaseNotifier):
                 encoded_phone = urllib.parse.quote(self.phone)
                 encoded_key = urllib.parse.quote(self.apikey)
                 full_url = f"{target_url}?phone={encoded_phone}&apikey={encoded_key}&text={encoded_msg}"
-                with urllib.request.urlopen(full_url, timeout=10) as resp:
-                    return (resp.status == 200), f"CallMeBot Signal HTTP {resp.status}"
+                req = urllib.request.Request(full_url, headers={"User-Agent": "AegisQuant/1.0"})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    raw_body = resp.read().decode("utf-8", errors="replace")
+                    if "ERROR" in raw_body or "Error Num" in raw_body:
+                        import re
+                        m = re.search(r"Error Text:</u>\s*([^<]+)", raw_body)
+                        err_txt = m.group(1).strip() if m else raw_body[:80].strip()
+                        return False, f"CallMeBot error: {err_txt} (Verifica si debes usar tu UUID en vez del número)"
+                    return (resp.status == 200), "CallMeBot Signal: Mensaje entregado con éxito."
 
             # 2. Local Docker signal-cli-rest-api
             payload = json.dumps(

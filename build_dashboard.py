@@ -859,5 +859,4 @@ if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.abspath(__file__))
     summary_file = os.path.join(base_dir, "data", "aegis_backtest_summary.json")
     local_dash = os.path.join(base_dir, "dashboard.html")
-    artifact_dash = r"C:\Users\SAD3MOA\.gemini\antigravity\brain\e717c112-7c17-484f-9aad-3e8c2e14aa8e\quant_bot_dashboard.html"
-    build_html_dashboard(summary_file, [local_dash, artifact_dash])
+    build_html_dashboard(summary_file, [local_dash])

@@ -159,7 +159,7 @@ function switchMainView(viewId) {
 }
 
 function switchPerfSubTab(subId) {
-  const subtabs = ['chart', 'guide', 'crisis', 'simulator'];
+  const subtabs = ['chart', 'guide', 'crisis', 'simulator', 'tax'];
   subtabs.forEach((id) => {
     const btn = document.getElementById(`subtab-${id}`);
     const view = document.getElementById(`perf-view-${id}`);
@@ -184,6 +184,10 @@ function switchPerfSubTab(subId) {
   } else if (subId === 'crisis') {
     setTimeout(() => {
       initCrisisAndRobustnessCharts();
+    }, 50);
+  } else if (subId === 'tax') {
+    setTimeout(() => {
+      initTaxView();
     }, 50);
   }
 }
@@ -1074,7 +1078,13 @@ function renderLiveControlCenter(data, populateForm = false) {
   if (lastScan) lastScan.textContent = state.last_scan_time || '--';
 
   const schedLabel = document.getElementById('pt-sched-label');
-  if (schedLabel) schedLabel.textContent = (cfg.schedule_time_cet || '21:55') + ' CET';
+  if (schedLabel) {
+    if (data.schedule_time_ny && data.schedule_time_madrid) {
+      schedLabel.textContent = `${data.schedule_time_ny} (${data.schedule_time_madrid})`;
+    } else {
+      schedLabel.textContent = (cfg.schedule_time_cet || '21:55') + ' CET';
+    }
+  }
 
   // 3. Copilot Banner
   const copilotBanner = document.getElementById('pt-copilot-banner');
@@ -1226,8 +1236,6 @@ function renderLiveControlCenter(data, populateForm = false) {
     setVal('cfg-mobile-phone', cfg.mobile_phone || cfg.signal_recipient_phone || '');
     setVal('cfg-sig-url', cfg.signal_api_url || 'https://api.callmebot.com/signal/send.php');
     setVal('cfg-sig-apikey', cfg.signal_apikey || '');
-    setVal('cfg-tg-token', cfg.telegram_bot_token || '');
-    setVal('cfg-tg-chat', cfg.telegram_chat_id || '');
   }
 }
 
@@ -1283,8 +1291,6 @@ async function saveLiveConfigFromUI(fromModal = false) {
     signal_recipient_phone: mobilePhone,
     signal_api_url: getVal('cfg-sig-url'),
     signal_apikey: getVal('cfg-sig-apikey'),
-    telegram_bot_token: getVal('cfg-tg-token'),
-    telegram_chat_id: getVal('cfg-tg-chat'),
   };
 
   try {
@@ -1312,4 +1318,139 @@ function showConfigFeedback(msg, inModal = false) {
   setTimeout(() => {
     el.classList.add('hidden');
   }, 4500);
+}
+
+// ============================================================================
+// FISCALIDAD ESPAÑA & RENTABILIDAD NETA TRAS IRPF (2007–2026)
+// ============================================================================
+let taxChart = null;
+
+function initTaxView() {
+  if (!APP_DATA || !APP_DATA.tax_analysis) return;
+  const tax = APP_DATA.tax_analysis;
+  const m = tax.metrics;
+
+  // 1. KPI Cards
+  const kpiNet = document.getElementById('tax-kpi-net-cap');
+  const kpiGross = document.getElementById('tax-kpi-gross-cap');
+  const kpiTax = document.getElementById('tax-kpi-total-tax');
+  const kpiRatio = document.getElementById('tax-kpi-ratio-spy');
+  if (kpiNet) kpiNet.textContent = `$${m.net_final_equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (kpiGross) kpiGross.textContent = `$${m.gross_final_equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (kpiTax) kpiTax.textContent = `$${m.total_tax_paid_usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (kpiRatio) kpiRatio.textContent = `${m.net_wealth_ratio_vs_spy_net}x Más Capital`;
+
+  // 2. Render ECharts Curve
+  const taxEl = document.getElementById('tax-equity-chart');
+  if (taxEl) {
+    if (taxChart) taxChart.dispose();
+    taxChart = echarts.init(taxEl);
+    const dates = tax.net_curve.map((p) => p.date);
+    const grossData = tax.net_curve.map((p) => p.gross_eq);
+    const netData = tax.net_curve.map((p) => p.net_eq);
+    const spyData = tax.net_curve.map((p) => p.spy_eq);
+
+    taxChart.setOption({
+      backgroundColor: '#ffffff',
+      animation: false,
+      grid: { left: '60px', right: '30px', top: '35px', bottom: '60px' },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params) => {
+          let html = `<div class="font-bold text-xs mb-1 font-mono">${params[0].name}</div>`;
+          params.forEach((item) => {
+            const val = Number(item.value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            html += `<div class="flex items-center justify-between gap-4 text-xs">
+              <span style="color:${item.color}">${item.seriesName}:</span>
+              <span class="font-bold font-mono">${val}</span>
+            </div>`;
+          });
+          return html;
+        },
+      },
+      legend: {
+        data: ['Modo 3 Élite Bruto', 'Modo 3 Élite Neto (IRPF)', 'S&P 500 Buy & Hold'],
+        top: 0,
+        textStyle: { color: '#64748b', fontSize: 11 },
+      },
+      dataZoom: [
+        { type: 'inside', start: 0, end: 100 },
+        { type: 'slider', bottom: 10, height: 20, borderColor: '#e2e8f0' },
+      ],
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLine: { lineStyle: { color: '#cbd5e1' } },
+        axisLabel: { color: '#64748b', fontSize: 11 },
+      },
+      yAxis: {
+        type: 'value',
+        scale: true,
+        axisLabel: {
+          formatter: (v) => `$${(v / 1000).toFixed(0)}k`,
+          color: '#64748b',
+          fontSize: 11,
+        },
+        splitLine: { lineStyle: { color: '#f1f5f9' } },
+      },
+      series: [
+        {
+          name: 'Modo 3 Élite Bruto',
+          type: 'line',
+          data: grossData,
+          showSymbol: false,
+          lineStyle: { width: 2, color: '#1e40af' },
+          itemStyle: { color: '#1e40af' },
+        },
+        {
+          name: 'Modo 3 Élite Neto (IRPF)',
+          type: 'line',
+          data: netData,
+          showSymbol: false,
+          lineStyle: { width: 2.5, color: '#059669' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(5, 150, 105, 0.15)' },
+              { offset: 1, color: 'rgba(5, 150, 105, 0.0)' },
+            ]),
+          },
+          itemStyle: { color: '#059669' },
+        },
+        {
+          name: 'S&P 500 Buy & Hold',
+          type: 'line',
+          data: spyData,
+          showSymbol: false,
+          lineStyle: { width: 1.5, color: '#dc2626', type: 'dashed' },
+          itemStyle: { color: '#dc2626' },
+        },
+      ],
+    });
+  }
+
+  // 3. Render Yearly Table
+  const tbody = document.getElementById('tax-yearly-tbody');
+  if (tbody && tax.yearly_breakdown) {
+    tbody.innerHTML = tax.yearly_breakdown
+      .map((row) => {
+        const netRetSign = row.net_ret_pct >= 0 ? '+' : '';
+        const grossRetSign = row.gross_ret_pct >= 0 ? '+' : '';
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-2 px-3 font-bold text-slate-800">${row.year}</td>
+            <td class="py-2 px-3 text-right text-slate-600">$${row.start_capital.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 px-3 text-right ${row.gross_ret_pct >= 0 ? 'text-brand-700' : 'text-rose-600'}">${grossRetSign}${row.gross_ret_pct.toFixed(2)}%</td>
+            <td class="py-2 px-3 text-right ${row.realized_gain_usd >= 0 ? 'text-brand-700' : 'text-rose-600'}">$${row.realized_gain_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 px-3 text-right text-slate-500">${row.loss_offset_used > 0 ? `-$${row.loss_offset_used.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '--'}</td>
+            <td class="py-2 px-3 text-right text-slate-700 font-semibold">$${row.taxable_base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 px-3 text-right font-bold text-amber-700">$${row.tax_paid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 px-3 text-right text-slate-500">${row.tax_paid > 0 ? `${row.effective_rate_pct.toFixed(1)}%` : '0.0%'}</td>
+            <td class="py-2 px-3 text-right ${row.loss_carried_forward > 0 ? 'text-rose-600 font-semibold' : 'text-slate-400'}">${row.loss_carried_forward > 0 ? `$${row.loss_carried_forward.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '--'}</td>
+            <td class="py-2 px-3 text-right font-bold text-slate-900">$${row.net_end_equity.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+            <td class="py-2 px-3 text-right font-bold ${row.net_ret_pct >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${netRetSign}${row.net_ret_pct.toFixed(2)}%</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
 }
