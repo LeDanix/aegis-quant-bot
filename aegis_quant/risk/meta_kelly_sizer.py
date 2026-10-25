@@ -21,11 +21,13 @@ class MetaLabelRiskManager:
         max_tactical_weight: float = 0.85,
         target_vol_pct: float = 16.0,
         use_meta_confidence: bool = True,
+        max_cta_weight: float = 0.40,
     ):
         self.base_risk_pct = base_risk_pct
         self.max_tactical_weight = max_tactical_weight
         self.target_vol_pct = target_vol_pct
         self.use_meta_confidence = use_meta_confidence
+        self.max_cta_weight = max_cta_weight
 
     def compute_tactical_weight(
         self,
@@ -38,7 +40,7 @@ class MetaLabelRiskManager:
         raw_w = (self.base_risk_pct * conf_mult) / eff_stop
         # Presupuesto de riesgo equilibrado por familia de motor para que un trade CTA largo
         # de 30 días nunca bloquee la liquidez de los motores rápidos de 4 días (M1/M2/M3/M5).
-        engine_cap = 0.40 if engine_id == "M4_CTA_TREND" else self.max_tactical_weight
+        engine_cap = self.max_cta_weight if engine_id == "M4_CTA_TREND" else self.max_tactical_weight
         return round(min(engine_cap, max(0.15, raw_w)), 4)
 
     def classify_regime(self, spy_bar: EnrichedBar) -> str:

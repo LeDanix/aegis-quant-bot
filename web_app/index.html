@@ -1,16 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aegis-Quant | Quantitative Trading Control & Performance Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Aegis-Quant | Quantitative Trading Control &amp; Performance Studio</title>
+
+  <!-- PWA & Mobile Home-Screen Metadata (No Service Worker over plain HTTP Tailscale) -->
+  <meta name="theme-color" id="meta-theme-color" content="#0b1120" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Aegis-Quant" />
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
+  <link rel="apple-touch-icon" href="/static/icon.svg" />
+  <link rel="manifest" href="/static/manifest.json" />
+
+  <!-- Synchronous Theme Init (Prevents Night-Time Flash of White at 21:55 CET) -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('aegis_theme');
+        var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+        var useDark = saved ? saved === 'dark' : (mq ? mq.matches : true);
+        if (!saved && window.matchMedia && !window.matchMedia('(prefers-color-scheme: light)').matches) {
+          useDark = true;
+        }
+        var root = document.documentElement;
+        if (useDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        var meta = document.getElementById('meta-theme-color');
+        if (meta) meta.setAttribute('content', useDark ? '#0b1120' : '#ffffff');
+      } catch (e) {}
+    })();
+  </script>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
@@ -21,6 +55,7 @@
             brand: {
               50: '#ecfdf5',
               100: '#d1fae5',
+              400: '#34d399',
               500: '#10b981',
               600: '#059669',
               700: '#047857',
@@ -32,197 +67,325 @@
       }
     }
   </script>
-  <style>
-    body {
-      background-color: #f8fafc;
-      color: #0f172a;
-      font-family: 'Inter', sans-serif;
-    }
-    .panel {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 0.75rem;
-      box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
-    }
-    .main-nav-btn.active {
-      background-color: #065f46;
-      color: #ffffff;
-      border-color: #065f46;
-    }
-    .sub-nav-btn.active {
-      border-bottom: 2px solid #059669;
-      color: #065f46;
-      font-weight: 600;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/mobile.css" />
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col selection:bg-brand-500/20">
 
-  <!-- TOP HEADER -->
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-6 py-3">
-    <div class="max-w-[1560px] mx-auto flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-6">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-brand-800 text-white flex items-center justify-center font-mono font-bold text-sm">
+  <!-- ======================================================================= -->
+  <!-- STICKY INSTITUTIONAL TOP HEADER                                         -->
+  <!-- ======================================================================= -->
+  <header class="sticky top-0 z-30 safe-top bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 pb-2.5">
+    <div class="max-w-[1560px] mx-auto flex items-center justify-between gap-2 sm:gap-4">
+      <div class="flex items-center gap-3 sm:gap-6 min-w-0">
+        <!-- Brand Identity -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-brand-700 to-brand-900 text-white flex items-center justify-center font-mono font-bold text-sm shadow-sm ring-1 ring-brand-500/30">
             AQ
           </div>
-          <div>
-            <h1 class="text-base font-bold text-slate-900 leading-tight">Aegis-Quant</h1>
-            <p class="text-xs text-slate-500">Mode 3 Quantitative System (5 Engines + VTS)</p>
+          <div class="min-w-0">
+            <h1 class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 leading-tight truncate">Aegis-Quant</h1>
+            <p class="hidden sm:block text-xs text-slate-500 dark:text-slate-400 truncate">Mode 3 Quantitative System (5 Engines + VTS)</p>
+            <!-- Compact Mobile Live Subtitle -->
+            <div class="flex sm:hidden items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums truncate">
+              <span id="hdr-mobile-dot" class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
+              <span id="hdr-mobile-status" class="truncate">Conectando...</span>
+            </div>
           </div>
         </div>
 
-        <!-- MAIN NAVIGATION TABS -->
-        <nav class="flex items-center gap-2">
-          <button id="main-tab-control" onclick="switchMainView('control')" class="main-nav-btn active px-4 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 transition">
+        <!-- DESKTOP MAIN NAVIGATION TABS (md+) -->
+        <nav class="hidden md:flex items-center gap-2">
+          <button id="main-tab-control" onclick="switchMainView('control')" class="main-nav-btn active px-4 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition">
             Bot Control Center
           </button>
-          <button id="main-tab-performance" onclick="switchMainView('performance')" class="main-nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 transition">
+          <button id="main-tab-performance" onclick="switchMainView('performance')" class="main-nav-btn px-4 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition">
             Performance Analytics (2007–2026)
           </button>
         </nav>
       </div>
 
-      <!-- HEADER STATUS & CONFIG MODAL BUTTON -->
-      <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+      <!-- HEADER STATUS, THEME TOGGLE & CONFIG MODAL BUTTON -->
+      <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs">
           <span id="hdr-status-dot" class="w-2 h-2 rounded-full bg-brand-600"></span>
-          <span id="hdr-status-text" class="font-medium text-slate-700">Active · 100% Automated</span>
-          <span class="text-slate-300">|</span>
-          <span id="hdr-broker-text" class="font-mono text-slate-600">Local Paper Broker</span>
+          <span id="hdr-status-text" class="font-medium text-slate-700 dark:text-slate-200">Active · 100% Automated</span>
+          <span class="text-slate-300 dark:text-slate-600">|</span>
+          <span id="hdr-broker-text" class="font-mono text-slate-600 dark:text-slate-300">Local Paper Broker</span>
         </div>
 
-        <button onclick="openConfigModal()" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 transition">
-          Configuration
+        <!-- Dark / Light Mode Toggle -->
+        <button id="btn-theme-toggle" onclick="toggleTheme()" type="button" aria-label="Cambiar tema claro/oscuro" title="Cambiar modo oscuro / claro"
+          class="touch-target inline-flex items-center justify-center w-11 h-11 md:w-9 md:h-9 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-amber-300 border border-slate-200 dark:border-slate-700 transition">
+          <!-- Sun icon (visible in dark mode) -->
+          <svg id="icon-theme-sun" class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+          </svg>
+          <!-- Moon icon (visible in light mode) -->
+          <svg id="icon-theme-moon" class="w-4 h-4 block dark:hidden text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+          </svg>
+        </button>
+
+        <!-- Configuration Button -->
+        <button onclick="openConfigModal()" type="button" aria-label="Configuración del sistema"
+          class="touch-target inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 h-11 md:h-9 rounded-lg text-xs font-semibold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 transition">
+          <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span class="hidden sm:inline">Configuration</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- MAIN WRAPPER -->
-  <main class="flex-1 max-w-[1560px] w-full mx-auto p-6 space-y-6">
+  <!-- ======================================================================= -->
+  <!-- MAIN APPLICATION WORKSPACE                                              -->
+  <!-- ======================================================================= -->
+  <main class="app-main flex-1 max-w-[1560px] w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
     <!-- ===================================================================== -->
-    <!-- VIEW 1: BOT CONTROL CENTER (MAIN LANDING TAB)                         -->
+    <!-- VIEW 1: BOT CONTROL CENTER (Mobile groups: inicio | cartera | sistema)-->
     <!-- ===================================================================== -->
-    <section id="main-view-control" class="space-y-6">
+    <section id="main-view-control" data-mobile-tab="inicio" class="space-y-4 sm:space-y-6">
 
-      <!-- TOP CONTROL & STATUS BAR -->
-      <div class="panel p-5">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <span id="pt-bot-status-badge" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-brand-50 text-brand-800 border border-brand-100 font-mono">
+      <!-- [INICIO] COPILOT CONFIRMATION BANNER (HIDDEN UNLESS PENDING) -->
+      <div id="pt-copilot-banner" data-mobile-group="inicio" class="hidden p-4 rounded-xl bg-brand-50 dark:bg-brand-900/30 border-2 border-brand-500 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div>
+          <div class="text-xs font-bold text-brand-900 dark:text-brand-300 flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-brand-500 animate-ping"></span>
+            Copilot Mode: Confirmación de Órdenes Requerida
+          </div>
+          <div id="pt-copilot-desc" class="text-xs text-slate-700 dark:text-slate-200 mt-1 font-mono tabular-nums"></div>
+        </div>
+        <div class="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+          <button onclick="triggerLiveAction('APPROVE_PENDING')" class="touch-target px-4 py-2.5 sm:py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+            Approve Orders
+          </button>
+          <button onclick="triggerLiveAction('REJECT_PENDING')" class="touch-target px-4 py-2.5 sm:py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs border border-slate-300 dark:border-slate-600 transition">
+            Reject Orders
+          </button>
+        </div>
+      </div>
+
+      <!-- [INICIO] TOP CONTROL & STATUS BAR -->
+      <div data-mobile-group="inicio" class="panel p-4 sm:p-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span id="pt-bot-status-badge" class="px-2.5 py-0.5 rounded text-xs font-semibold bg-brand-50 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300 border border-brand-100 dark:border-brand-800 font-mono">
                 ACTIVE (24/7)
               </span>
-              <span id="pt-mode-badge" class="px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+              <span id="pt-mode-badge" class="px-2.5 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 100% Automated Mode
               </span>
-              <span id="pt-broker-badge" class="px-2.5 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-700">
+              <span id="pt-broker-badge" class="px-2.5 py-0.5 rounded text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 Local Paper Simulator
               </span>
             </div>
-            <p class="text-xs text-slate-500" id="pt-connection-msg">
-              Connected to Local Real-Time Paper Trading Engine · SQLite/JSON persistence active.
+
+            <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed" id="pt-connection-msg">
+              Synchronizing real-time broker &amp; tactical engine telemetry...
             </p>
-            <div class="text-[11px] text-slate-400">
-              Last Market Sync: <span id="pt-last-scan" class="font-mono text-slate-800">--</span> · Daily Run: <span id="pt-sched-label" class="font-mono text-slate-800">21:55 CET</span>
+
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+              <span>Last Sync: <span id="pt-last-scan" class="font-mono tabular-nums font-semibold text-slate-800 dark:text-slate-200">--</span></span>
+              <span class="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
+              <span>Next Run: <span id="pt-sched-label" class="font-mono tabular-nums font-semibold text-slate-800 dark:text-slate-200">15:55 NY (21:55 Madrid)</span></span>
+              <span id="pt-dst-badge" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                NY/Madrid Sync
+              </span>
             </div>
           </div>
 
           <!-- PRIMARY COMMAND BUTTONS -->
-          <div class="flex flex-wrap items-center gap-2">
-            <button id="btn-toggle-bot" onclick="triggerLiveAction('TOGGLE_BOT')" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition">
-              Pause Bot
-            </button>
-            <button onclick="triggerLiveAction('SCAN_NOW')" class="px-4 py-2 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white transition">
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+            <button onclick="triggerLiveAction('SCAN_NOW')" class="touch-target px-4 py-2.5 sm:py-2 rounded-lg text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-xs transition">
               Scan &amp; Sync Now
             </button>
-            <button onclick="triggerLiveAction('PANIC_CLOSE_ALL')" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-white hover:bg-red-50 text-red-700 border border-red-300 transition">
+            <button id="btn-toggle-bot" onclick="triggerLiveAction('TOGGLE_BOT')" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
+              Pause Bot
+            </button>
+            <!-- Destructive actions stay visible here on Desktop (md+); on Mobile they live safely in Sistema + 2-step modal -->
+            <button onclick="triggerLiveAction('PANIC_CLOSE_ALL')" class="hidden md:inline-flex items-center px-3.5 py-2 rounded-lg text-xs font-semibold bg-white hover:bg-red-50 dark:bg-slate-900 dark:hover:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-800/80 transition">
               Panic: Close All Positions
             </button>
-            <button onclick="triggerLiveAction('RESET_ACCOUNT')" class="px-3 py-2 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 transition">
+            <button onclick="triggerLiveAction('RESET_ACCOUNT')" class="hidden md:inline-flex items-center px-3 py-2 rounded-lg text-xs font-medium bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 transition">
               Reset Balance
             </button>
           </div>
         </div>
 
-        <!-- ENGINE SIMULATION SHORTCUTS -->
-        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <span class="text-slate-500 font-medium">Test Specific Engine Execution:</span>
+        <!-- DESKTOP ENGINE SIMULATION SHORTCUTS -->
+        <div class="hidden md:flex mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex-wrap items-center justify-between gap-3 text-xs">
+          <span class="text-slate-500 dark:text-slate-400 font-medium">Test Specific Engine Execution:</span>
           <div class="flex flex-wrap items-center gap-1.5">
-            <button onclick="triggerLiveAction('SCAN_NOW', 'M1_PULLBACK')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-800 border border-slate-200 transition">
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M1_PULLBACK')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-300 hover:text-brand-800 dark:hover:text-brand-300 border border-slate-200 dark:border-slate-700 transition">
               Simulate M1 Pullback
             </button>
-            <button onclick="triggerLiveAction('SCAN_NOW', 'M4_CTA_TREND')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-800 border border-slate-200 transition">
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M4_CTA_TREND')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-300 hover:text-brand-800 dark:hover:text-brand-300 border border-slate-200 dark:border-slate-700 transition">
               Simulate M4 CTA Trend
             </button>
-            <button onclick="triggerLiveAction('SCAN_NOW', 'M5_VOL_CRUSH')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-800 border border-slate-200 transition">
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M5_VOL_CRUSH')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-300 hover:text-brand-800 dark:hover:text-brand-300 border border-slate-200 dark:border-slate-700 transition">
               Simulate M5 Vol-Crush
             </button>
-            <button onclick="triggerLiveAction('SCAN_NOW', 'M3_BEAR_SHORT')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 text-slate-700 hover:text-brand-800 border border-slate-200 transition">
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M3_BEAR_SHORT')" class="px-3 py-1 rounded text-xs font-medium bg-slate-50 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/30 text-slate-700 dark:text-slate-300 hover:text-brand-800 dark:hover:text-brand-300 border border-slate-200 dark:border-slate-700 transition">
               Simulate M3 Bear Short
             </button>
           </div>
         </div>
 
-        <!-- COPILOT CONFIRMATION BANNER (HIDDEN UNLESS PENDING) -->
-        <div id="pt-copilot-banner" class="hidden mt-4 p-4 rounded-lg bg-brand-50 border border-brand-500 flex flex-wrap items-center justify-between gap-4">
+        <!-- MOBILE COLLAPSIBLE ENGINE SIMULATOR DRAWER -->
+        <details class="md:hidden mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs group">
+          <summary class="list-none flex items-center justify-between py-1.5 text-slate-500 dark:text-slate-400 font-medium cursor-pointer">
+            <span>Simulador Rápido de Motores (Test M1–M5)</span>
+            <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M1_PULLBACK')" class="touch-target px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+              Simular M1 Pullback
+            </button>
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M4_CTA_TREND')" class="touch-target px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+              Simular M4 CTA
+            </button>
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M5_VOL_CRUSH')" class="touch-target px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+              Simular M5 Vol-Crush
+            </button>
+            <button onclick="triggerLiveAction('SCAN_NOW', 'M3_BEAR_SHORT')" class="touch-target px-2.5 py-2 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+              Simular M3 Short
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <!-- [INICIO] ACCOUNT METRICS (2x2 ON MOBILE, 4 COLS ON DESKTOP) -->
+      <div data-mobile-group="inicio" class="mobile-grid grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="panel p-3.5 sm:p-4">
+          <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block truncate">Portfolio Equity</span>
+          <div id="pt-total-equity" class="kpi-num text-lg sm:text-2xl font-bold text-slate-900 dark:text-white font-mono mt-1">$10,000.00</div>
+          <div id="pt-total-ret" class="kpi-num text-[11px] sm:text-xs text-brand-700 dark:text-brand-400 font-mono mt-0.5 truncate">Return: +0.00%</div>
+        </div>
+
+        <div class="panel p-3.5 sm:p-4">
+          <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block truncate">Allocated Positions</span>
+          <div id="pt-pos-value" class="kpi-num text-lg sm:text-2xl font-bold text-slate-900 dark:text-white font-mono mt-1">$0.00</div>
+          <div id="pt-pos-count" class="kpi-num text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5 truncate">0 active positions</div>
+        </div>
+
+        <div class="panel p-3.5 sm:p-4">
+          <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block truncate">Available Cash</span>
+          <div id="pt-cash-value" class="kpi-num text-lg sm:text-2xl font-bold text-slate-900 dark:text-white font-mono mt-1">$10,000.00</div>
+          <div class="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 mt-0.5 truncate">Liquid reserve</div>
+        </div>
+
+        <div class="panel p-3.5 sm:p-4">
+          <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block truncate">Current Drawdown</span>
+          <div id="pt-dd-value" class="kpi-num text-lg sm:text-2xl font-bold text-slate-900 dark:text-white font-mono mt-1">0.00%</div>
+          <div id="pt-dd-limit-label" class="kpi-num text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">Kill switch: -8.0%</div>
+        </div>
+      </div>
+
+      <!-- [INICIO] LIVE TACTICAL ENGINES (M1–M5) & MARKET PULSE RADAR -->
+      <div data-mobile-group="inicio" class="mobile-grid grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
+
+        <!-- TACTICAL ENGINES LIVE CARD (7 COLS ON XL) -->
+        <div id="live-tactical-panel" class="xl:col-span-7 panel p-4 sm:p-5 space-y-3.5">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Motores Tácticos en Vivo (M1–M5)</h3>
+                <span id="tactical-asof-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 tabular-nums">--</span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estado operativo diario, señales activas y asignación Core Modo 3</p>
+            </div>
+            <div id="tactical-regime-pill" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-brand-50 dark:bg-brand-900/40 text-brand-800 dark:text-brand-300 border border-brand-200 dark:border-brand-800 tabular-nums">
+              CONTANGO
+            </div>
+          </div>
+
+          <!-- Core Allocation Strip -->
+          <div id="tactical-core-bar" class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span class="text-slate-500 dark:text-slate-400 font-medium">Asignación Core Modo 3:</span>
+            <div id="tactical-core-pills" class="flex flex-wrap items-center gap-1.5 font-mono tabular-nums">
+              <span class="px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-900/50 text-brand-800 dark:text-brand-300 font-semibold">SPY 85%</span>
+              <span class="px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-900/50 text-brand-800 dark:text-brand-300 font-semibold">QQQ 15%</span>
+            </div>
+          </div>
+
+          <!-- Open Tactical Trades & Signals Today Body -->
+          <div id="tactical-live-body" class="space-y-3 text-xs">
+            <div class="p-3.5 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 text-center text-slate-500 dark:text-slate-400">
+              Sin operaciones tácticas activas hoy · 100% Capital asignado según Core Modo 3 Élite
+            </div>
+          </div>
+        </div>
+
+        <!-- DAILY MARKET PULSE & VOLATILITY REGIME (5 COLS ON XL) -->
+        <div class="xl:col-span-5 panel p-4 sm:p-5 space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Market Pulse &amp; VTS Regime</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Term Structure (VIX vs VIX3M) &amp; ETF Trend</p>
+            </div>
+            <div class="text-right shrink-0">
+              <span id="live-date-label" class="text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400 block">--</span>
+              <div id="live-regime-badge" class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800">CONTANGO</div>
+              <div id="live-vts-detail" class="text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400 mt-0.5">VIX/VIX3M: --</div>
+            </div>
+          </div>
+          <div id="live-assets-grid" class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <div class="py-4 text-center text-slate-400 dark:text-slate-500 aq-skeleton">Cargando cotizaciones y tendencia SMA200...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- [CARTERA] MOBILE PORTFOLIO SUMMARY STRIP (ONLY < md) -->
+      <div data-mobile-group="cartera" class="md:hidden panel p-3.5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Resumen de Cartera en Vivo</span>
+          <button onclick="triggerLiveAction('SCAN_NOW')" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-brand-700 text-white">
+            Sincronizar
+          </button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 font-mono tabular-nums">
           <div>
-            <div class="text-xs font-bold text-brand-900">Copilot Mode: Trade Approval Required</div>
-            <div id="pt-copilot-desc" class="text-xs text-slate-700 mt-0.5"></div>
+            <span class="text-[10px] text-slate-400 font-sans block">Equity Total</span>
+            <span id="cartera-mob-equity" class="text-xs font-bold text-slate-900 dark:text-white">$10,000</span>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="triggerLiveAction('APPROVE_PENDING')" class="px-3.5 py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
-              Approve Orders
-            </button>
-            <button onclick="triggerLiveAction('REJECT_PENDING')" class="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs border border-slate-300 transition">
-              Reject Orders
-            </button>
+          <div>
+            <span class="text-[10px] text-slate-400 font-sans block">Invertido</span>
+            <span id="cartera-mob-invested" class="text-xs font-bold text-brand-700 dark:text-brand-400">$0</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-sans block">Liquidez</span>
+            <span id="cartera-mob-cash" class="text-xs font-bold text-slate-700 dark:text-slate-300">$10,000</span>
           </div>
         </div>
       </div>
 
-      <!-- ACCOUNT METRICS (4 CARDS) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="panel p-4">
-          <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Total Portfolio Equity</span>
-          <div id="pt-total-equity" class="text-2xl font-bold text-slate-900 font-mono mt-1">$10,000.00</div>
-          <div id="pt-total-ret" class="text-xs text-brand-700 font-mono mt-0.5">Return: +0.00%</div>
-        </div>
+      <!-- [CARTERA] ACTIVE POSITIONS & RECENT ORDERS -->
+      <div data-mobile-group="cartera" class="mobile-grid grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
 
-        <div class="panel p-4">
-          <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Allocated Positions</span>
-          <div id="pt-pos-value" class="text-2xl font-bold text-slate-900 font-mono mt-1">$10,000.00</div>
-          <div id="pt-pos-count" class="text-xs text-slate-500 font-mono mt-0.5">2 active positions</div>
-        </div>
-
-        <div class="panel p-4">
-          <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Available Cash</span>
-          <div id="pt-cash-value" class="text-2xl font-bold text-slate-900 font-mono mt-1">$0.00</div>
-          <div class="text-xs text-slate-400 mt-0.5">Liquid reserve</div>
-        </div>
-
-        <div class="panel p-4">
-          <span class="text-xs text-slate-500 uppercase tracking-wider font-semibold">Current Drawdown</span>
-          <div id="pt-dd-value" class="text-2xl font-bold text-slate-900 font-mono mt-1">0.00%</div>
-          <div id="pt-dd-limit-label" class="text-xs text-slate-500 mt-0.5">Kill switch limit: -8.0%</div>
-        </div>
-      </div>
-
-      <!-- ACTIVE POSITIONS & RECENT ORDERS (2 TABLES) -->
-      <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        <!-- ACTIVE POSITIONS TABLE (7 COLS) -->
-        <div class="xl:col-span-7 panel p-5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">Current Open Positions</h3>
-            <span class="text-xs text-slate-400">Valued at real-time market prices</span>
+        <!-- ACTIVE POSITIONS (STACKED CARDS ON MOBILE, 7-COL TABLE ON DESKTOP) -->
+        <div class="xl:col-span-7 panel p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Current Open Positions</h3>
+              <span class="text-xs text-slate-400 dark:text-slate-500">Valued at real-time market prices</span>
+            </div>
+            <span id="cartera-pos-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 tabular-nums">0 abiertas</span>
           </div>
 
-          <div class="overflow-x-auto">
+          <!-- Mobile Stacked Cards (< md, Zero Horizontal Scroll) -->
+          <div id="pt-positions-mobile-cards" class="md:hidden space-y-2.5"></div>
+
+          <!-- Desktop Full Institutional Table (md+) -->
+          <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-y border-slate-200">
+              <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-semibold border-y border-slate-200 dark:border-slate-700">
                 <tr>
                   <th class="py-2 px-3">Asset</th>
                   <th class="py-2 px-3">Side</th>
@@ -233,21 +396,28 @@
                   <th class="py-2 px-3 text-right">Weight</th>
                 </tr>
               </thead>
-              <tbody id="pt-positions-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+              <tbody id="pt-positions-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums"></tbody>
             </table>
           </div>
         </div>
 
-        <!-- EXECUTED ORDERS TABLE (5 COLS) -->
-        <div class="xl:col-span-5 panel p-5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">Executed Orders History</h3>
-            <span class="text-xs text-slate-400">Transaction log</span>
+        <!-- EXECUTED ORDERS HISTORY (STACKED CARDS ON MOBILE, TABLE ON DESKTOP) -->
+        <div class="xl:col-span-5 panel p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Executed Orders History</h3>
+              <span class="text-xs text-slate-400 dark:text-slate-500">Transaction &amp; rebalance log</span>
+            </div>
+            <span id="cartera-ord-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 tabular-nums">0 órdenes</span>
           </div>
 
-          <div class="overflow-x-auto max-h-[260px]">
+          <!-- Mobile Stacked Order Cards (< md, Zero Horizontal Scroll) -->
+          <div id="pt-orders-mobile-cards" class="md:hidden space-y-2 max-h-[420px] overflow-y-auto pr-0.5"></div>
+
+          <!-- Desktop Table (md+) -->
+          <div class="hidden md:block overflow-x-auto max-h-[260px]">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-y border-slate-200 sticky top-0">
+              <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 font-semibold border-y border-slate-200 dark:border-slate-700 sticky top-0">
                 <tr>
                   <th class="py-2 px-3">Timestamp</th>
                   <th class="py-2 px-3">Action</th>
@@ -257,117 +427,143 @@
                   <th class="py-2 px-3">Status</th>
                 </tr>
               </thead>
-              <tbody id="pt-orders-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+              <tbody id="pt-orders-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- SYSTEM LOG CONSOLE & PARAMETERS QUICK EDIT -->
-      <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
-        <!-- LOG CONSOLE (7 COLS) -->
-        <div class="xl:col-span-7 panel p-5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">System Activity &amp; Risk Logs</h3>
-            <span class="text-xs text-slate-400">Live operational events</span>
+      <!-- [SISTEMA] MOBILE QUICK CONFIG & NOTIFICATION TESTS (< md) -->
+      <div data-mobile-group="sistema" class="md:hidden panel p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Conexiones y Alertas Móviles</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Bróker API, Signal y Telegram</p>
           </div>
-          <div id="pt-logs-box" class="bg-slate-50 rounded-lg p-3 border border-slate-200 font-mono text-xs space-y-1.5 max-h-[190px] overflow-y-auto"></div>
+        </div>
+        <button onclick="openConfigModal()" class="touch-target w-full py-2.5 px-4 rounded-lg bg-slate-900 dark:bg-brand-700 hover:bg-slate-800 dark:hover:bg-brand-600 text-white font-semibold text-xs flex items-center justify-center gap-2 transition">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Abrir Configuración (Bróker y Alertas)
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="triggerLiveAction('TEST_SIGNAL')" class="touch-target px-3 py-2.5 rounded-lg bg-brand-50 dark:bg-brand-900/30 text-brand-800 dark:text-brand-300 border border-brand-200 dark:border-brand-800 font-semibold text-xs transition">
+            Probar Signal
+          </button>
+          <button onclick="triggerLiveAction('TEST_TELEGRAM')" class="touch-target px-3 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition">
+            Probar Telegram
+          </button>
+        </div>
+        <div id="sys-quick-feedback" class="hidden text-xs font-medium text-center text-brand-700 dark:text-brand-400"></div>
+      </div>
+
+      <!-- [SISTEMA] SYSTEM LOG CONSOLE & PARAMETERS QUICK EDIT -->
+      <div data-mobile-group="sistema" class="mobile-grid grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
+
+        <!-- LOG CONSOLE (7 COLS) -->
+        <div class="xl:col-span-7 panel p-4 sm:p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">System Activity &amp; Risk Logs</h3>
+            <span class="text-xs text-slate-400 dark:text-slate-500">Live operational events</span>
+          </div>
+          <div id="pt-logs-box" class="bg-slate-50 dark:bg-slate-950/80 rounded-lg p-3 border border-slate-200 dark:border-slate-800 font-mono tabular-nums text-xs space-y-1.5 max-h-[260px] md:max-h-[210px] overflow-y-auto"></div>
         </div>
 
         <!-- STRATEGY PARAMETERS FORM (5 COLS) -->
-        <div class="xl:col-span-5 panel p-5 space-y-3 text-xs">
+        <div class="xl:col-span-5 panel p-4 sm:p-5 space-y-3 text-xs">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">Trading Parameters</h3>
-            <span class="text-slate-400">Hot-reloaded in real-time</span>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Trading Parameters</h3>
+            <span class="text-slate-400 dark:text-slate-500">Hot-reloaded in real-time</span>
           </div>
 
-          <div class="space-y-2.5">
+          <div class="space-y-3">
             <div>
-              <label class="block text-slate-600 font-medium mb-1">Execution Mode</label>
-              <select id="cfg-exec-mode" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-medium">
+              <label for="cfg-exec-mode" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Execution Mode</label>
+              <select id="cfg-exec-mode" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
                 <option value="AUTO_100">100% Automated Mode (Autonomous Rebalancing)</option>
                 <option value="COPILOT_CONFIRM">Copilot Mode (Manual Approval Required)</option>
               </select>
             </div>
 
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-2 gap-2.5">
               <div>
-                <label class="block text-slate-600 font-medium mb-1">Portfolio Capital ($)</label>
-                <input type="number" id="cfg-capital" step="500" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono font-semibold" />
+                <label for="cfg-capital" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Portfolio Capital ($)</label>
+                <input type="number" id="cfg-capital" step="500" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums font-semibold" />
               </div>
               <div>
-                <label class="block text-slate-600 font-medium mb-1">Risk / Trade (%)</label>
-                <input type="number" id="cfg-risk-pct" step="0.1" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-slate-600 font-medium mb-1">Max Pullback Slot (%)</label>
-                <input type="number" id="cfg-fast-cap" step="5" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono" />
-              </div>
-              <div>
-                <label class="block text-slate-600 font-medium mb-1">Max CTA Slot (%)</label>
-                <input type="number" id="cfg-cta-cap" step="5" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono" />
+                <label for="cfg-risk-pct" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Risk / Trade (%)</label>
+                <input type="number" id="cfg-risk-pct" step="0.1" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
               </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-2 gap-2.5">
               <div>
-                <label class="block text-slate-600 font-medium mb-1">Daily Kill Switch (%)</label>
-                <input type="number" id="cfg-kill-dd" step="1" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-red-700 font-mono font-semibold" />
+                <label for="cfg-fast-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Max Pullback Slot (%)</label>
+                <input type="number" id="cfg-fast-cap" step="5" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
               </div>
               <div>
-                <label class="block text-slate-600 font-medium mb-1">Daily Run Time (CET)</label>
-                <input type="text" id="cfg-sched-time" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono" />
+                <label for="cfg-cta-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Max CTA Slot (%)</label>
+                <input type="number" id="cfg-cta-cap" step="5" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label for="cfg-kill-dd" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Daily Kill Switch (%)</label>
+                <input type="number" id="cfg-kill-dd" step="1" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-red-700 dark:text-red-400 font-mono tabular-nums font-semibold" />
+              </div>
+              <div>
+                <label for="cfg-sched-time" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Daily Run Time (CET)</label>
+                <input type="text" id="cfg-sched-time" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
               </div>
             </div>
 
             <!-- ENGINE TOGGLES -->
             <div>
-              <label class="block text-slate-600 font-medium mb-1">Active Trading Engines</label>
-              <div class="grid grid-cols-3 gap-2">
-                <label class="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <input type="checkbox" id="chk-m1" class="accent-brand-700 w-3.5 h-3.5" checked /> M1 Pullback
+              <label class="block text-slate-600 dark:text-slate-300 font-medium mb-1.5">Active Trading Engines</label>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <label class="touch-target flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
+                  <input type="checkbox" id="chk-m1" class="accent-brand-600 w-4 h-4 shrink-0" checked /> M1 Pullback
                 </label>
-                <label class="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <input type="checkbox" id="chk-m2" class="accent-brand-700 w-3.5 h-3.5" checked /> M2 VIX Div
+                <label class="touch-target flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
+                  <input type="checkbox" id="chk-m2" class="accent-brand-600 w-4 h-4 shrink-0" checked /> M2 VIX Div
                 </label>
-                <label class="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <input type="checkbox" id="chk-m3" class="accent-brand-700 w-3.5 h-3.5" checked /> M3 Crisis Short
+                <label class="touch-target flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
+                  <input type="checkbox" id="chk-m3" class="accent-brand-600 w-4 h-4 shrink-0" checked /> M3 Crisis Short
                 </label>
-                <label class="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <input type="checkbox" id="chk-m4" class="accent-brand-700 w-3.5 h-3.5" checked /> M4 CTA Trend
+                <label class="touch-target flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
+                  <input type="checkbox" id="chk-m4" class="accent-brand-600 w-4 h-4 shrink-0" checked /> M4 CTA Trend
                 </label>
-                <label class="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <input type="checkbox" id="chk-m5" class="accent-brand-700 w-3.5 h-3.5" checked /> M5 Vol-Crush
+                <label class="touch-target flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer">
+                  <input type="checkbox" id="chk-m5" class="accent-brand-600 w-4 h-4 shrink-0" checked /> M5 Vol-Crush
                 </label>
               </div>
             </div>
 
-            <button onclick="saveLiveConfigFromUI()" class="w-full py-2 px-4 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+            <button onclick="saveLiveConfigFromUI()" class="touch-target w-full py-2.5 px-4 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
               Save Trading Parameters
             </button>
-            <div id="cfg-save-feedback" class="text-xs font-medium text-center text-brand-700 hidden"></div>
+            <div id="cfg-save-feedback" class="text-xs font-medium text-center text-brand-700 dark:text-brand-400 hidden"></div>
           </div>
         </div>
       </div>
 
-      <!-- DAILY MARKET RADAR -->
-      <div class="panel p-5 space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-sm font-bold text-slate-900">Daily Market Radar &amp; Volatility Regime</h3>
-            <p class="text-xs text-slate-500">Macro filter evaluation (VIX vs VIX3M Term Structure)</p>
-          </div>
-          <div class="text-right">
-            <span id="live-date-label" class="text-[11px] font-mono text-slate-500">2026-10-21</span>
-            <div id="live-regime-badge" class="font-bold text-brand-700">CONTANGO</div>
-            <div id="live-vts-detail" class="text-[11px] text-slate-500">VIX/VIX3M: 0.891</div>
-          </div>
+      <!-- [SISTEMA] MOBILE SAFE EMERGENCY CONTROLS ZONE (< md) -->
+      <div data-mobile-group="sistema" class="md:hidden panel p-4 space-y-3 border-red-200 dark:border-red-900/60">
+        <div>
+          <h3 class="text-sm font-bold text-red-700 dark:text-red-400">Controles de Emergencia (Protección 2 Pasos)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Acciones críticas protegidas contra pulsaciones accidentales.</p>
         </div>
-        <div id="live-assets-grid" class="divide-y divide-slate-100 text-xs"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button onclick="triggerLiveAction('PANIC_CLOSE_ALL')" class="touch-target min-h-[48px] px-4 py-2.5 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-950/70 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800 transition">
+            Panic: Cerrar Todas las Posiciones
+          </button>
+          <button onclick="triggerLiveAction('RESET_ACCOUNT')" class="touch-target min-h-[48px] px-4 py-2.5 rounded-lg text-xs font-semibold bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition">
+            Reset Account (Reiniciar Saldo)
+          </button>
+        </div>
       </div>
 
     </section>
@@ -375,110 +571,126 @@
     <!-- ===================================================================== -->
     <!-- VIEW 2: PERFORMANCE ANALYTICS (2007–2026)                             -->
     <!-- ===================================================================== -->
-    <section id="main-view-performance" class="space-y-6 hidden">
+    <section id="main-view-performance" class="space-y-4 sm:space-y-6 hidden">
 
-      <!-- SUB-NAVIGATION BAR (4 SUB-TABS) -->
-      <div class="bg-white border border-slate-200 rounded-lg px-4 flex flex-wrap items-center gap-6 text-xs">
-        <button id="subtab-chart" onclick="switchPerfSubTab('chart')" class="sub-nav-btn active py-3 text-slate-600 hover:text-slate-900 transition">
+      <!-- DEFERRED BACKGROUND LOADING BANNER (SHOWN ONLY UNTIL /api/summary FINISHES) -->
+      <div id="perf-loading-banner" class="hidden panel p-5 text-center space-y-2">
+        <div class="inline-flex items-center gap-2 text-xs font-semibold text-brand-700 dark:text-brand-400 aq-skeleton">
+          <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+          <span id="perf-loading-msg">Cargando auditoría histórica cuantitativa 2007–2026...</span>
+        </div>
+        <div>
+          <button id="perf-retry-btn" onclick="loadSummaryDataInBackground(true)" class="hidden mt-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-brand-700 text-white">
+            Reintentar carga de datos
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-NAVIGATION BAR (5 SUB-TABS, HORIZONTALLY SCROLLABLE PILLS ON MOBILE) -->
+      <div class="panel px-3 sm:px-4 py-2 md:py-0 flex flex-nowrap md:flex-wrap items-center gap-2 md:gap-6 overflow-x-auto no-scrollbar text-xs">
+        <button id="subtab-chart" onclick="switchPerfSubTab('chart')" class="sub-nav-btn active py-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
           1. Equity Chart &amp; Engines
         </button>
-        <button id="subtab-guide" onclick="switchPerfSubTab('guide')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
+        <button id="subtab-guide" onclick="switchPerfSubTab('guide')" class="sub-nav-btn py-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
           2. Strategy Architecture
         </button>
-        <button id="subtab-crisis" onclick="switchPerfSubTab('crisis')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
+        <button id="subtab-crisis" onclick="switchPerfSubTab('crisis')" class="sub-nav-btn py-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
           3. Crisis &amp; Robustness
         </button>
-        <button id="subtab-simulator" onclick="switchPerfSubTab('simulator')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
-          4. Portfolio Simulator &amp; Trade Log
+        <button id="subtab-simulator" onclick="switchPerfSubTab('simulator')" class="sub-nav-btn py-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
+          4. Simulator &amp; Trade Log
         </button>
-        <button id="subtab-tax" onclick="switchPerfSubTab('tax')" class="sub-nav-btn py-3 text-slate-600 hover:text-slate-900 transition">
-          5. Fiscalidad España &amp; Rentabilidad Neta (IRPF)
+        <button id="subtab-tax" onclick="switchPerfSubTab('tax')" class="sub-nav-btn py-3 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
+          5. Fiscalidad España (IRPF)
         </button>
       </div>
 
       <!-- SUB-TAB 1: EQUITY CHART & ENGINES -->
-      <div id="perf-view-chart" class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        
+      <div id="perf-view-chart" class="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-6 items-start">
+
         <!-- CHART COLUMN (8 COLS) -->
-        <div class="xl:col-span-8 panel p-5 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="xl:col-span-8 panel p-4 sm:p-5 space-y-4 min-w-0">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">Mode 3 Élite Cumulative Return vs S&amp;P 500</h3>
-              <p class="text-xs text-slate-500">Interactive historical backtest ($10,000 initial balance, 2007–2026)</p>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Mode 3 Élite Cumulative Return vs S&amp;P 500</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Interactive historical backtest ($10,000 initial balance, 2007–2026)</p>
             </div>
 
             <!-- ZOOM PERIOD BUTTONS & SCALE TOGGLE -->
             <div class="flex flex-wrap items-center gap-2">
-              <div class="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 text-xs">
-                <button id="btn-period-all" onclick="zoomToPeriod('2007-01-01', '2026-10-21', 'btn-period-all')" class="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-700 text-white shadow-xs">All</button>
-                <button id="btn-period-2008" onclick="zoomToPeriod('2007-10-01', '2009-06-01', 'btn-period-2008')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2008 Crash</button>
-                <button id="btn-period-2011" onclick="zoomToPeriod('2011-04-01', '2012-03-01', 'btn-period-2011')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">Euro 2011</button>
-                <button id="btn-period-2020" onclick="zoomToPeriod('2019-11-01', '2020-12-31', 'btn-period-2020')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">COVID 2020</button>
-                <button id="btn-period-2022" onclick="zoomToPeriod('2021-11-01', '2023-03-01', 'btn-period-2022')" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700">2022 Inflation</button>
+              <div class="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/90 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs overflow-x-auto no-scrollbar max-w-full">
+                <button id="btn-period-all" onclick="zoomToPeriod('2007-01-01', '2026-10-21', 'btn-period-all')" class="shrink-0 px-2.5 py-1.5 sm:py-1 rounded text-xs font-semibold bg-emerald-700 text-white shadow-xs">All</button>
+                <button id="btn-period-2008" onclick="zoomToPeriod('2007-10-01', '2009-06-01', 'btn-period-2008')" class="shrink-0 px-2.5 py-1.5 sm:py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200">2008 Crash</button>
+                <button id="btn-period-2011" onclick="zoomToPeriod('2011-04-01', '2012-03-01', 'btn-period-2011')" class="shrink-0 px-2.5 py-1.5 sm:py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200">Euro 2011</button>
+                <button id="btn-period-2020" onclick="zoomToPeriod('2019-11-01', '2020-12-31', 'btn-period-2020')" class="shrink-0 px-2.5 py-1.5 sm:py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200">COVID 2020</button>
+                <button id="btn-period-2022" onclick="zoomToPeriod('2021-11-01', '2023-03-01', 'btn-period-2022')" class="shrink-0 px-2.5 py-1.5 sm:py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200">2022 Inflation</button>
               </div>
 
-              <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                <button id="scale-linear" onclick="setChartScale('value')" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-sm">Linear</button>
-                <button id="scale-log" onclick="setChartScale('log')" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-600">Log</button>
+              <div class="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                <button id="scale-linear" onclick="setChartScale('value')" class="px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">Linear</button>
+                <button id="scale-log" onclick="setChartScale('log')" class="px-2.5 py-1.5 sm:py-1 rounded-md text-xs font-medium text-slate-600 dark:text-slate-400">Log</button>
               </div>
             </div>
           </div>
 
           <!-- ENGINE MARKERS FILTER -->
-          <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span class="text-slate-500 font-medium">Filter Engine Trade Markers:</span>
-            <div class="flex flex-wrap items-center gap-2" id="motor-filter-buttons"></div>
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <span class="text-slate-500 dark:text-slate-400 font-medium shrink-0">Filter Engine Trade Markers:</span>
+            <div class="flex flex-nowrap sm:flex-wrap items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="motor-filter-buttons"></div>
           </div>
 
-          <!-- MAIN ECHARTS CONTAINER -->
-          <div id="main-equity-chart" class="w-full h-[440px]"></div>
+          <!-- MAIN ECHARTS CONTAINER (Responsive Mobile -> Desktop Height) -->
+          <div id="main-equity-chart" class="w-full h-[300px] sm:h-[360px] md:h-[440px]"></div>
 
           <!-- DRAWDOWN SUB-CHART -->
-          <div class="pt-2 border-t border-slate-100">
-            <div class="text-xs font-bold text-slate-700 mb-1">Drawdown Comparison (% from Peak)</div>
-            <div id="drawdown-chart" class="w-full h-[150px]"></div>
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Drawdown Comparison (% from Peak)</div>
+            <div id="drawdown-chart" class="w-full h-[135px] md:h-[150px]"></div>
           </div>
         </div>
 
         <!-- RIGHT DETAIL COLUMN (4 COLS) -->
         <div class="xl:col-span-4 space-y-4">
-          
+
           <!-- SELECTED TRADE STORY DETAIL CARD -->
-          <div class="panel p-5 space-y-3">
+          <div class="panel p-4 sm:p-5 space-y-3">
             <div class="flex items-center justify-between">
-              <h3 class="text-sm font-bold text-slate-900">Trade Analytics Inspector</h3>
-              <span class="text-xs text-slate-400">Click any marker</span>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Trade Analytics Inspector</h3>
+              <span class="text-xs text-slate-400 dark:text-slate-500">Tap any marker</span>
             </div>
             <div id="trade-story-content"></div>
           </div>
 
           <!-- ENGINE SUMMARY CARDS -->
-          <div class="panel p-5 space-y-3">
-            <h3 class="text-sm font-bold text-slate-900">Tactical Engines Summary</h3>
+          <div class="panel p-4 sm:p-5 space-y-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Tactical Engines Summary</h3>
             <div id="motor-breakdown-cards" class="space-y-2"></div>
           </div>
         </div>
       </div>
 
       <!-- SUB-TAB 2: STRATEGY ARCHITECTURE -->
-      <div id="perf-view-guide" class="space-y-6 hidden">
-        <div class="panel p-6 space-y-4">
-          <h2 class="text-base font-bold text-slate-900">Mode 3 Élite Hybrid Quantitative Architecture</h2>
-          <p class="text-xs text-slate-600 leading-relaxed">
+      <div id="perf-view-guide" class="space-y-4 sm:space-y-6 hidden">
+        <div class="panel p-4 sm:p-6 space-y-4">
+          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">Mode 3 Élite Hybrid Quantitative Architecture</h2>
+          <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             Aegis-Quant solves the core dilemma of algorithmic trading: buy-and-hold investing generates solid bull market returns but suffers devastating 50%+ drawdowns during financial panics. Pure tactical timing strategies avoid crashes but sacrifice gains during long secular bull runs. Mode 3 Élite harmonizes both worlds through a dual-layer institutional structure:
           </p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs">
-            <div class="p-4 rounded-lg border border-brand-200 bg-brand-50/50 space-y-2">
-              <h3 class="font-bold text-brand-900 text-sm">Layer 1: Intelligent Core Indexing (Contango Regime)</h3>
-              <p class="text-slate-600 leading-relaxed">
+            <div class="p-4 rounded-lg border border-brand-200 dark:border-brand-800 bg-brand-50/50 dark:bg-brand-900/20 space-y-2">
+              <h3 class="font-bold text-brand-900 dark:text-brand-300 text-sm">Layer 1: Intelligent Core Indexing (Contango Regime)</h3>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
                 When the market volatility term structure is healthy (VIX &lt; VIX3M, contango), 100% of capital works in diversified equity indices (85% SPY, 15% QQQ). This eliminates cash drag during bull markets and captures compounding.
               </p>
             </div>
 
-            <div class="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-2">
-              <h3 class="font-bold text-slate-900 text-sm">Layer 2: Tactical Volatility Shield (Backwardation Regime)</h3>
-              <p class="text-slate-600 leading-relaxed">
+            <div class="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+              <h3 class="font-bold text-slate-900 dark:text-slate-100 text-sm">Layer 2: Tactical Volatility Shield (Backwardation Regime)</h3>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
                 When systemic panic hits (VIX &gt; VIX3M, backwardation), the Core allocation cuts risk to 0% and 5 uncorrelated tactical engines deploy calculated asymmetric capital.
               </p>
             </div>
@@ -487,71 +699,81 @@
 
         <!-- 5 TACTICAL ENGINES CARDS -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-          <div class="panel p-4 space-y-2">
-            <div class="font-bold text-emerald-800">Engine 1: Oversold Pullbacks (M1)</div>
-            <p class="text-slate-600">Buys severe 3-day drops when the index is in a primary uptrend (SMA 200). Captures rubber-band mean reversions in 3–5 sessions.</p>
-            <button onclick="jumpToMotorOnChart('M1_PULLBACK')" class="w-full py-1.5 rounded bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-800 font-semibold">Inspect on Chart</button>
+          <div class="panel p-4 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="font-bold text-emerald-800 dark:text-emerald-400">Engine 1: Oversold Pullbacks (M1)</div>
+              <p class="text-slate-600 dark:text-slate-300">Buys severe 3-day drops when the index is in a primary uptrend (SMA 200). Captures rubber-band mean reversions in 3–5 sessions.</p>
+            </div>
+            <button onclick="jumpToMotorOnChart('M1_PULLBACK')" class="touch-target w-full py-2 rounded-lg bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/40 text-slate-700 dark:text-slate-200 hover:text-brand-800 font-semibold transition">Inspect on Chart</button>
           </div>
 
-          <div class="panel p-4 space-y-2">
-            <div class="font-bold text-sky-800">Engine 2: Volatility Divergence (M2)</div>
-            <p class="text-slate-600">Detects exhaustion in institutional panic when VIX drops from local peaks while equity prices remain depressed.</p>
-            <button onclick="jumpToMotorOnChart('M2_VIX_DIV')" class="w-full py-1.5 rounded bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-800 font-semibold">Inspect on Chart</button>
+          <div class="panel p-4 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="font-bold text-sky-800 dark:text-sky-400">Engine 2: Volatility Divergence (M2)</div>
+              <p class="text-slate-600 dark:text-slate-300">Detects exhaustion in institutional panic when VIX drops from local peaks while equity prices remain depressed.</p>
+            </div>
+            <button onclick="jumpToMotorOnChart('M2_VIX_DIV')" class="touch-target w-full py-2 rounded-lg bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/40 text-slate-700 dark:text-slate-200 hover:text-brand-800 font-semibold transition">Inspect on Chart</button>
           </div>
 
-          <div class="panel p-4 space-y-2">
-            <div class="font-bold text-rose-800">Engine 3: Bear Market Short Selling (M3)</div>
-            <p class="text-slate-600">Opens short positions after weak 2-day bear market rallies below SMA 200, turning market collapses into alpha.</p>
-            <button onclick="jumpToMotorOnChart('M3_BEAR_SHORT')" class="w-full py-1.5 rounded bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-800 font-semibold">Inspect on Chart</button>
+          <div class="panel p-4 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="font-bold text-rose-800 dark:text-rose-400">Engine 3: Bear Market Short Selling (M3)</div>
+              <p class="text-slate-600 dark:text-slate-300">Opens short positions after weak 2-day bear market rallies below SMA 200, turning market collapses into alpha.</p>
+            </div>
+            <button onclick="jumpToMotorOnChart('M3_BEAR_SHORT')" class="touch-target w-full py-2 rounded-lg bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/40 text-slate-700 dark:text-slate-200 hover:text-brand-800 font-semibold transition">Inspect on Chart</button>
           </div>
 
-          <div class="panel p-4 space-y-2">
-            <div class="font-bold text-amber-800">Engine 4: Multi-Asset CTA Trends (M4)</div>
-            <p class="text-slate-600">Rides 20-day Donchian channel breakouts in Gold (GLD), Crude Oil (USO), Soybeans (SOYB), and Treasuries (TLT).</p>
-            <button onclick="jumpToMotorOnChart('M4_CTA_TREND')" class="w-full py-1.5 rounded bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-800 font-semibold">Inspect on Chart</button>
+          <div class="panel p-4 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="font-bold text-amber-800 dark:text-amber-400">Engine 4: Multi-Asset CTA Trends (M4)</div>
+              <p class="text-slate-600 dark:text-slate-300">Rides 20-day Donchian channel breakouts in Gold (GLD), Crude Oil (USO), Soybeans (SOYB), and Treasuries (TLT).</p>
+            </div>
+            <button onclick="jumpToMotorOnChart('M4_CTA_TREND')" class="touch-target w-full py-2 rounded-lg bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/40 text-slate-700 dark:text-slate-200 hover:text-brand-800 font-semibold transition">Inspect on Chart</button>
           </div>
 
-          <div class="panel p-4 space-y-2">
-            <div class="font-bold text-purple-800">Engine 5: Post-Panic Vol-Crush (M5)</div>
-            <p class="text-slate-600">Executes high-conviction entries when VIX/VIX3M panic collapses by &gt;5% in a single day, marking institutional risk re-entry.</p>
-            <button onclick="jumpToMotorOnChart('M5_VOL_CRUSH')" class="w-full py-1.5 rounded bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-800 font-semibold">Inspect on Chart</button>
+          <div class="panel p-4 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-1.5">
+              <div class="font-bold text-purple-800 dark:text-purple-400">Engine 5: Post-Panic Vol-Crush (M5)</div>
+              <p class="text-slate-600 dark:text-slate-300">Executes high-conviction entries when VIX/VIX3M panic collapses by &gt;5% in a single day, marking institutional risk re-entry.</p>
+            </div>
+            <button onclick="jumpToMotorOnChart('M5_VOL_CRUSH')" class="touch-target w-full py-2 rounded-lg bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-brand-900/40 text-slate-700 dark:text-slate-200 hover:text-brand-800 font-semibold transition">Inspect on Chart</button>
           </div>
         </div>
       </div>
 
       <!-- SUB-TAB 3: CRISIS & ROBUSTNESS -->
-      <div id="perf-view-crisis" class="space-y-6 hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="panel p-5 space-y-3">
-            <h3 class="text-sm font-bold text-slate-900">Historical Cycle Comparison (% Cumulative Return)</h3>
-            <div id="subperiods-chart" class="w-full h-[300px]"></div>
+      <div id="perf-view-crisis" class="space-y-4 sm:space-y-6 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div class="panel p-4 sm:p-5 space-y-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Historical Cycle Comparison (% Cumulative Return)</h3>
+            <div id="subperiods-chart" class="w-full h-[280px] md:h-[300px]"></div>
           </div>
 
-          <div class="panel p-5 space-y-3">
-            <h3 class="text-sm font-bold text-slate-900">Monte Carlo Simulation (1,000 Paths, Final Capital)</h3>
-            <div id="montecarlo-chart" class="w-full h-[300px]"></div>
+          <div class="panel p-4 sm:p-5 space-y-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Monte Carlo Simulation (1,000 Paths, Final Capital)</h3>
+            <div id="montecarlo-chart" class="w-full h-[280px] md:h-[300px]"></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="panel p-5 space-y-3">
-            <h3 class="text-sm font-bold text-slate-900">Friction &amp; Slippage Sensitivity Analysis</h3>
-            <div id="friction-chart" class="w-full h-[270px]"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div class="panel p-4 sm:p-5 space-y-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Friction &amp; Slippage Sensitivity Analysis</h3>
+            <div id="friction-chart" class="w-full h-[260px] md:h-[270px]"></div>
           </div>
 
-          <div class="panel p-5 space-y-3">
-            <h3 class="text-sm font-bold text-slate-900">Year-by-Year Performance &amp; Alpha vs S&amp;P 500</h3>
-            <div class="overflow-x-auto max-h-[270px]">
+          <div class="panel p-4 sm:p-5 space-y-3">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Year-by-Year Performance &amp; Alpha vs S&amp;P 500</h3>
+            <div class="overflow-x-auto max-h-[280px]">
               <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-b border-slate-200">
+                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold sticky top-0 border-b border-slate-200 dark:border-slate-700">
                   <tr>
-                    <th class="py-2 px-4">Year</th>
-                    <th class="py-2 px-4 text-right">Mode 3 Return</th>
-                    <th class="py-2 px-4 text-right">S&amp;P 500 Return</th>
-                    <th class="py-2 px-4 text-right">Alpha</th>
+                    <th class="py-2 px-3 sm:px-4">Year</th>
+                    <th class="py-2 px-3 sm:px-4 text-right">Mode 3</th>
+                    <th class="py-2 px-3 sm:px-4 text-right">S&amp;P 500</th>
+                    <th class="py-2 px-3 sm:px-4 text-right">Alpha</th>
                   </tr>
                 </thead>
-                <tbody id="yearly-comparison-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+                <tbody id="yearly-comparison-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums"></tbody>
               </table>
             </div>
           </div>
@@ -559,54 +781,54 @@
       </div>
 
       <!-- SUB-TAB 4: PORTFOLIO SIMULATOR & TRADE LOG -->
-      <div id="perf-view-simulator" class="space-y-6 hidden">
-        
+      <div id="perf-view-simulator" class="space-y-4 sm:space-y-6 hidden">
+
         <!-- SIMULATOR SLIDERS -->
-        <div class="panel p-6 space-y-4">
-          <h3 class="text-sm font-bold text-slate-900">Capital Compounding Calculator</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+        <div class="panel p-4 sm:p-6 space-y-4">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Capital Compounding Calculator</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 text-xs">
             <div>
-              <div class="flex justify-between font-semibold mb-1">
-                <span class="text-slate-600">Initial Capital</span>
-                <span id="sim-cap-label" class="font-bold text-slate-900 font-mono">$10,000</span>
+              <div class="flex justify-between font-semibold mb-1.5">
+                <span class="text-slate-600 dark:text-slate-300">Initial Capital</span>
+                <span id="sim-cap-label" class="font-bold text-slate-900 dark:text-white font-mono tabular-nums">$10,000</span>
               </div>
-              <input type="range" id="sim-cap-slider" min="1000" max="100000" step="1000" value="10000" oninput="updateCustomSimulator()" class="w-full accent-brand-700 cursor-pointer" />
+              <input type="range" id="sim-cap-slider" min="1000" max="100000" step="1000" value="10000" oninput="updateCustomSimulator()" class="w-full accent-brand-600 cursor-pointer" />
             </div>
 
             <div>
-              <div class="flex justify-between font-semibold mb-1">
-                <span class="text-slate-600">Execution Slippage / Broker Fee</span>
-                <span id="sim-fee-label" class="font-bold text-slate-900 font-mono">0.05%</span>
+              <div class="flex justify-between font-semibold mb-1.5">
+                <span class="text-slate-600 dark:text-slate-300">Execution Slippage / Broker Fee</span>
+                <span id="sim-fee-label" class="font-bold text-slate-900 dark:text-white font-mono tabular-nums">0.05%</span>
               </div>
-              <input type="range" id="sim-fee-slider" min="0" max="0.35" step="0.05" value="0.05" oninput="updateCustomSimulator()" class="w-full accent-brand-700 cursor-pointer" />
+              <input type="range" id="sim-fee-slider" min="0" max="0.35" step="0.05" value="0.05" oninput="updateCustomSimulator()" class="w-full accent-brand-600 cursor-pointer" />
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
-            <div class="p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <span class="text-xs text-slate-500 font-medium">S&amp;P 500 Ending Balance (Buy &amp; Hold)</span>
-              <div id="sim-res-spy" class="text-xl font-bold text-slate-800 font-mono mt-1">$54,686</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div class="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+              <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">S&amp;P 500 Ending Balance (Buy &amp; Hold)</span>
+              <div id="sim-res-spy" class="kpi-num text-xl font-bold text-slate-800 dark:text-slate-100 font-mono mt-1">$54,686</div>
             </div>
-            <div class="p-4 rounded-lg bg-brand-50 border border-brand-200">
-              <span class="text-xs text-brand-900 font-medium">Mode 3 Élite Ending Balance (Net of Fees)</span>
-              <div id="sim-res-m3elite" class="text-2xl font-bold text-brand-800 font-mono mt-1">$233,657</div>
-              <div id="sim-res-cagr" class="text-xs text-brand-700 mt-0.5">Estimated Net CAGR: 17.25% / year</div>
+            <div class="p-4 rounded-lg bg-brand-50 dark:bg-brand-900/25 border border-brand-200 dark:border-brand-800">
+              <span class="text-xs text-brand-900 dark:text-brand-300 font-medium">Mode 3 Élite Ending Balance (Net of Fees)</span>
+              <div id="sim-res-m3elite" class="kpi-num text-2xl font-bold text-brand-800 dark:text-brand-400 font-mono mt-1">$233,657</div>
+              <div id="sim-res-cagr" class="kpi-num text-xs text-brand-700 dark:text-brand-300 mt-0.5">Estimated Net CAGR: 17.25% / year</div>
             </div>
           </div>
         </div>
 
         <!-- 725 TRADES LOG TABLE WITH ADVANCED FILTERS -->
-        <div class="panel p-6 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="panel p-4 sm:p-6 space-y-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">Historical Trade Execution Log (725 Trades)</h3>
-              <p id="trades-count-label" class="text-xs text-slate-500 mt-0.5"></p>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Historical Trade Execution Log (725 Trades)</h3>
+              <p id="trades-count-label" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
             </div>
 
             <!-- TABLE FILTERS -->
-            <div class="flex flex-wrap items-center gap-2 text-xs">
-              <select id="filter-motor" onchange="renderTradesTable()" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800">
-                <option value="ALL">All Strategy Engines</option>
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 text-xs">
+              <select id="filter-motor" onchange="renderTradesTable()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-100">
+                <option value="ALL">All Engines</option>
                 <option value="M1_PULLBACK">M1 Pullback</option>
                 <option value="M2_VIX_DIV">M2 VIX Divergence</option>
                 <option value="M3_BEAR_SHORT">M3 Crisis Short</option>
@@ -614,7 +836,7 @@
                 <option value="M5_VOL_CRUSH">M5 Vol-Crush</option>
               </select>
 
-              <select id="filter-symbol" onchange="renderTradesTable()" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800">
+              <select id="filter-symbol" onchange="renderTradesTable()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-100">
                 <option value="ALL">All Symbols</option>
                 <option value="SPY">SPY (S&amp;P 500)</option>
                 <option value="QQQ">QQQ (Nasdaq 100)</option>
@@ -624,19 +846,19 @@
                 <option value="ZS">ZS (Soybeans)</option>
               </select>
 
-              <select id="filter-result" onchange="renderTradesTable()" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800">
+              <select id="filter-result" onchange="renderTradesTable()" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-100">
                 <option value="ALL">All Outcomes</option>
                 <option value="WIN">Winning Trades</option>
                 <option value="LOSS">Losing Trades</option>
               </select>
 
-              <input type="text" id="filter-year" oninput="renderTradesTable()" placeholder="Filter Year (e.g. 2008)..." class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 w-40" />
+              <input type="text" id="filter-year" oninput="renderTradesTable()" placeholder="Year (e.g. 2008)" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-100 w-full sm:w-36" />
             </div>
           </div>
 
-          <div class="overflow-x-auto max-h-[500px]">
+          <div class="overflow-x-auto max-h-[480px]">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-y border-slate-200">
+              <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold sticky top-0 border-y border-slate-200 dark:border-slate-700">
                 <tr>
                   <th class="py-2.5 px-3">Exit Date</th>
                   <th class="py-2.5 px-3">Engine</th>
@@ -644,10 +866,10 @@
                   <th class="py-2.5 px-3">Side</th>
                   <th class="py-2.5 px-3 text-right">Portfolio Return</th>
                   <th class="py-2.5 px-3 text-right">P&amp;L (USD)</th>
-                  <th class="py-2.5 px-3 text-right">Holding Days</th>
+                  <th class="py-2.5 px-3 text-right">Days</th>
                 </tr>
               </thead>
-              <tbody id="trades-table-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+              <tbody id="trades-table-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums"></tbody>
             </table>
           </div>
         </div>
@@ -655,93 +877,93 @@
       </div>
 
       <!-- SUB-TAB 5: FISCALIDAD ESPAÑA & RENTABILIDAD NETA (IRPF) -->
-      <div id="perf-view-tax" class="space-y-6 hidden">
-        
+      <div id="perf-view-tax" class="space-y-4 sm:space-y-6 hidden">
+
         <!-- HEADER BANNER -->
-        <div class="panel p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gradient-to-r from-slate-50 via-white to-brand-50/30">
+        <div class="panel p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4 bg-gradient-to-r from-slate-50 via-white to-brand-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/30">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs px-2.5 py-0.5 rounded font-bold bg-brand-100 text-brand-800 uppercase tracking-wider font-mono">Simulación Fiscal IRPF</span>
-              <h2 class="text-sm font-bold text-slate-900">Impacto Fiscal Real en España (Base del Ahorro 2007–2026)</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[11px] px-2.5 py-0.5 rounded font-bold bg-brand-100 dark:bg-brand-900/50 text-brand-800 dark:text-brand-300 uppercase tracking-wider font-mono">Simulación Fiscal IRPF</span>
+              <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">Impacto Fiscal Real en España (Base del Ahorro 2007–2026)</h2>
             </div>
-            <p class="text-xs text-slate-600 mt-1">
+            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
               Simulación auditada deduciendo impuestos anualmente según los tramos progresivos reales del IRPF (19% a 28%) y compensando ejercicios negativos a 4 años.
             </p>
           </div>
-          <div class="text-right shrink-0">
-            <span class="text-xs text-slate-500 block">Fricción Fiscal Media (Tax Drag):</span>
-            <span class="text-sm font-extrabold text-amber-700 font-mono">-3.48% CAGR</span>
+          <div class="text-left md:text-right shrink-0">
+            <span class="text-xs text-slate-500 dark:text-slate-400 block">Fricción Fiscal Media (Tax Drag):</span>
+            <span class="text-sm font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums">-3.48% CAGR</span>
           </div>
         </div>
 
         <!-- 4 KPI SUMMARY CARDS -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="panel p-4 space-y-1 border-l-4 border-emerald-500">
-            <span class="text-xs text-slate-500 font-medium">Capital Final Neto (En Mano)</span>
-            <div id="tax-kpi-net-cap" class="text-xl font-black text-emerald-700 font-mono">$154,415.01</div>
-            <div class="text-[11px] text-emerald-600 font-semibold font-mono">+1,444.15% neto (14.67% CAGR)</div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="panel p-3.5 sm:p-4 space-y-1 border-l-4 border-emerald-500">
+            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Final Neto</span>
+            <div id="tax-kpi-net-cap" class="kpi-num text-base sm:text-xl font-black text-emerald-700 dark:text-emerald-400 font-mono">$154,415.01</div>
+            <div class="text-[10px] sm:text-[11px] text-emerald-600 dark:text-emerald-400/80 font-semibold font-mono tabular-nums">+1,444% (14.67% CAGR)</div>
           </div>
 
-          <div class="panel p-4 space-y-1 border-l-4 border-brand-500">
-            <span class="text-xs text-slate-500 font-medium">Capital Bruto (Antes de IRPF)</span>
-            <div id="tax-kpi-gross-cap" class="text-xl font-black text-brand-800 font-mono">$281,068.69</div>
-            <div class="text-[11px] text-brand-600 font-semibold font-mono">+2,710.69% bruto (18.15% CAGR)</div>
+          <div class="panel p-3.5 sm:p-4 space-y-1 border-l-4 border-brand-500">
+            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Bruto</span>
+            <div id="tax-kpi-gross-cap" class="kpi-num text-base sm:text-xl font-black text-brand-800 dark:text-brand-300 font-mono">$281,068.69</div>
+            <div class="text-[10px] sm:text-[11px] text-brand-600 dark:text-brand-400/80 font-semibold font-mono tabular-nums">+2,710% (18.15% CAGR)</div>
           </div>
 
-          <div class="panel p-4 space-y-1 border-l-4 border-amber-500">
-            <span class="text-xs text-slate-500 font-medium">Total IRPF Pagado a Hacienda</span>
-            <div id="tax-kpi-total-tax" class="text-xl font-black text-amber-700 font-mono">$36,384.01</div>
-            <div class="text-[11px] text-slate-500 font-medium">Liquidado en campaña de Renta</div>
+          <div class="panel p-3.5 sm:p-4 space-y-1 border-l-4 border-amber-500">
+            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Total IRPF Pagado</span>
+            <div id="tax-kpi-total-tax" class="kpi-num text-base sm:text-xl font-black text-amber-700 dark:text-amber-400 font-mono">$36,384.01</div>
+            <div class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">Liquidado en Renta</div>
           </div>
 
-          <div class="panel p-4 space-y-1 border-l-4 border-purple-500">
-            <span class="text-xs text-slate-500 font-medium">Ventaja Neta vs S&amp;P 500 Buy &amp; Hold</span>
-            <div id="tax-kpi-ratio-spy" class="text-xl font-black text-purple-700 font-mono">3.41x Más Capital</div>
-            <div class="text-[11px] text-purple-600 font-semibold font-mono">$154k vs $45.3k neto S&amp;P 500</div>
+          <div class="panel p-3.5 sm:p-4 space-y-1 border-l-4 border-purple-500">
+            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Ventaja vs S&amp;P 500</span>
+            <div id="tax-kpi-ratio-spy" class="kpi-num text-base sm:text-xl font-black text-purple-700 dark:text-purple-400 font-mono">3.41x Más Capital</div>
+            <div class="text-[10px] sm:text-[11px] text-purple-600 dark:text-purple-400/80 font-semibold font-mono tabular-nums">$154k vs $45.3k SPY</div>
           </div>
         </div>
 
         <!-- TAX COMPARISON CHART -->
-        <div class="panel p-5 space-y-3">
-          <div class="flex items-center justify-between">
+        <div class="panel p-4 sm:p-5 space-y-3">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">Curva de Capital Real: Bruto vs Neto (Tras IRPF) vs S&amp;P 500</h3>
-              <p class="text-xs text-slate-500">Comparativa histórica de $10,000 iniciales descontando el pago de impuestos anual en IRPF.</p>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Curva de Capital Real: Bruto vs Neto (Tras IRPF) vs S&amp;P 500</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Comparativa histórica de $10,000 iniciales descontando el pago de impuestos anual en IRPF.</p>
             </div>
-            <div class="flex items-center gap-4 text-xs font-mono">
-              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#1e40af] inline-block"></span> Modo 3 Élite Bruto</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#059669] inline-block"></span> Modo 3 Élite Neto (IRPF)</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#dc2626] inline-block"></span> S&amp;P 500 Buy &amp; Hold</span>
+            <div class="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-600 dark:text-slate-300">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#3b82f6] inline-block"></span> Bruto</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#059669] inline-block"></span> Neto IRPF</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-[#dc2626] inline-block"></span> S&amp;P 500</span>
             </div>
           </div>
-          <div id="tax-equity-chart" class="w-full h-[400px]"></div>
+          <div id="tax-equity-chart" class="w-full h-[300px] sm:h-[350px] md:h-[400px]"></div>
         </div>
 
         <!-- TAX YEARLY BREAKDOWN TABLE -->
-        <div class="panel p-5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-900">Auditoría Fiscal Anual: Liquidación de IRPF y Compensación de Pérdidas</h3>
-            <span class="text-xs text-slate-500 font-mono">Tramos Ahorro: 19% (&lt;6k) | 21% (6-50k) | 23% (50-200k) | 27-28% (&gt;200k)</span>
+        <div class="panel p-4 sm:p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Auditoría Fiscal Anual: Liquidación de IRPF y Compensación</h3>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Tramos Ahorro: 19% (&lt;6k) | 21% (6-50k) | 23% (50-200k) | 27-28% (&gt;200k)</span>
           </div>
           <div class="overflow-x-auto max-h-[380px]">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-y border-slate-200">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold sticky top-0 border-y border-slate-200 dark:border-slate-700">
                 <tr>
                   <th class="py-2.5 px-3">Año</th>
                   <th class="py-2.5 px-3 text-right">Cap. Inicial</th>
                   <th class="py-2.5 px-3 text-right">Retorno Bruto</th>
-                  <th class="py-2.5 px-3 text-right text-amber-700">Costes Bróker/TER</th>
+                  <th class="py-2.5 px-3 text-right text-amber-700 dark:text-amber-400">Costes Bróker/TER</th>
                   <th class="py-2.5 px-3 text-right">Ganancia Bruta</th>
                   <th class="py-2.5 px-3 text-right">Pérdida Comp.</th>
                   <th class="py-2.5 px-3 text-right">Base Imponible</th>
                   <th class="py-2.5 px-3 text-right">IRPF Pagado</th>
                   <th class="py-2.5 px-3 text-right">Tipo Efectivo</th>
                   <th class="py-2.5 px-3 text-right">Pérdida Pendiente</th>
-                  <th class="py-2.5 px-3 text-right font-bold text-slate-900">Cap. Final Neto</th>
-                  <th class="py-2.5 px-3 text-right text-emerald-700">Retorno Neto</th>
+                  <th class="py-2.5 px-3 text-right font-bold text-slate-900 dark:text-slate-100">Cap. Final Neto</th>
+                  <th class="py-2.5 px-3 text-right text-emerald-700 dark:text-emerald-400">Retorno Neto</th>
                 </tr>
               </thead>
-              <tbody id="tax-yearly-tbody" class="divide-y divide-slate-100 font-mono"></tbody>
+              <tbody id="tax-yearly-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-mono tabular-nums"></tbody>
             </table>
           </div>
         </div>
@@ -749,37 +971,37 @@
         <!-- PRACTICAL SPANISH TAX GUIDE -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="panel p-4 space-y-2">
-            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+            <h4 class="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
               <span>🏛️</span> Separación Total de Bases (Sueldo vs Bot)
             </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               En España, tus rendimientos del trabajo (nómina o facturas de autónomo) van a la <b>Base General</b>. Las ganancias generadas por la compra-venta de ETFs del bot van a la <b>Base del Ahorro</b>. <b>Tu salario nunca hace subir de tramo a las ganancias del bot</b> ni viceversa.
             </p>
           </div>
 
           <div class="panel p-4 space-y-2">
-            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+            <h4 class="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
               <span>🔄</span> Compensación de Pérdidas a 4 Años
             </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               Si en un ejercicio el bot sufriese un año negativo, <b>no pagas ningún impuesto ese año</b> y el saldo negativo se arrastra para compensar al 100% las ganancias de los <b>4 ejercicios fiscales siguientes</b>, protegiendo tu capital antes de volver a tributar.
             </p>
           </div>
 
           <div class="panel p-4 space-y-2">
-            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+            <h4 class="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
               <span>📦</span> Ventaja de ETFs UCITS Acumulativos
             </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               Al operar réplicas UCITS europeas acumulativas (ej. CSPX o SXR8), los dividendos de las empresas se reinvierten automáticamente dentro del valor liquidativo del ETF. <b>No sufren retención en origen del 15% (EE.UU.) ni retención en España</b>, maximizando el interés compuesto.
             </p>
           </div>
 
           <div class="panel p-4 space-y-2">
-            <h4 class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+            <h4 class="font-bold text-slate-900 dark:text-slate-100 text-xs flex items-center gap-1.5">
               <span>📋</span> Bróker Extranjero (IBKR) y Modelo 720
             </h4>
-            <p class="text-xs text-slate-600 leading-relaxed">
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               En Interactive Brokers (IBKR Irlanda), no se practica retención automática en España; tú incluyes el informe anual de ganancias en tu declaración de la Renta. Si el valor total de tu cartera en el extranjero supera los <b>50.000 € a 31 de diciembre</b>, deberás presentar el <b>Modelo 720</b> informativo (sin coste impositivo).
             </p>
           </div>
@@ -792,29 +1014,110 @@
   </main>
 
   <!-- ======================================================================= -->
+  <!-- FIXED MOBILE BOTTOM NAVIGATION BAR (md:hidden, Thumb-Friendly >=54px)   -->
+  <!-- ======================================================================= -->
+  <nav id="mobile-bottom-nav" aria-label="Navegación principal móvil"
+    class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 safe-bottom-nav shadow-lg">
+    <div class="grid grid-cols-4">
+      <button id="mobile-tab-inicio" type="button" onclick="switchMobileTab('inicio')" class="mobile-bottom-btn active flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+        <div class="relative">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span id="mob-badge-inicio" class="hidden absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-brand-500 ring-2 ring-white dark:ring-slate-900"></span>
+        </div>
+        <span>Inicio</span>
+      </button>
+
+      <button id="mobile-tab-cartera" type="button" onclick="switchMobileTab('cartera')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+        <div class="relative">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          <span id="mob-badge-cartera" class="hidden absolute -top-1.5 -right-3 px-1 min-w-[16px] h-4 rounded-full bg-brand-600 text-white text-[9px] font-mono font-bold flex items-center justify-center tabular-nums">0</span>
+        </div>
+        <span>Cartera</span>
+      </button>
+
+      <button id="mobile-tab-analisis" type="button" onclick="switchMobileTab('analisis')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+        </svg>
+        <span>Análisis</span>
+      </button>
+
+      <button id="mobile-tab-sistema" type="button" onclick="switchMobileTab('sistema')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>Sistema</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ======================================================================= -->
+  <!-- TWO-STEP DESTRUCTIVE ACTION CONFIRMATION MODAL / BOTTOM SHEET           -->
+  <!-- ======================================================================= -->
+  <div id="confirm-action-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) closeDestructiveConfirmModal()">
+    <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-md w-full p-5 sm:p-6 safe-bottom-sheet space-y-4 text-xs">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 shrink-0 rounded-full bg-red-100 dark:bg-red-950/70 text-red-600 dark:text-red-400 flex items-center justify-center font-bold text-base">
+            !
+          </div>
+          <div>
+            <h3 id="confirm-modal-title" class="text-sm font-bold text-slate-900 dark:text-white">Confirmar Acción Crítica</h3>
+            <p class="text-[11px] text-red-600 dark:text-red-400 font-semibold">Verificación de seguridad en 2 pasos</p>
+          </div>
+        </div>
+        <button onclick="closeDestructiveConfirmModal()" type="button" class="touch-target px-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-bold">✕</button>
+      </div>
+
+      <p id="confirm-modal-desc" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+
+      <div id="confirm-modal-context" class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono tabular-nums text-[11px] text-slate-700 dark:text-slate-300"></div>
+
+      <label class="touch-target flex items-center gap-3 p-3 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/30 cursor-pointer select-none">
+        <input type="checkbox" id="confirm-safety-check" onchange="toggleDestructiveConfirmBtn()" class="accent-red-600 w-5 h-5 shrink-0" />
+        <span class="text-xs font-medium text-slate-800 dark:text-slate-200">Confirmo que deseo ejecutar esta orden inmediatamente en la cuenta activa.</span>
+      </label>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" onclick="closeDestructiveConfirmModal()" class="touch-target min-h-[48px] px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition">
+          Cancelar
+        </button>
+        <button id="btn-confirm-destructive" type="button" disabled onclick="executeConfirmedDestructiveAction()"
+          class="touch-target min-h-[48px] px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:pointer-events-none text-white font-bold text-xs transition">
+          Confirmar y Ejecutar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
   <!-- CONFIGURATION MODAL (BROKER & MOBILE ALERTS)                            -->
   <!-- ======================================================================= -->
-  <div id="config-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden items-center justify-center p-4">
-    <div class="bg-white rounded-xl border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 text-xs">
-      
+  <div id="config-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) closeConfigModal()">
+    <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 safe-bottom-sheet space-y-5 text-xs">
+
       <!-- MODAL HEADER -->
-      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <h2 class="text-base font-bold text-slate-900">System Configuration</h2>
-          <p class="text-xs text-slate-500">Broker connection and mobile alert channels</p>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">System Configuration</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Broker connection and mobile alert channels</p>
         </div>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-700 text-sm font-bold px-2 py-1">
+        <button onclick="closeConfigModal()" type="button" class="touch-target text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-bold px-3 py-1">
           ✕
         </button>
       </div>
 
       <!-- SECTION 1: BROKER CREDENTIALS -->
       <div class="space-y-3">
-        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">1. Broker Connection</h3>
-        
+        <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">1. Broker Connection</h3>
+
         <div>
-          <label class="block text-slate-600 font-medium mb-1">Broker Execution Provider</label>
-          <select id="cfg-broker-provider" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-900 font-medium">
+          <label for="cfg-broker-provider" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Broker Execution Provider</label>
+          <select id="cfg-broker-provider" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
             <option value="LOCAL_PAPER">Local Paper Simulator (Independent, Zero Risk)</option>
             <option value="ALPACA_PAPER">Alpaca Paper Trading API (Testnet)</option>
             <option value="ALPACA_LIVE">Alpaca Live Trading API (Real Money)</option>
@@ -823,90 +1126,90 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label class="block text-slate-600 font-medium mb-1">API Endpoint</label>
-            <select id="cfg-alpaca-endpoint" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 font-mono">
+            <label for="cfg-alpaca-endpoint" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">API Endpoint</label>
+            <select id="cfg-alpaca-endpoint" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-100 font-mono">
               <option value="https://paper-api.alpaca.markets">Paper (paper-api.alpaca.markets)</option>
               <option value="https://api.alpaca.markets">Live (api.alpaca.markets)</option>
             </select>
           </div>
           <div>
-            <label class="block text-slate-600 font-medium mb-1">Alpaca API Key ID</label>
-            <input type="text" id="cfg-alpaca-key" placeholder="PK..." class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono" />
+            <label for="cfg-alpaca-key" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Alpaca API Key ID</label>
+            <input type="text" id="cfg-alpaca-key" placeholder="PK..." class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono" />
           </div>
           <div>
-            <label class="block text-slate-600 font-medium mb-1">Alpaca Secret Key</label>
-            <input type="password" id="cfg-alpaca-secret" placeholder="Secret Key..." class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono" />
+            <label for="cfg-alpaca-secret" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Alpaca Secret Key</label>
+            <input type="password" id="cfg-alpaca-secret" placeholder="Secret Key..." class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono" />
           </div>
         </div>
       </div>
 
       <!-- SECTION 2: MOBILE ALERT CHANNELS (SIGNAL & TELEGRAM SEPARATED) -->
-      <div class="space-y-4 pt-3 border-t border-slate-100">
+      <div class="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800">
         <div>
-          <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">2. Mobile Notification Setup</h3>
-          <p class="text-slate-500 mt-0.5">Receive real-time trade fills, copilot approval requests, and kill switch alerts.</p>
+          <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">2. Mobile Notification Setup</h3>
+          <p class="text-slate-500 dark:text-slate-400 mt-0.5">Receive real-time trade fills, copilot approval requests, and kill switch alerts.</p>
         </div>
 
         <!-- COMMON BLOCK: MOBILE PHONE NUMBER -->
-        <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-          <label class="block text-slate-700 font-semibold mb-1">Mobile Phone Number (Recipient)</label>
-          <input type="text" id="cfg-mobile-phone" placeholder="+34600000000" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-900 font-mono text-sm" />
+        <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+          <label for="cfg-mobile-phone" class="block text-slate-700 dark:text-slate-200 font-semibold mb-1">Mobile Phone Number (Recipient)</label>
+          <input type="tel" id="cfg-mobile-phone" placeholder="+34600000000" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-sm" />
           <p class="text-[11px] text-slate-400 mt-1">International format including country code (+34 for Spain). Used for Signal alerts.</p>
         </div>
 
         <!-- SUBSECTION 2A: SIGNAL MESSENGER (PRIMARY) -->
-        <div class="p-4 rounded-lg border border-brand-200 bg-brand-50/40 space-y-3">
+        <div class="p-4 rounded-lg border border-brand-200 dark:border-brand-800 bg-brand-50/40 dark:bg-brand-900/20 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-brand-600"></span>
-              <h4 class="font-bold text-brand-900 text-xs uppercase tracking-wide">Signal Messenger (Active Channel)</h4>
+              <h4 class="font-bold text-brand-900 dark:text-brand-300 text-xs uppercase tracking-wide">Signal Messenger (Active Channel)</h4>
             </div>
-            <span class="text-[11px] text-brand-800 font-medium">Installed on Phone</span>
+            <span class="text-[11px] text-brand-800 dark:text-brand-400 font-medium">Installed on Phone</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-slate-600 font-medium mb-1">Signal Gateway URL</label>
-              <input type="text" id="cfg-sig-url" placeholder="https://api.callmebot.com/signal/send.php" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono text-xs" />
+              <label for="cfg-sig-url" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Signal Gateway URL</label>
+              <input type="text" id="cfg-sig-url" placeholder="https://api.callmebot.com/signal/send.php" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
               <p class="text-[10px] text-slate-400 mt-0.5">Default: CallMeBot Gateway or local docker <code class="font-mono">http://127.0.0.1:8085/v2/send</code></p>
             </div>
             <div>
-              <label class="block text-slate-600 font-medium mb-1">CallMeBot Signal API Key (Optional)</label>
-              <input type="text" id="cfg-sig-apikey" placeholder="123456" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono text-xs" />
+              <label for="cfg-sig-apikey" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">CallMeBot Signal API Key (Optional)</label>
+              <input type="text" id="cfg-sig-apikey" placeholder="123456" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
               <p class="text-[10px] text-slate-400 mt-0.5">Obtained free by sending "I allow callmebot to send me messages" via Signal</p>
             </div>
           </div>
 
           <div class="flex justify-end pt-1">
-            <button onclick="triggerLiveAction('TEST_SIGNAL')" class="px-3 py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+            <button onclick="triggerLiveAction('TEST_SIGNAL')" type="button" class="touch-target px-3.5 py-2 sm:py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
               Send Test Signal Alert
             </button>
           </div>
         </div>
 
         <!-- SUBSECTION 2B: TELEGRAM MESSENGER (SECONDARY) -->
-        <div class="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-3">
+        <div class="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-3">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-              <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wide">Telegram Messenger (Optional / Alternative)</h4>
+              <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wide">Telegram Messenger (Optional / Alternative)</h4>
             </div>
             <span class="text-[11px] text-slate-400">Inline buttons &amp; charts</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-slate-600 font-medium mb-1">Telegram Bot Token</label>
-              <input type="text" id="cfg-tg-token" placeholder="123456:ABC..." class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono text-xs" />
+              <label for="cfg-tg-token" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Telegram Bot Token</label>
+              <input type="text" id="cfg-tg-token" placeholder="123456:ABC..." class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
             </div>
             <div>
-              <label class="block text-slate-600 font-medium mb-1">Telegram Chat ID</label>
-              <input type="text" id="cfg-tg-chat" placeholder="987654321" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-900 font-mono text-xs" />
+              <label for="cfg-tg-chat" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Telegram Chat ID</label>
+              <input type="text" id="cfg-tg-chat" placeholder="987654321" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
             </div>
           </div>
 
           <div class="flex justify-end pt-1">
-            <button onclick="triggerLiveAction('TEST_TELEGRAM')" class="px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs transition">
+            <button onclick="triggerLiveAction('TEST_TELEGRAM')" type="button" class="touch-target px-3.5 py-2 sm:py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold text-xs transition">
               Send Test Telegram Alert
             </button>
           </div>
@@ -915,13 +1218,13 @@
       </div>
 
       <!-- MODAL ACTIONS -->
-      <div class="flex items-center justify-between pt-3 border-t border-slate-100">
-        <div id="modal-save-feedback" class="text-xs font-semibold text-brand-700 hidden"></div>
-        <div class="flex items-center gap-2 ml-auto">
-          <button onclick="closeConfigModal()" class="px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium text-xs">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div id="modal-save-feedback" class="text-xs font-semibold text-brand-700 dark:text-brand-400 hidden"></div>
+        <div class="grid grid-cols-2 sm:flex items-center gap-2 sm:ml-auto w-full sm:w-auto">
+          <button onclick="closeConfigModal()" type="button" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs">
             Cancel
           </button>
-          <button onclick="saveLiveConfigFromUI(true)" class="px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+          <button onclick="saveLiveConfigFromUI(true)" type="button" class="touch-target px-4 py-2.5 sm:py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
             Save All Configuration
           </button>
         </div>

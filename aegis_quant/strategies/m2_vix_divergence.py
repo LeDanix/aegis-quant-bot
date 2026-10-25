@@ -98,7 +98,11 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
         return False, b.close, ""
 
     def simulate(
-        self, symbol: str, series: List[EnrichedBar], start_date: str = "2007-01-01"
+        self,
+        symbol: str,
+        series: List[EnrichedBar],
+        start_date: str = "2007-01-01",
+        include_open: bool = False,
     ) -> List[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 2."""
         trades: List[ClosedTrade] = []
@@ -158,6 +162,20 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
                         )
                     )
                     in_pos = False
+
+        if include_open and in_pos and entry_bar is not None:
+            trades.append(
+                self.build_open_trade(
+                    symbol=symbol,
+                    direction="LONG",
+                    entry_bar=entry_bar,
+                    last_bar=series[-1],
+                    days=len(series) - 1 - entry_idx,
+                    stop_distance_pct=stop_dist_pct,
+                    entry_reason=entry_reason,
+                    meta_confidence=meta_conf,
+                )
+            )
 
         return trades
 

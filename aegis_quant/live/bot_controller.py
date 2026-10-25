@@ -15,6 +15,7 @@ Funcionalidades Principales:
    - Ejecución directa en bróker o creación de propuestas de confirmación.
 """
 
+import os
 import time
 import json
 import urllib.request
@@ -23,6 +24,10 @@ from datetime import datetime, date
 from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, Optional, Tuple
 
+from aegis_quant.data.market_repository import MarketDataRepository
+from aegis_quant.indicators.quant_feature_engine import QuantFeatureEngine
+from aegis_quant.models.market_models import MarketBar
+from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 from aegis_quant.live.config_store import BotConfigStore
 from aegis_quant.live.broker_adapter import (
     BaseBrokerAdapter,
@@ -35,35 +40,57 @@ from aegis_quant.live.notifier_service import MultiChannelNotifier
 class LiveBotController:
     """Controlador Central del Bot de Paper Trading 24/7 y Centro de Mando Web/Móvil."""
 
-    def __init__(self, base_dir: str, summary_data: Dict[str, Any]):
+    def __init__(
+        self,
+        base_dir: str,
+        summary_data: Dict[str, Any],
+        start_scheduler: bool = True,
+        enable_network_init: bool = True,
+    ):
         """
         Inicializa el controlador, almacén de configuración y programador en segundo plano.
 
         :param base_dir: Directorio raíz del proyecto aegis-quant-bot.
         :param summary_data: Diccionario con datos de auditoría histórica y escáner base.
+        :param start_scheduler: Si True, inicia el hilo demonio horario 24/7.
+        :param enable_network_init: Si True, refresca cotizaciones de mercado al arrancar.
         """
         self.base_dir = base_dir
         self.summary_data = summary_data
         self.store = BotConfigStore(base_dir)
+        self.repo = MarketDataRepository(data_dir=os.path.join(base_dir, "data"))
+        self._scan_lock = threading.RLock()
         self._last_auto_run_date = ""
 
-        # Precios de mercado actuales (inicializados con fallback del escáner)
+        # Precios de mercado actuales y estado dinámico de motores tácticos M1-M5
         self.latest_prices: Dict[str, float] = {}
         self.market_pulse_cache: Dict[str, Any] = {}
-        live_scan = summary_data.get("live_scan", {})
-        for asset in live_scan.get("assets", []):
+        self.live_scan_cache: Dict[str, Any] = dict(summary_data.get("live_scan", {}))
+        self.tactical_status_cache: Dict[str, Any] = {}
+
+        for asset in self.live_scan_cache.get("assets", []):
             self.latest_prices[asset["symbol"]] = float(asset["close"])
 
-        # Intentar refresco inicial de mercado en vivo
-        self.refresh_market_pulse()
+        # Intentar refresco inicial de mercado y evaluación inicial desde caché local
+        if enable_network_init:
+            self.refresh_market_pulse()
+        try:
+            self._evaluate_live_engine(refresh_remote=False)
+        except Exception as exc:
+            self.store.append_log(f"Aviso en precarga táctica inicial: {exc}", "WARN")
 
         # Arrancar hilo vigilante del reloj horario en segundo plano (Daemon)
-        self._scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
-        self._scheduler_thread.start()
+        if start_scheduler:
+            self._scheduler_thread = threading.Thread(target=self._scheduler_loop, daemon=True)
+            self._scheduler_thread.start()
 
         # Si la cuenta Paper está recién creada y el bot viene en AUTO_100, sincronizar cartera inicial
         state = self.store.get_state()
-        if not state.get("positions") and state.get("last_scan_time", "").startswith("Nunca"):
+        if (
+            enable_network_init
+            and not state.get("positions")
+            and state.get("last_scan_time", "").startswith("Nunca")
+        ):
             self.run_scan_and_sync(trigger_source="Arranque Inicial Automático")
 
     # -------------------------------------------------------------------------
@@ -168,10 +195,12 @@ class LiveBotController:
 
     def refresh_market_pulse(self) -> Dict[str, Any]:
         """
-        Consulta cotizaciones reales en vivo y variaciones del día (% de cambio)
+        Consulta concurrentemente cotizaciones reales en vivo y variaciones del día (% de cambio)
         para el universo de activos (SPY, QQQ, VIX, VIX3M, GLD, TLT, USO, ZS).
         Actualiza `self.latest_prices` con precios reales de mercado.
         """
+        from concurrent.futures import ThreadPoolExecutor
+
         symbols_map = {
             "SPY": "SPY",
             "QQQ": "QQQ",
@@ -182,9 +211,9 @@ class LiveBotController:
             "USO": "USO",
             "ZS": "ZS%3DF",
         }
-        pulse: Dict[str, Any] = {}
 
-        for sym, y_sym in symbols_map.items():
+        def _fetch_one(item: Tuple[str, str]) -> Tuple[str, Dict[str, Any], Optional[float]]:
+            sym, y_sym = item
             try:
                 url = f"https://query1.finance.yahoo.com/v8/finance/chart/{y_sym}?interval=1d&range=5d"
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -193,22 +222,32 @@ class LiveBotController:
                     px = data.get("regularMarketPrice")
                     prev = data.get("chartPreviousClose")
                     if px is not None:
-                        px = round(float(px), 2)
-                        self.latest_prices[sym] = px
-                        pct = round(((px - prev) / prev) * 100.0, 2) if prev and px else 0.0
-                        pulse[sym] = {
-                            "price": px,
-                            "prev_close": round(float(prev), 2) if prev else px,
-                            "change_pct": pct,
-                        }
+                        px_val = round(float(px), 2)
+                        pct = round(((px_val - prev) / prev) * 100.0, 2) if prev and px_val else 0.0
+                        return (
+                            sym,
+                            {
+                                "price": px_val,
+                                "prev_close": round(float(prev), 2) if prev else px_val,
+                                "change_pct": pct,
+                            },
+                            px_val,
+                        )
             except Exception:
-                # Si falla temporalmente Yahoo Finance, conservar precio conocido
-                fallback_px = self.latest_prices.get(sym, 100.0)
-                pulse[sym] = {
-                    "price": fallback_px,
-                    "prev_close": fallback_px,
-                    "change_pct": 0.0,
-                }
+                pass
+            fallback_px = self.latest_prices.get(sym, 100.0)
+            return (
+                sym,
+                {"price": fallback_px, "prev_close": fallback_px, "change_pct": 0.0},
+                None,
+            )
+
+        pulse: Dict[str, Any] = {}
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            for sym, entry, px_val in pool.map(_fetch_one, list(symbols_map.items())):
+                if px_val is not None:
+                    self.latest_prices[sym] = px_val
+                pulse[sym] = entry
 
         self.market_pulse_cache = pulse
         return pulse
@@ -222,16 +261,102 @@ class LiveBotController:
         return LocalPaperBrokerAdapter(self.store, self.latest_prices)
 
     # -------------------------------------------------------------------------
-    # CÁLCULO DE ASIGNACIÓN OBJETIVO (CARTERA TARGET)
+    # CÁLCULO DE ASIGNACIÓN OBJETIVO (CARTERA TARGET DINÁMICA M1-M5 + CORE)
     # -------------------------------------------------------------------------
 
+    def _evaluate_live_engine(self, refresh_remote: bool = True) -> Dict[str, Dict[str, Any]]:
+        """
+        Evalúa en vivo sobre barras diarias reales (caché + actualización Yahoo Finance)
+        tanto los 5 motores tácticos (M1..M5, incluyendo trades multisesión aún abiertos
+        y nuevas señales de hoy) como la asignación del Core Modo 3 Élite sobre la liquidez ociosa.
+        """
+        cfg = self.store.get_config()
+        enabled = cfg.get("enabled_motors", {})
+        base_risk_pct = float(cfg.get("risk_per_trade_pct", 2.5))
+        max_fast = float(cfg.get("max_fast_slot_pct", 55.0)) / 100.0
+        max_cta = float(cfg.get("max_cta_slot_pct", 40.0)) / 100.0
+
+        try:
+            today_ny_str = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        except Exception:
+            today_ny_str = datetime.now().strftime("%Y-%m-%d")
+
+        if refresh_remote:
+            raw_universe = self.repo.refresh_universe_live(
+                completed_before=today_ny_str,
+                fallback_prices=self.latest_prices,
+            )
+        else:
+            raw_universe = {
+                sym: self.repo._read_cache(sym)
+                for sym in MarketDataRepository.UNIVERSE_CONFIG.keys()
+            }
+            raw_universe = {
+                sym: [MarketBar(**item) for item in rows]
+                for sym, rows in raw_universe.items()
+                if rows
+            }
+
+        # Fallback seguro si aún no existen series históricas en disco (p.ej. tests aislados)
+        if "SPY" not in raw_universe or len(raw_universe.get("SPY", [])) < 210:
+            live_scan = self.live_scan_cache or self.summary_data.get("live_scan", {})
+            core_alloc = live_scan.get("core_allocation", {"SPY": 85.0, "QQQ": 15.0})
+            targets: Dict[str, Dict[str, Any]] = {}
+            for sym, pct in core_alloc.items():
+                if pct > 0:
+                    targets[sym] = {
+                        "weight": round(float(pct) / 100.0, 4),
+                        "direction": "LONG",
+                        "motor": "CORE_BULL",
+                        "reason": f"Nucleo Inteligente Modo 3 Elite ({live_scan.get('vts_state', 'Contango')})",
+                    }
+            return targets
+
+        # Sincronizar latest_prices con el último cierre disponible si no hubo pulso más reciente
+        for sym, bars in raw_universe.items():
+            if bars and sym not in self.market_pulse_cache:
+                self.latest_prices[sym] = round(float(bars[-1].close), 2)
+
+        # Ventana deslizante de 450 sesiones (~1.8 años): suficiente para convergencia exacta
+        # de SMA(200), ATR(14), RSI(2) y operaciones CTA de hasta 45 sesiones, reduciendo latencia 12x.
+        vix_slice = raw_universe.get("VIX", [])[-450:]
+        vix3m_slice = raw_universe.get("VIX3M", [])[-450:]
+        feature_engine = QuantFeatureEngine(
+            vix_bars=vix_slice,
+            vix3m_bars=vix3m_slice,
+        )
+        enriched_universe: Dict[str, Any] = {}
+        live_start_date = "2007-01-01"
+        for sym, bars in raw_universe.items():
+            if sym in ("VIX", "VIX3M"):
+                continue
+            sliced = bars[-450:] if len(bars) > 450 else bars
+            enriched_universe[sym] = feature_engine.enrich_series(sliced)
+            if sym == "SPY" and len(sliced) > 210:
+                live_start_date = sliced[205].date
+
+        portfolio_engine = AegisPortfolioEngine(
+            enriched_universe=enriched_universe,
+            start_date=live_start_date,
+        )
+        live_res = portfolio_engine.compute_live_portfolio(
+            enabled_motors=enabled,
+            base_risk_pct=base_risk_pct,
+            max_fast_weight=max_fast,
+            max_cta_weight=max_cta,
+            max_slots=3,
+        )
+        self.live_scan_cache = live_res["live_scan"]
+        self.tactical_status_cache = live_res["tactical"]
+        return live_res["targets"]
+
     def compute_target_portfolio(
-        self, simulate_motor: Optional[str] = None
+        self, simulate_motor: Optional[str] = None, refresh_remote: bool = True
     ) -> Dict[str, Dict[str, Any]]:
         """
         Calcula las ponderaciones objetivo de la cartera:
           - Modo simulación de motor táctico (para comprobación rápida).
-          - Escaneo del Core Adaptativo Modo 3 Élite según régimen de volatilidad.
+          - Evaluación dinámica en vivo de Motores M1–M5 + Core Adaptativo Modo 3 Élite.
         """
         cfg = self.store.get_config()
         enabled = cfg.get("enabled_motors", {})
@@ -253,6 +378,21 @@ class LiveBotController:
                 "direction": "LONG",
                 "motor": "CORE_BULL",
                 "reason": "Core Inteligente S&P 500 (Tendencia alcista en contango)",
+            }
+            return targets
+
+        if simulate_motor == "M2_VIX_DIV" and enabled.get("M2_VIX_DIV", True):
+            targets["SPY"] = {
+                "weight": max_fast,
+                "direction": "LONG",
+                "motor": "M2_VIX_DIV",
+                "reason": "Motor 2 (Divergencia VIX): Compresion de VIX desde pico 5d con RSI(2)<20",
+            }
+            targets["QQQ"] = {
+                "weight": round(1.0 - max_fast, 2),
+                "direction": "LONG",
+                "motor": "CORE_BULL",
+                "reason": "Core Inteligente Nasdaq 100",
             }
             return targets
 
@@ -307,18 +447,8 @@ class LiveBotController:
             }
             return targets
 
-        # Escaneo real del régimen del día (Modo 3 Élite Core)
-        live_scan = self.summary_data.get("live_scan", {})
-        core_alloc = live_scan.get("core_allocation", {"SPY": 85.0, "QQQ": 15.0})
-        for sym, pct in core_alloc.items():
-            if pct > 0:
-                targets[sym] = {
-                    "weight": round(float(pct) / 100.0, 4),
-                    "direction": "LONG",
-                    "motor": "CORE_BULL",
-                    "reason": f"Nucleo Inteligente Modo 3 Elite ({live_scan.get('vts_state', 'Contango')})",
-                }
-        return targets
+        # Evaluación dinámica en vivo de Motores M1–M5 + Core Modo 3 Élite
+        return self._evaluate_live_engine(refresh_remote=refresh_remote)
 
     # -------------------------------------------------------------------------
     # CONSTRUCCIÓN DE NOTIFICACIONES MÓVILES ENRIQUECIDAS
@@ -394,6 +524,16 @@ class LiveBotController:
             lines.append("• 100% en Efectivo / Sin posiciones abiertas.")
 
         lines.append("")
+        tactical_info = getattr(self, "tactical_status_cache", None) or {}
+        open_tactical = tactical_info.get("open_trades") or []
+        if open_tactical:
+            lines.append(f"🧠 <b>MOTORES TÁCTICOS ACTIVOS ({len(open_tactical)}):</b>")
+            for ot in open_tactical:
+                lines.append(
+                    f"• <b>{ot['engine_id']}</b> en {ot['symbol']} ({ot['direction']}, {ot['weight_pct']:.1f}%): {ot['reason']}"
+                )
+            lines.append("")
+
         if orders:
             lines.append(f"⚡ <b>ÓRDENES EJECUTADAS HOY ({len(orders)}):</b>")
             for o in orders:
@@ -412,49 +552,52 @@ class LiveBotController:
         self, trigger_source: str = "Manual desde Web", simulate_motor: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Ejecuta el ciclo de escaneo de mercado:
+        Ejecuta el ciclo de escaneo de mercado (protegido por lock reentrante):
           1. Refresca precios de mercado y pulso del día en vivo.
-          2. Calcula pesos objetivo de la cartera.
+          2. Evalúa en vivo los motores tácticos M1–M5 + Core Modo 3 Élite.
           3. Ejecuta órdenes en el bróker o genera propuesta en modo Copiloto.
           4. Emite notificación enriquecida a los canales móviles activos.
         """
-        cfg = self.store.get_config()
-        pulse = self.refresh_market_pulse()
-        targets = self.compute_target_portfolio(simulate_motor=simulate_motor)
-        exec_mode = cfg.get("execution_mode", "AUTO_100")
+        with self._scan_lock:
+            cfg = self.store.get_config()
+            pulse = self.refresh_market_pulse()
+            targets = self.compute_target_portfolio(simulate_motor=simulate_motor)
+            exec_mode = cfg.get("execution_mode", "AUTO_100")
 
-        # MODO COPILOTO (Requiere confirmación previa en la interfaz)
-        if exec_mode == "COPILOT_CONFIRM":
-            state = self.store.get_state()
-            proposal = {
-                "id": f"PROP-{int(time.time())}",
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "trigger_source": trigger_source,
-                "targets": targets,
-            }
-            state["pending_confirmations"] = [proposal]
-            self.store.save_state(state)
-            msg = f"Modo Copiloto: Propuesta lista ({trigger_source}). Esperando confirmacion web."
-            self.store.append_log(msg, "INFO")
-            self._send_mobile_alert(
-                f"<b>AEGIS-QUANT (COPILOTO)</b>\nPropuesta generada ({trigger_source}).\n"
-                f"Revisa el Centro de Mando Web para confirmar la operativa."
-            )
-            return {"ok": True, "mode": "COPILOT_CONFIRM", "message": msg}
+            # MODO COPILOTO (Requiere confirmación previa en la interfaz)
+            if exec_mode == "COPILOT_CONFIRM":
+                state = self.store.get_state()
+                proposal = {
+                    "id": f"PROP-{int(time.time())}",
+                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "trigger_source": trigger_source,
+                    "targets": targets,
+                }
+                state["pending_confirmations"] = [proposal]
+                self.store.save_state(state)
+                msg = f"Modo Copiloto: Propuesta lista ({trigger_source}). Esperando confirmacion web."
+                self.store.append_log(msg, "INFO")
+                self._send_mobile_alert(
+                    f"<b>AEGIS-QUANT (COPILOTO)</b>\nPropuesta generada ({trigger_source}).\n"
+                    f"Revisa el Centro de Mando Web para confirmar la operativa."
+                )
+                return {"ok": True, "mode": "COPILOT_CONFIRM", "message": msg}
 
-        # MODO 100% AUTOMÁTICO (Por defecto)
-        broker = self._get_broker()
-        ok, orders, msg = broker.execute_target_weights(targets, reason_summary=trigger_source)
-        state_after = self.store.get_state()
+            # MODO 100% AUTOMÁTICO (Por defecto)
+            broker = self._get_broker()
+            ok, orders, msg = broker.execute_target_weights(targets, reason_summary=trigger_source)
+            state_after = self.store.get_state()
 
-        # Construir y despachar notificación enriquecida
-        # Se envía siempre en ejecuciones programadas o cuando hay órdenes activas
-        is_scheduled = "Reloj Automático" in trigger_source
-        if orders or is_scheduled:
-            full_msg = self._build_notification_message(trigger_source, orders, pulse, state_after)
-            self._send_mobile_alert(full_msg)
+            # Construir y despachar notificación enriquecida
+            # Se envía siempre en ejecuciones programadas o cuando hay órdenes activas
+            is_scheduled = "Reloj Automático" in trigger_source
+            if orders or is_scheduled:
+                full_msg = self._build_notification_message(
+                    trigger_source, orders, pulse, state_after
+                )
+                self._send_mobile_alert(full_msg)
 
-        return {"ok": ok, "mode": "AUTO_100", "orders_count": len(orders), "message": msg}
+            return {"ok": ok, "mode": "AUTO_100", "orders_count": len(orders), "message": msg}
 
     def approve_pending(self) -> Dict[str, Any]:
         """Aprueba y ejecuta una propuesta pendiente en modo Copiloto."""
@@ -507,7 +650,8 @@ class LiveBotController:
             "config": cfg,
             "broker_connection": {"ok": conn_ok, "message": conn_msg},
             "state": state,
-            "live_scan": self.summary_data.get("live_scan", {}),
+            "live_scan": self.live_scan_cache or self.summary_data.get("live_scan", {}),
+            "tactical": self.tactical_status_cache,
         }
 
     def handle_action(self, action_payload: Dict[str, Any]) -> Dict[str, Any]:

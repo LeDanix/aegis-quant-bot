@@ -20,6 +20,12 @@ from typing import Dict, List, Optional, Tuple
 from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
 
 
+# Fecha de salida "centinela" para operaciones que siguen abiertas al final de la serie.
+# Al ser lexicográficamente mayor que cualquier fecha ISO real, el filtro de huecos
+# (`exit_date > entry_date`) las trata como ocupando capital indefinidamente.
+OPEN_TRADE_EXIT_DATE = "9999-12-31"
+
+
 class BaseStrategy(ABC):
     """
     Abstract Base Class for all quantitative strategy engines in Aegis-Quant.
@@ -43,7 +49,11 @@ class BaseStrategy(ABC):
 
     @abstractmethod
     def simulate(
-        self, symbol: str, series: List[EnrichedBar], start_date: str = "2007-01-01"
+        self,
+        symbol: str,
+        series: List[EnrichedBar],
+        start_date: str = "2007-01-01",
+        include_open: bool = False,
     ) -> List[ClosedTrade]:
         """
         Executes a historical backtest of the strategy over an enriched daily bar series.
@@ -51,9 +61,51 @@ class BaseStrategy(ABC):
         :param symbol: Ticker symbol (e.g. 'SPY', 'QQQ', 'GLD').
         :param series: Chronologically ordered list of EnrichedBar objects.
         :param start_date: Starting ISO date filter (default '2007-01-01').
+        :param include_open: If True, a position still open on the last bar is also returned
+            (built with `build_open_trade`, exit_date = OPEN_TRADE_EXIT_DATE). Used by the live
+            bot to know which tactical trades are active today by replaying history.
         :return: List of ClosedTrade instances containing executed trades.
         """
         pass
+
+    def build_open_trade(
+        self,
+        symbol: str,
+        direction: str,
+        entry_bar: EnrichedBar,
+        last_bar: EnrichedBar,
+        days: int,
+        stop_distance_pct: float,
+        entry_reason: str,
+        meta_confidence: float,
+    ) -> ClosedTrade:
+        """
+        Represents a still-open position as a ClosedTrade marked with OPEN_TRADE_EXIT_DATE.
+
+        The "exit" price is the latest close (mark-to-market), so raw_ret_pct is the current
+        unrealised return. This lets the live scanner reuse exactly the same slot/sizing
+        pipeline as the backtest (`AegisPortfolioEngine.filter_and_size_tactical_trades`).
+        """
+        sign = 1.0 if direction == "LONG" else -1.0
+        raw_ret = sign * ((last_bar.close - entry_bar.close) / entry_bar.close) * 100.0
+        return ClosedTrade(
+            engine_id=self.engine_id,
+            engine_name=self.engine_name,
+            symbol=symbol,
+            direction=direction,
+            entry_date=entry_bar.date,
+            entry_price=round(entry_bar.close, 2),
+            exit_date=OPEN_TRADE_EXIT_DATE,
+            exit_price=round(last_bar.close, 2),
+            days=days,
+            raw_ret_pct=round(raw_ret, 3),
+            mae_pct=0.0,
+            stop_distance_pct=round(stop_distance_pct, 3),
+            win=raw_ret > 0,
+            entry_reason=entry_reason,
+            exit_reason="ABIERTA",
+            meta_confidence=meta_confidence,
+        )
 
     @abstractmethod
     def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:

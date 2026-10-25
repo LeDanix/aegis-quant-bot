@@ -1,6 +1,6 @@
 """
 Almacén Persistente de Configuración y Estado en Vivo del Bot (aegis_quant/live/config_store.py).
-Guarda en disco (JSON transaccional) todos los parámetros editables desde la web,
+Guarda en disco (JSON con escritura atómica: fichero temporal + fsync + os.replace) todos los parámetros editables desde la web,
 las posiciones abiertas en Paper Trading, el historial de órdenes y la consola de logs,
 garantizando que si el Ubuntu Server se reinicia por un corte de luz, el bot recupere
 exactamente su estado al arrancar.
@@ -8,15 +8,62 @@ exactamente su estado al arrancar.
 
 import os
 import json
+import tempfile
 import threading
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 
+def atomic_write_json(path: str, data: Any) -> None:
+    """
+    Escribe un JSON en disco de forma atómica (todo o nada).
+
+    Por qué: escribir con ``open(path, "w")`` trunca primero el fichero a 0 bytes;
+    si el proceso muere o se va la luz justo en ese instante, el estado del bot
+    queda vacío/corrupto y el siguiente arranque falla con ``JSONDecodeError``.
+
+    Cómo: se escribe en un fichero temporal del MISMO directorio, se fuerza a disco
+    (``fsync``) y se sustituye el original con ``os.replace``, que en POSIX es una
+    operación atómica: cualquier lector ve el fichero antiguo completo o el nuevo
+    completo, nunca uno a medias.
+
+    :param path: Ruta final del fichero JSON.
+    :param data: Objeto serializable a JSON.
+    """
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            json.dump(data, tmp, indent=2, ensure_ascii=False)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, path)
+        _fsync_directory(directory)
+    except BaseException:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+
+def _fsync_directory(directory: str) -> None:
+    """Persiste la entrada de directorio tras el rename (best-effort, no disponible en Windows)."""
+    try:
+        dir_fd = os.open(directory, os.O_RDONLY)
+    except (OSError, AttributeError):
+        return
+    try:
+        os.fsync(dir_fd)
+    except OSError:
+        pass
+    finally:
+        os.close(dir_fd)
+
+
 class BotConfigStore:
     """Gestiona la configuración viva del bot y el estado persistente en disco."""
 
-    _lock = threading.Lock()
+    # RLock: permite que un método protegido llame a otro protegido sin bloquearse a sí mismo.
+    _lock = threading.RLock()
 
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
@@ -141,13 +188,11 @@ class BotConfigStore:
     def _ensure_defaults(self) -> None:
         with self._lock:
             if not os.path.exists(self.config_path):
-                with open(self.config_path, "w", encoding="utf-8") as f:
-                    json.dump(self._default_config(), f, indent=2, ensure_ascii=False)
+                atomic_write_json(self.config_path, self._default_config())
             # Asegurar estado por defecto si no existe
             cur_state_path = self.get_state_path()
             if not os.path.exists(cur_state_path):
-                with open(cur_state_path, "w", encoding="utf-8") as f:
-                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+                atomic_write_json(cur_state_path, self._default_state())
 
     def get_config(self) -> Dict[str, Any]:
         with self._lock:
@@ -169,14 +214,12 @@ class BotConfigStore:
                 else:
                     cfg[k] = v
             cfg["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2, ensure_ascii=False)
+            atomic_write_json(self.config_path, cfg)
 
             # Si el entorno cambió, asegurar que existe el fichero de estado de ese entorno
             target_state_path = self.get_state_path(cfg.get("environment", "PAPER"))
             if not os.path.exists(target_state_path):
-                with open(target_state_path, "w", encoding="utf-8") as f:
-                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+                atomic_write_json(target_state_path, self._default_state())
 
             return cfg
 
@@ -184,23 +227,20 @@ class BotConfigStore:
         with self._lock:
             p = self.get_state_path()
             if not os.path.exists(p):
-                with open(p, "w", encoding="utf-8") as f:
-                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+                atomic_write_json(p, self._default_state())
             with open(p, "r", encoding="utf-8") as f:
                 return json.load(f)
 
     def save_state(self, state: Dict[str, Any]) -> None:
         with self._lock:
             p = self.get_state_path()
-            with open(p, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2, ensure_ascii=False)
+            atomic_write_json(p, state)
 
     def append_log(self, msg: str, level: str = "INFO") -> None:
         with self._lock:
             p = self.get_state_path()
             if not os.path.exists(p):
-                with open(p, "w", encoding="utf-8") as f:
-                    json.dump(self._default_state(), f, indent=2, ensure_ascii=False)
+                atomic_write_json(p, self._default_state())
             with open(p, "r", encoding="utf-8") as f:
                 state = json.load(f)
             entry = {
@@ -211,5 +251,4 @@ class BotConfigStore:
             logs: List[Dict[str, str]] = state.get("logs", [])
             logs.insert(0, entry)
             state["logs"] = logs[:120]  # Mantener los últimos 120 eventos
-            with open(p, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2, ensure_ascii=False)
+            atomic_write_json(p, state)

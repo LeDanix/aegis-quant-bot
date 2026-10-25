@@ -43,4 +43,6 @@ data/bot_live_config.json
 data/bot_live_state.json
 data/bot_live_state_real.json
 data/ledger_*.jsonl
+data/research_cache/
+data/.tmp_*.json
 .env

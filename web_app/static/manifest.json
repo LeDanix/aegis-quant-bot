@@ -1,0 +1,19 @@
+{
+  "name": "Aegis-Quant | Quantitative Trading Control",
+  "short_name": "Aegis-Quant",
+  "description": "Mode 3 Élite Institutional Trading Control Center & Performance Analytics (5 Tactical Engines + VTS)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1120",
+  "theme_color": "#065f46",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

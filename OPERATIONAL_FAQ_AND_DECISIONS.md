@@ -146,7 +146,62 @@ Aegis-Quant no utiliza apalancamiento estático x3, sino **apalancamiento dinám
 
 ---
 
-## 6. Registro Continuo de Decisiones (Decision Log)
+## 6. Desfase Horario Europa vs Wall Street (Problema #4 de Auditoría): ¿Qué Supone Cada Opción?
+
+### El Problema Operativo Real
+Las bolsas principales europeas (**XETRA** en Fráncfort, **Borsa Italiana**, **LSE**) donde cotizan los ETFs UCITS (`SXR8`/`CSPX`, `EQQQ`, `4GLD`, `DTLA`, `CRUD`) **cierran a las 17:30 CET** (11:30 AM en Nueva York). Sin embargo, el escáner del bot evalúa el cierre estadounidense a las **21:55 CET (15:55 NY)**. Si lanzas una orden a XETRA a las 21:55 CET, queda retenida hasta las 09:00 CET del día siguiente (sufriendo *gap* nocturno).
+
+### Comparativa Detallada de Opciones en Interactive Brokers (España)
+
+| Criterio | Opción A: **Tradegate / Gettex** (ETFs UCITS en Horario Extendido) | Opción B: **Micro-Futuros CME** (`MES` S&P 500 / `MNQ` Nasdaq) |
+| :--- | :--- | :--- |
+| **Horario de negociación** | **08:00 a 22:00 CET** (cubre las 21:55 CET y las 20:55 CET en semanas DST). | **23 horas al día** (00:00 a 23:00 CET) directo en EE. UU. |
+| **Vehículo que compras** | **Exactamente los mismos ETFs UCITS** (`SXR8`, `EQQQ`, `4GLD`) en Euros, sin deuda ni derivados. | Contratos de derivados con liquidación diaria de pérdidas y ganancias (*mark-to-market*). |
+| **Capital mínimo necesario** | **Cualquier capital (ej. 5.000 € – 10.000 €)**. Permite ajustar pesos exactos (55%, 85%, 15%) con participaciones o fracciones. | **Muy exigente para evitar apalancamiento**: 1 solo contrato `MES` equivale a $5 × S&P 500 ≈ **29.000 $ – 38.000 $** de valor nocional. Con 10.000 € estarías apalancado ~x3 forzosamente y no puedes comprar "medio contrato". |
+| **Coste / Horquilla (Spread)** | Comisión IBKR ~1,25 €–3 €; horquilla entre 17:30 y 22:00 CET sube ligeramente de `0,02%` a **`0,05%–0,10%`** (órdenes limitadas obligatorias). | Comisión mínima (~0,60 $ por contrato) y horquilla casi nula (`0,004%`). |
+| **Gestión y Fiscalidad IRPF** | **Simple**: mientras mantienes el Core (`SXR8`) meses seguidos, **0 eventos fiscales** y 0 gestiones. | **Compleja (Roll-over trimestral)**: los futuros caducan cada 3 meses (marzo, junio, septiembre, diciembre). Hay que vender el contrato viejo y comprar el nuevo 4 veces al año, aflorando impuestos cada trimestre aunque no toques la posición. |
+| **Veredicto Recomendado** | **OPCIÓN RECOMENDADA para cuentas < 60.000 € – 100.000 €**: mantiene 0% apalancamiento, simplicidad fiscal y permite operar a las 21:55 CET usando órdenes *Limit* en Tradegate (`TGATE` en IBKR). | Solo recomendable a partir de capitales elevados (> 80.000 €) o exclusivamente para el **Motor 3 (Corto en Crisis)**, donde vender un futuro `MES` es más limpio que tomar acciones prestadas. |
+
+---
+
+## 7. Evaluación Empírica (2007–2026) de los Nuevos Motores Propuestos (M6 a M9)
+
+Para comprobar científicamente si añadir los 4 módulos propuestos en la auditoría (`docs/AUDIT_AND_PROPOSALS.md`) mejora de verdad la rentabilidad o si sobrefiltra el sistema, se ha construido el módulo reproducible [`aegis_quant/research/evaluate_audit_proposals.py`](aegis_quant/research/evaluate_audit_proposals.py) probándolos con datos reales de Yahoo Finance (`HYG`, `LQD`, `RSP`, `SPY`, `QQQ`, `VIX`, `VIX3M`, `GLD`, `TLT`, `USO`, `ZS`) entre **2007 y 2026** sobre **$10,000 iniciales**:
+
+| Arquitectura Evaluada (2007–2026) | Capital Final | CAGR Anual | Max Drawdown | Sharpe | Sortino | Calmar | Nº Trades | Conclusión Empírica |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **0. Baseline: Modo 3 Élite Actual (M1–M5)** | **$281,092** | **18,38%** | -15,02% | 1,59 | 2,89 | 1,22 | 725 | Referencia actual auditada. |
+| **1. + M6 Spread Crédito (`HYG/LQD`)** | $190,211 | 16,07% | -17,92% | 1,42 | 2,59 | 0,90 | 664 | **DESCARTADO (-$90.881)**: Bloquea los mejores rebotes de M1/M2 y duplica lo que ya detecta `VIX/VIX3M`. |
+| **2. + M7 Turn-of-the-Month (Solo Filtro)** | **$289,648** | **18,56%** | -15,14% | 1,59 | 2,90 | 1,23 | 725 | **MEJORA (+$8.556)**: Refuerza convicción en los 5 días de flujos de pensiones/nóminas de fin de mes. |
+| **3. + M7 TOTM (Motor Táctico + Overlay)** | **$346,015** | **19,63%** | **-14,86%** | **1,62** | **3,08** | **1,32** | 780 | **ÚNICO GANADOR CLARO (+$64.923 y menor caída)**: Consistente en ambas décadas (73,1% acierto 2007–16 y 63,9% en 2017–26) con solo ~2,7 operaciones extra/año. |
+| **4. + M8 Prima Varianza (`VRP`)** | $256,682 | 17,84% | -14,67% | 1,56 | 2,84 | 1,22 | 724 | **DESCARTADO**: Reduce -0,35% el drawdown pero cuesta -$24.410 porque `VolTarget` ya regula la volatilidad realizada. |
+| **5. + M9 Amplitud (`RSP/SPY`)** | $265,759 | 18,05% | -15,02% | 1,58 | 2,88 | 1,20 | 725 | **DESCARTADO (-$15.333)**: En mercados liderados por tecnológicas (2017–2025), recorta exposición demasiado pronto. |
+| **6. Combo Completo Filtros (M6+M7+M8+M9)** | $171,100 | 15,45% | -17,61% | 1,39 | 2,53 | 0,88 | 663 | **DESCARTADO**: Ejemplo clásico de *sobre-filtrado* defensivo. |
+
+> [!TIP]
+> **Lección Cuantitativa Clave:** Más indicadores no equivalen a más dinero. Los filtros defensivos M6, M8 y M9 miden el mismo miedo macro que **ya captura de forma más rápida la estructura `VIX/VIX3M`** del Modo 3 Élite. En cambio, **M7 (Turn-of-the-Month)** aporta una fuente de rentabilidad **ortogonal** (flujos automáticos de liquidez de fin/inicio de mes), mejorando tanto el CAGR (`18,38% -> 19,63%`) como el Drawdown (`-15,02% -> -14,86%`).
+
+---
+
+## 8. ¿Qué es el "Módulo Fiscal Automático" para España? (Explicación Sencilla)
+
+Mientras operamos en **Paper Trading (dinero virtual)** no existe **ninguna** obligación con Hacienda. Esta herramienta solo entra en juego el día que conectes dinero real en Interactive Brokers (`IBKR`):
+
+### ¿Por qué hace falta si ya tienes extractos del bróker?
+Un banco español (ej. MyInvestor, Renta 4) envía automáticamente tus datos fiscales a la Agencia Tributaria para que salgan ya rellenos en tu borrador de la Renta. **Interactive Brokers (domiciliado en Irlanda) NO envía datos automáticos al borrador español** y te entrega un extracto bruto en inglés/dólares. Al hacer la Declaración de la Renta en primavera, Hacienda exige cumplir **4 reglas exactas**:
+
+1. **Conversión al Euro con el cambio oficial del BCE de cada día:**  
+   Si compras en dólares el 12 de marzo y vendes el 18 de marzo, Hacienda no te deja usar el cambio dólar/euro de diciembre; exige convertir el precio de compra al cambio oficial del Banco Central Europeo del 12 de marzo y la venta al cambio del 18 de marzo.
+2. **Regla FIFO obligatoria (*First-In, First-Out*):**  
+   Si el bot compró participaciones de `CSPX` en enero a 500 € y otra tanda en abril a 530 €, y en mayo vende la mitad, la ley obliga a calcular la ganancia contra las más antiguas (las de 500 €), no contra el precio medio.
+3. **Regla Antiaplicación de los "2 Meses" (Muy importante en bots automáticos):**  
+   En España, si cierras una operación en un ETF con pérdidas (por ejemplo, `-150 €` en `SXR8`) y el bot **vuelve a comprar ese mismo ETF antes de que pasen 2 meses**, Hacienda **bloquea temporalmente esa pérdida**: no te deja restar esos `-150 €` de tus ganancias de ese año hasta que pases 2 meses seguidos sin recomprar esas participaciones. Si no llevas esa cuenta, puedes deducirte pérdidas por error y recibir un requerimiento de la AEAT.
+4. **Informe listo para copiar en Renta WEB + Aviso Modelo 720:**  
+   El Módulo Fiscal Automático toma el libro contable del bot (`ledger_real_trades.jsonl`), aplica automáticamente las 3 reglas anteriores y te genera una tabla anual en Euros lista para copiar en la casilla de *Ganancias y pérdidas patrimoniales* de Renta WEB, además de avisarte si tu saldo en Interactive Brokers supera los **50.000 €** (umbral a partir del cual hay que presentar el **Modelo 720**, meramente informativo y sin pagar impuestos extra).
+
+---
+
+## 9. Registro Continuo de Decisiones (Decision Log)
 
 | Fecha | Decisión / Consulta | Resolución Técnica Implementada |
 | :--- | :--- | :--- |
@@ -159,4 +214,5 @@ Aegis-Quant no utiliza apalancamiento estático x3, sino **apalancamiento dinám
 | **2026-10-25** | Vehículos Operativos en España | Adopción oficial de ETFs UCITS equivalentes de réplica física acumulativa (`CSPX`, `EQQQ`, `SGLD`, `DTLA`, `CRUD`). |
 | **2026-10-25** | Seguridad en Control de Versiones | Protección de credenciales en `.gitignore` y sincronización con GitHub mediante Personal Access Token. |
 | **2026-10-25** | Política de Apalancamiento | **Descarte definitivo de futuros o productos con apalancamiento estático x3** debido al decaimiento por volatilidad (*volatility drag*) y riesgo de ruina. Se ratifica el uso exclusivo del apalancamiento adaptativo y dinámico (Meta-Kelly y Volatility Targeting) ya integrado en el motor. |
-| **2026-10-25** | Auditoría Institucional & Propuestas Estratégicas | Realización de auditoría técnica por subagente cuantitativo (dictamen 7.25/10). Identificación de vulnerabilidades en concurrencia (servidor HTTP monohilo), escrituras atómicas de estado, desconexión de escáner en vivo y desfase de cierre europeo (17:30 CET vs 21:55 CET). Propuesta de 4 nuevos motores (HYG/LQD, TOTM, VRP, Amplitud RSP/SPY), persistencia SQLite WAL y rediseño UI profesional. Documento completo archivado en [`docs/AUDIT_AND_PROPOSALS.md`](docs/AUDIT_AND_PROPOSALS.md). |
+| **2026-10-25** | Auditoría Institucional & Propuestas Estratégicas | Realización de auditoría técnica por subagente cuantitativo (dictamen 7.25/10). Documento completo archivado en [`docs/AUDIT_AND_PROPOSALS.md`](docs/AUDIT_AND_PROPOSALS.md). |
+| **2026-10-25** | Resolución de Problemas Críticos 1 a 3 + UI Móvil | **1)** Conectada evaluación dinámica en vivo de motores M1–M5 + Core Modo 3 Élite en `LiveBotController` y `AegisPortfolioEngine` (`compute_live_portfolio`). **2)** Migrado `web_app/server.py` a `ThreadingHTTPServer` concurrente con compresión `gzip`. **3)** Escrituras atómicas `atomic_write_json` (`tempfile` + `fsync` + `os.replace`) en `config_store.py`. Suite ampliada a **43 tests unitarios**. Evaluados empíricamente (2007–2026) los motores M6–M9 en `aegis_quant/research/evaluate_audit_proposals.py` (descartando M6/M8/M9 y validando M7 TOTM). Interfaz rediseñada con arquitectura **Mobile-First + Dark Mode**. |

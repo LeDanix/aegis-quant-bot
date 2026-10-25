@@ -1,0 +1,251 @@
+/* ==========================================================================
+   Aegis-Quant | Institutional Mobile-First & Dark Mode Stylesheet
+   Optimized for 360px–430px Mobile Viewports (Tailscale) & Desktop Studio
+   ========================================================================== */
+
+:root {
+  --aq-bg: #f8fafc;
+  --aq-text: #0f172a;
+  --aq-panel-bg: #ffffff;
+  --aq-panel-border: #e2e8f0;
+  --aq-panel-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+}
+
+html.dark {
+  color-scheme: dark;
+  --aq-bg: #0b1120;
+  --aq-text: #f1f5f9;
+  --aq-panel-bg: #111827;
+  --aq-panel-border: #1e293b;
+  --aq-panel-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--aq-bg);
+  color: var(--aq-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Institutional Numeric Stability — prevents horizontal jitter on live ticks */
+.font-mono,
+.tabular-nums,
+.kpi-num,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Touch Responsiveness */
+button,
+a,
+select,
+input,
+label,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Core Panel Surface */
+.panel {
+  background-color: var(--aq-panel-bg);
+  border: 1px solid var(--aq-panel-border);
+  border-radius: 0.75rem;
+  box-shadow: var(--aq-panel-shadow);
+}
+
+/* Dark Mode Form Controls */
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark select,
+html.dark textarea {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* Desktop Main Navigation Active State */
+.main-nav-btn.active {
+  background-color: #065f46;
+  color: #ffffff;
+  border-color: #065f46;
+}
+
+html.dark .main-nav-btn.active {
+  background-color: #059669;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+/* Analytics Sub-Navigation Active State */
+.sub-nav-btn.active {
+  border-bottom: 2px solid #059669;
+  color: #065f46;
+  font-weight: 600;
+}
+
+html.dark .sub-nav-btn.active {
+  border-bottom-color: #34d399;
+  color: #34d399;
+}
+
+/* Mobile Pill Styling for 5 Analytics Subtabs */
+@media (max-width: 767.98px) {
+  .sub-nav-btn {
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    padding: 0.5rem 0.875rem !important;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background-color: #f8fafc;
+  }
+
+  html.dark .sub-nav-btn {
+    border-color: #334155;
+    background-color: #0f172a;
+    color: #94a3b8;
+  }
+
+  .sub-nav-btn.active {
+    background-color: #065f46 !important;
+    border-color: #065f46 !important;
+    color: #ffffff !important;
+  }
+
+  html.dark .sub-nav-btn.active {
+    background-color: #059669 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Mobile Bottom Navigation Bar */
+.safe-top {
+  padding-top: max(0.65rem, env(safe-area-inset-top));
+}
+
+.safe-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-bottom-sheet {
+  padding-bottom: max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom)));
+}
+
+.mobile-bottom-btn {
+  min-height: 54px;
+  position: relative;
+  color: #64748b;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+html.dark .mobile-bottom-btn {
+  color: #94a3b8;
+}
+
+.mobile-bottom-btn.active {
+  color: #059669;
+  font-weight: 700;
+}
+
+html.dark .mobile-bottom-btn.active {
+  color: #34d399;
+}
+
+.mobile-bottom-btn.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24%;
+  right: 24%;
+  height: 2.5px;
+  border-radius: 0 0 4px 4px;
+  background-color: currentColor;
+}
+
+/* Hide Scrollbars for Horizontal Pill Strips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Viewport Layout, Group Switching & Touch Safety (< 768px) */
+@media (max-width: 767.98px) {
+  main.app-main {
+    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Prevent iOS Safari auto-zoom on input focus (must be >= 16px) & enforce >=44px tap targets */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+
+  input[type="range"] {
+    height: 36px;
+  }
+
+  .touch-target {
+    min-height: 44px;
+  }
+
+  /* Logical Sub-Group Filtering inside #main-view-control on Mobile only */
+  #main-view-control [data-mobile-group] {
+    display: none !important;
+  }
+
+  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"]:not(.hidden),
+  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"]:not(.hidden),
+  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"]:not(.hidden) {
+    display: block !important;
+  }
+
+  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-grid:not(.hidden),
+  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-grid:not(.hidden),
+  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-grid:not(.hidden) {
+    display: grid !important;
+  }
+
+  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-flex:not(.hidden),
+  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-flex:not(.hidden),
+  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-flex:not(.hidden) {
+    display: flex !important;
+  }
+}
+
+/* Subtle Pulse Skeleton for Deferred 4MB Summary JSON */
+@keyframes aqPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.aq-skeleton {
+  animation: aqPulse 1.6s ease-in-out infinite;
+}

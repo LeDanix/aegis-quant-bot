@@ -10,9 +10,11 @@ Endpoints:
 
 import os
 import sys
+import gzip
 import json
+import threading
 import urllib.parse
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 # Asegurar que el paquete raíz `aegis_quant` esté en sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,42 +28,78 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
     base_dir = BASE_DIR
     web_dir = os.path.dirname(os.path.abspath(__file__))
     summary_cache = None
+    summary_raw_bytes = None
+    summary_gzip_bytes = None
     bot_controller: LiveBotController = None
+    _init_lock = threading.RLock()
 
     @classmethod
     def get_summary(cls):
         if cls.summary_cache is None:
-            summary_path = os.path.join(cls.base_dir, "data", "aegis_backtest_summary.json")
-            with open(summary_path, "r", encoding="utf-8") as f:
-                cls.summary_cache = json.load(f)
+            with cls._init_lock:
+                if cls.summary_cache is None:
+                    summary_path = os.path.join(cls.base_dir, "data", "aegis_backtest_summary.json")
+                    with open(summary_path, "r", encoding="utf-8") as f:
+                        cls.summary_cache = json.load(f)
+                    cls.summary_raw_bytes = json.dumps(cls.summary_cache, ensure_ascii=False).encode("utf-8")
+                    cls.summary_gzip_bytes = gzip.compress(cls.summary_raw_bytes, compresslevel=6)
         return cls.summary_cache
 
     @classmethod
     def get_controller(cls) -> LiveBotController:
         if cls.bot_controller is None:
-            cls.bot_controller = LiveBotController(cls.base_dir, cls.get_summary())
+            with cls._init_lock:
+                if cls.bot_controller is None:
+                    cls.bot_controller = LiveBotController(cls.base_dir, cls.get_summary())
         return cls.bot_controller
 
     def translate_path(self, path):
         parsed = urllib.parse.urlparse(path).path
         if parsed == "/" or parsed == "/index.html":
             return os.path.join(self.web_dir, "index.html")
-        rel = parsed.lstrip("/").replace("/", os.sep)
-        return os.path.join(self.web_dir, rel)
+        rel = os.path.normpath(parsed.lstrip("/").replace("/", os.sep))
+        candidate = os.path.abspath(os.path.join(self.web_dir, rel))
+        if os.path.commonpath([os.path.abspath(self.web_dir), candidate]) != os.path.abspath(self.web_dir):
+            return os.path.join(self.web_dir, "__forbidden__")
+        return candidate
+
+    def _client_accepts_gzip(self) -> bool:
+        """True si el navegador anuncia soporte gzip (todos los móviles modernos lo hacen)."""
+        return "gzip" in self.headers.get("Accept-Encoding", "")
+
+    def _send_bytes(self, payload: bytes, use_gzip: bool, status_code: int = 200):
+        try:
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            if use_gzip:
+                self.send_header("Content-Encoding", "gzip")
+                self.send_header("Vary", "Accept-Encoding")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _send_json(self, data: dict, status_code: int = 200):
+        """
+        Envía una respuesta JSON. Si es grande (>1 KB) y el cliente lo admite, la comprime
+        con gzip: el resumen de backtest pasa de ~4 MB a unos cientos de KB, clave en datos móviles.
+        """
         payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
+        use_gzip = len(payload) > 1024 and self._client_accepts_gzip()
+        if use_gzip:
+            payload = gzip.compress(payload, compresslevel=6)
+        self._send_bytes(payload, use_gzip=use_gzip, status_code=status_code)
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/summary":
-            self._send_json(self.get_summary())
+            self.get_summary()
+            if self._client_accepts_gzip() and self.summary_gzip_bytes is not None:
+                self._send_bytes(self.summary_gzip_bytes, use_gzip=True, status_code=200)
+            else:
+                self._send_bytes(self.summary_raw_bytes, use_gzip=False, status_code=200)
             return
 
         if parsed.path == "/api/live/status":
@@ -117,9 +155,13 @@ def _get_tailscale_ip() -> str:
 def run_server(port: int = 8085):
     # Inicializar el controlador en vivo al arrancar el servidor
     AegisRequestHandler.get_controller()
-    # Escuchar en 0.0.0.0 para permitir acceso desde localhost y desde Tailscale VPN en el móvil
+    # Escuchar en 0.0.0.0 para permitir acceso desde localhost y desde Tailscale VPN en el móvil.
+    # ThreadingHTTPServer atiende cada petición en su propio hilo: una consulta lenta a Yahoo
+    # Finance (escaneo) ya no congela la web ni deja en cola el botón de pánico.
     server_address = ("0.0.0.0", port)
-    httpd = HTTPServer(server_address, AegisRequestHandler)
+    ThreadingHTTPServer.daemon_threads = True
+    ThreadingHTTPServer.allow_reuse_address = True
+    httpd = ThreadingHTTPServer(server_address, AegisRequestHandler)
     ts_ip = _get_tailscale_ip()
     print("=" * 78)
     print(f"AEGIS-QUANT WEB STUDIO & PAPER TRADING CONTROL CENTER ACTIVO")

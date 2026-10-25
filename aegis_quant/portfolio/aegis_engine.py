@@ -11,8 +11,9 @@ Permite ejecutar y comparar en igualdad de condiciones (2007-2026):
 
 import copy
 import math
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 from aegis_quant.models.market_models import EnrichedBar, ClosedTrade, TradeSignal
+from aegis_quant.strategies.base import OPEN_TRADE_EXIT_DATE
 from aegis_quant.strategies.strategies import (
     BaseStrategy,
     SchermanPullbackStrategy,
@@ -57,19 +58,53 @@ class AegisPortfolioEngine:
             self.m5_vol_crush,
         ]
 
-    def generate_raw_trades(self, include_motor5: bool = True) -> List[ClosedTrade]:
+    def generate_raw_trades(
+        self,
+        include_motor5: bool = True,
+        include_open: bool = False,
+        enabled_motors: Optional[Dict[str, bool]] = None,
+    ) -> List[ClosedTrade]:
         raw: List[ClosedTrade] = []
+        en = enabled_motors or {}
+
+        def _is_on(engine_id: str) -> bool:
+            return bool(en.get(engine_id, True))
+
         for eq_sym in ("SPY", "QQQ"):
             if eq_sym in self.universe:
-                raw.extend(self.m1_pullback.simulate(eq_sym, self.universe[eq_sym], self.start_date))
-                raw.extend(self.m2_vix_div.simulate(eq_sym, self.universe[eq_sym], self.start_date))
-                raw.extend(self.m3_bear_short.simulate(eq_sym, self.universe[eq_sym], self.start_date))
-                if include_motor5:
-                    raw.extend(self.m5_vol_crush.simulate(eq_sym, self.universe[eq_sym], self.start_date))
+                if _is_on("M1_PULLBACK"):
+                    raw.extend(
+                        self.m1_pullback.simulate(
+                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
+                        )
+                    )
+                if _is_on("M2_VIX_DIV"):
+                    raw.extend(
+                        self.m2_vix_div.simulate(
+                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
+                        )
+                    )
+                if _is_on("M3_BEAR_SHORT"):
+                    raw.extend(
+                        self.m3_bear_short.simulate(
+                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
+                        )
+                    )
+                if include_motor5 and _is_on("M5_VOL_CRUSH"):
+                    raw.extend(
+                        self.m5_vol_crush.simulate(
+                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
+                        )
+                    )
 
-        for cta_sym in ("GLD", "USO", "ZS", "TLT"):
-            if cta_sym in self.universe:
-                raw.extend(self.m4_cta_trend.simulate(cta_sym, self.universe[cta_sym], self.start_date))
+        if _is_on("M4_CTA_TREND"):
+            for cta_sym in ("GLD", "USO", "ZS", "TLT"):
+                if cta_sym in self.universe:
+                    raw.extend(
+                        self.m4_cta_trend.simulate(
+                            cta_sym, self.universe[cta_sym], self.start_date, include_open=include_open
+                        )
+                    )
 
         raw.sort(key=lambda t: (t.entry_date, t.engine_id, t.symbol))
         return raw
@@ -346,24 +381,32 @@ class AegisPortfolioEngine:
             "trades": trades_serialized,
         }
 
-    def scan_live_market(self) -> Dict:
+    def scan_live_market(self, enabled_motors: Optional[Dict[str, bool]] = None) -> Dict[str, Any]:
         latest_bars = {sym: series[-1] for sym, series in self.universe.items() if series}
         spy = latest_bars["SPY"]
         risk_mgr = MetaLabelRiskManager()
         regime = risk_mgr.classify_regime(spy)
         core_alloc = risk_mgr.compute_elite_core_allocation(latest_bars, idle_capital_fraction=1.0)
+        en = enabled_motors or {}
 
         signals: List[TradeSignal] = []
         for eq_sym in ("SPY", "QQQ"):
+            if eq_sym not in self.universe:
+                continue
             for strat in (self.m1_pullback, self.m2_vix_div, self.m3_bear_short, self.m5_vol_crush):
+                if not en.get(strat.engine_id, True):
+                    continue
                 sig = strat.evaluate_live(eq_sym, self.universe[eq_sym])
                 if sig:
                     signals.append(sig)
 
-        for cta_sym in ("GLD", "USO", "ZS", "TLT"):
-            sig = self.m4_cta_trend.evaluate_live(cta_sym, self.universe[cta_sym])
-            if sig:
-                signals.append(sig)
+        if en.get("M4_CTA_TREND", True):
+            for cta_sym in ("GLD", "USO", "ZS", "TLT"):
+                if cta_sym not in self.universe:
+                    continue
+                sig = self.m4_cta_trend.evaluate_live(cta_sym, self.universe[cta_sym])
+                if sig:
+                    signals.append(sig)
 
         asset_snapshots = []
         for sym, b in latest_bars.items():
@@ -392,4 +435,115 @@ class AegisPortfolioEngine:
             "core_allocation": {k: round(v * 100.0, 1) for k, v in core_alloc.items()},
             "assets": asset_snapshots,
             "active_signals": [sig.__dict__ for sig in signals],
+        }
+
+    def compute_live_portfolio(
+        self,
+        enabled_motors: Optional[Dict[str, bool]] = None,
+        base_risk_pct: float = 2.5,
+        max_fast_weight: float = 0.55,
+        max_cta_weight: float = 0.40,
+        max_slots: int = 3,
+    ) -> Dict[str, Any]:
+        """
+        Evalúa en vivo los 5 motores tácticos (incluyendo tanto señales disparadas hoy
+        como operaciones multisesión abiertas en días previos que aún no han alcanzado
+        su objetivo/stop) y asigna el capital ocioso restante al Core Modo 3 Élite.
+        """
+        en = enabled_motors if enabled_motors is not None else {}
+        risk_mgr = MetaLabelRiskManager(
+            base_risk_pct=base_risk_pct,
+            max_tactical_weight=max_fast_weight,
+            target_vol_pct=16.0,
+            use_meta_confidence=True,
+            max_cta_weight=max_cta_weight,
+        )
+
+        raw_trades = self.generate_raw_trades(
+            include_motor5=bool(en.get("M5_VOL_CRUSH", True)),
+            include_open=True,
+            enabled_motors=en,
+        )
+        sized_trades = self.filter_and_size_tactical_trades(
+            raw_trades, risk_mgr, max_slots=max_slots
+        )
+        open_tactical = [t for t in sized_trades if t.exit_date == OPEN_TRADE_EXIT_DATE]
+
+        active_tactical_weight = min(1.0, sum(t.position_weight for t in open_tactical))
+        idle_cash_fraction = round(max(0.0, 1.0 - active_tactical_weight), 4)
+
+        latest_bars = {sym: series[-1] for sym, series in self.universe.items() if series}
+        core_alloc = risk_mgr.compute_elite_core_allocation(
+            latest_bars, idle_capital_fraction=idle_cash_fraction
+        )
+        live_scan = self.scan_live_market(enabled_motors=en)
+        # Actualizar core_allocation efectivo tras descontar capital ocupado por tácticos
+        live_scan["core_allocation"] = {k: round(v * 100.0, 1) for k, v in core_alloc.items()}
+
+        targets: Dict[str, Dict[str, Any]] = {}
+        for t in open_tactical:
+            targets[t.symbol] = {
+                "weight": round(t.position_weight, 4),
+                "direction": t.direction,
+                "motor": t.engine_id,
+                "reason": f"{t.engine_name}: {t.entry_reason} (entrada {t.entry_date})",
+            }
+
+        for sym, w in core_alloc.items():
+            if w <= 0.001:
+                continue
+            if sym not in targets:
+                targets[sym] = {
+                    "weight": round(w, 4),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": f"Nucleo Inteligente Modo 3 Elite ({live_scan['vts_state']})",
+                }
+            elif targets[sym]["direction"] == "LONG":
+                targets[sym]["weight"] = round(min(1.0, targets[sym]["weight"] + w), 4)
+                targets[sym]["motor"] = f"{targets[sym]['motor']}+CORE"
+                targets[sym]["reason"] = (
+                    f"{targets[sym]['reason']} + Core Modo 3 ({round(w * 100.0, 1)}%)"
+                )
+
+        # Garantizar que la suma total de pesos jamás supere el 100% (0% margen/deuda)
+        total_w = sum(item["weight"] for item in targets.values())
+        if total_w > 1.0001:
+            for item in targets.values():
+                item["weight"] = round(item["weight"] / total_w, 4)
+
+        open_trades_payload = [
+            {
+                "engine_id": t.engine_id,
+                "engine_name": t.engine_name,
+                "symbol": t.symbol,
+                "direction": t.direction,
+                "entry_date": t.entry_date,
+                "entry_price": t.entry_price,
+                "current_price": t.exit_price,
+                "unrealized_ret_pct": round(t.raw_ret_pct, 2),
+                "stop_distance_pct": round(t.stop_distance_pct, 2),
+                "weight_pct": round(t.position_weight * 100.0, 1),
+                "days_held": t.days,
+                "reason": t.entry_reason,
+            }
+            for t in open_tactical
+        ]
+
+        tactical_summary = {
+            "data_as_of": live_scan["as_of_date"],
+            "regime": live_scan["regime"],
+            "vts_ratio": live_scan["vts_ratio"],
+            "vts_state": live_scan["vts_state"],
+            "idle_cash_pct": round(idle_cash_fraction * 100.0, 1),
+            "open_trades": open_trades_payload,
+            "signals_today": live_scan["active_signals"],
+            "core_allocation": live_scan["core_allocation"],
+            "target_weights": {k: round(v["weight"] * 100.0, 1) for k, v in targets.items()},
+        }
+
+        return {
+            "targets": targets,
+            "live_scan": live_scan,
+            "tactical": tactical_summary,
         }
