@@ -1347,6 +1347,7 @@ function initTaxView() {
     taxChart = echarts.init(taxEl);
     const dates = tax.net_curve.map((p) => p.date);
     const grossData = tax.net_curve.map((p) => p.gross_eq);
+    const opNetData = tax.net_curve.map((p) => p.op_net_eq);
     const netData = tax.net_curve.map((p) => p.net_eq);
     const spyData = tax.net_curve.map((p) => p.spy_eq);
 
@@ -1369,7 +1370,7 @@ function initTaxView() {
         },
       },
       legend: {
-        data: ['Modo 3 Élite Bruto', 'Modo 3 Élite Neto (IRPF)', 'S&P 500 Buy & Hold'],
+        data: ['Modo 3 Élite Bruto', 'Neto Operativo (Comisiones+TER)', 'Neto en Bolsillo (Tras IRPF)', 'S&P 500 Buy & Hold'],
         top: 0,
         textStyle: { color: '#64748b', fontSize: 11 },
       },
@@ -1399,11 +1400,19 @@ function initTaxView() {
           type: 'line',
           data: grossData,
           showSymbol: false,
-          lineStyle: { width: 2, color: '#1e40af' },
+          lineStyle: { width: 1.5, color: '#1e40af' },
           itemStyle: { color: '#1e40af' },
         },
         {
-          name: 'Modo 3 Élite Neto (IRPF)',
+          name: 'Neto Operativo (Comisiones+TER)',
+          type: 'line',
+          data: opNetData,
+          showSymbol: false,
+          lineStyle: { width: 1.5, color: '#d97706', type: 'dotted' },
+          itemStyle: { color: '#d97706' },
+        },
+        {
+          name: 'Neto en Bolsillo (Tras IRPF)',
           type: 'line',
           data: netData,
           showSymbol: false,
@@ -1440,6 +1449,7 @@ function initTaxView() {
             <td class="py-2 px-3 font-bold text-slate-800">${row.year}</td>
             <td class="py-2 px-3 text-right text-slate-600">$${row.start_capital.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td class="py-2 px-3 text-right ${row.gross_ret_pct >= 0 ? 'text-brand-700' : 'text-rose-600'}">${grossRetSign}${row.gross_ret_pct.toFixed(2)}%</td>
+            <td class="py-2 px-3 text-right text-amber-700 font-mono">-$${row.operational_fees.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td class="py-2 px-3 text-right ${row.realized_gain_usd >= 0 ? 'text-brand-700' : 'text-rose-600'}">$${row.realized_gain_usd.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
             <td class="py-2 px-3 text-right text-slate-500">${row.loss_offset_used > 0 ? `-$${row.loss_offset_used.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '--'}</td>
             <td class="py-2 px-3 text-right text-slate-700 font-semibold">$${row.taxable_base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>

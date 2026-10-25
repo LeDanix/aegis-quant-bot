@@ -99,3 +99,10 @@ Navigate to:
 - **Local Paper Trading (`LocalPaperBrokerAdapter`)**: Runs real-time paper execution without requiring third-party credentials. Simulates order execution, slippage, and portfolio valuation.
 - **Signal Mobile Alerts**: Native integration with CallMeBot Signal Gateway or self-hosted Signal CLI REST API. Delivers daily regime states, entry/exit orders, and emergency drawdown notifications directly to your phone.
 - **Interactive Web Interface**: Minimalist institutional design displaying active portfolio allocations, pending signals, interactive equity curves with trade markers, and stress-test diagnostics.
+
+---
+
+## Technical & Operational Documentation
+
+- **[OPERATIONAL_FAQ_AND_DECISIONS.md](OPERATIONAL_FAQ_AND_DECISIONS.md)**: Guía operativa viva, fiscalidad en España (IRPF Base del Ahorro), selección de ETFs UCITS europeos (`CSPX`, `EQQQ`, `SGLD`), comisiones de bróker y análisis cuantitativo de apalancamiento x3.
+- **[ROADMAP_AND_HANDOVER.md](ROADMAP_AND_HANDOVER.md)**: Manual de traspaso institucional, arquitectura matemática, auditoría 2007–2026 y hoja de ruta para paso a dinero real en Interactive Brokers.
