@@ -13,10 +13,27 @@ let LAST_TAX_AUDIT = null;
 const ACTIVE_MODE_ID = 'MODO_3_ELITE';
 let ACTIVE_MOTOR_FILTER = 'TOP_IMPACT'; // 'NONE', 'TOP_IMPACT', 'M1_PULLBACK'..'M6_TOTM'
 let ACTIVE_PERF_SUBTAB = 'chart'; // 'chart' | 'guide' | 'crisis' | 'simulator' | 'tax'
-let ACTIVE_MOBILE_TAB = 'inicio'; // 'inicio' | 'cartera' | 'analisis' | 'sistema'
+let ACTIVE_SECTION = 'inicio'; // 'inicio' | 'cartera' | 'etfs' | 'analisis' | 'sistema'
+let ACTIVE_MOBILE_TAB = 'inicio';
 let LAST_CONTROL_MOBILE_TAB = 'inicio';
 let CHART_SCALE = 'value'; // 'value' | 'log'
 let LIVE_CONFIG_INITIALIZED = false;
+
+const SECTION_LABELS = {
+  inicio: 'Inicio',
+  cartera: 'Cartera',
+  etfs: 'ETFs',
+  analisis: 'Análisis',
+  sistema: 'Sistema',
+};
+
+// Estado de la sección de gráficas de precios de ETFs
+let ETF_CATALOG = [];
+let ETF_DATA_CACHE = {};
+let ACTIVE_ETF_SYMBOL = 'SPY';
+let ETF_RANGE = '1Y'; // '1M' | '3M' | '6M' | '1Y' | '5Y' | 'ALL'
+let ETF_CHART_TYPE = 'line'; // 'line' | 'candle'
+let etfFetchInFlight = false;
 
 // Estado de sondeo y confirmaciones de seguridad
 let livePollTimer = null;
@@ -31,6 +48,7 @@ let subperiodsChart = null;
 let monteCarloChart = null;
 let frictionChart = null;
 let taxChart = null;
+let etfChart = null;
 
 // Metadatos de los 6 Motores Cuantitativos + Núcleo Modo 3 Élite
 const MOTOR_META = {
@@ -208,6 +226,12 @@ function applyTheme(dark, persist = false) {
     if (subperiodsChart || monteCarloChart || frictionChart) initCrisisAndRobustnessCharts();
     if (taxChart) initTaxView();
   }
+  if (ETF_CATALOG.length > 0) {
+    renderEtfQuickCards();
+  }
+  if (etfChart && ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL]) {
+    renderEtfPriceChart(false);
+  }
 }
 
 function toggleTheme() {
@@ -218,12 +242,21 @@ function toggleTheme() {
 // CICLO DE VIDA DE LA APLICACIÓN Y SONDEO INTELIGENTE
 // ============================================================================
 window.addEventListener('DOMContentLoaded', () => {
-  // Cierre rápido de modales con tecla Escape
+  // Cierre rápido de menús y modales con tecla Escape
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      closeDesktopNavMenu();
       closeEngineConfirmModal();
       closeDestructiveConfirmModal();
       closeConfigModal();
+    }
+  });
+
+  // Cerrar el menú desplegable de 3 rayas en escritorio al pulsar fuera
+  document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('desktop-nav-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+      closeDesktopNavMenu();
     }
   });
 
@@ -341,73 +374,601 @@ function handleWindowResize() {
   if (monteCarloChart) monteCarloChart.resize();
   if (frictionChart) frictionChart.resize();
   if (taxChart) taxChart.resize();
+  if (etfChart) etfChart.resize();
 }
 
 // ============================================================================
-// NAVEGACIÓN: BARRA INFERIOR MÓVIL + PESTAÑAS SUPERIORES + 5 SUBPESTAÑAS
+// NAVEGACIÓN UNIFICADA DE 5 SECCIONES (MÓVIL + MENÚ 3 RAYAS ESCRITORIO)
+// Secciones: inicio | cartera | etfs | analisis | sistema
 // ============================================================================
-function updateMobileNavHighlight(tabId) {
-  ACTIVE_MOBILE_TAB = tabId;
-  const tabs = ['inicio', 'cartera', 'analisis', 'sistema'];
-  tabs.forEach((id) => {
-    const btn = document.getElementById(`mobile-tab-${id}`);
-    if (!btn) return;
-    if (id === tabId) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
+function updateSectionNavHighlight(sectionId) {
+  ACTIVE_SECTION = sectionId;
+  ACTIVE_MOBILE_TAB = sectionId;
+  const sections = ['inicio', 'cartera', 'etfs', 'analisis', 'sistema'];
+
+  sections.forEach((id) => {
+    const mobBtn = document.getElementById(`mobile-tab-${id}`);
+    if (mobBtn) {
+      if (id === sectionId) mobBtn.classList.add('active');
+      else mobBtn.classList.remove('active');
+    }
+
+    const deskItem = document.getElementById(`desktop-item-${id}`);
+    if (deskItem) {
+      if (id === sectionId) deskItem.classList.add('active');
+      else deskItem.classList.remove('active');
     }
   });
-}
 
-function switchMobileTab(tabId) {
-  if (tabId === 'analisis') {
-    updateMobileNavHighlight('analisis');
-    switchMainView('performance', true);
-  } else {
-    LAST_CONTROL_MOBILE_TAB = tabId;
-    const viewControl = document.getElementById('main-view-control');
-    if (viewControl) viewControl.setAttribute('data-mobile-tab', tabId);
-    updateMobileNavHighlight(tabId);
-    switchMainView('control', true);
+  const deskLabel = document.getElementById('desktop-nav-current-label');
+  if (deskLabel) {
+    deskLabel.textContent = SECTION_LABELS[sectionId] || 'Inicio';
   }
-  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
-function switchMainView(viewId, fromMobile = false) {
-  const tabControl = document.getElementById('main-tab-control');
-  const tabPerf = document.getElementById('main-tab-performance');
+function toggleDesktopNavMenu(event) {
+  if (event) event.stopPropagation();
+  const menu = document.getElementById('desktop-nav-menu');
+  const btn = document.getElementById('desktop-nav-btn');
+  const chevron = document.getElementById('desktop-nav-chevron');
+  if (!menu) return;
+
+  const willOpen = menu.classList.contains('hidden');
+  if (willOpen) {
+    menu.classList.remove('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (chevron) chevron.classList.add('rotate-180');
+  } else {
+    closeDesktopNavMenu();
+  }
+}
+
+function closeDesktopNavMenu() {
+  const menu = document.getElementById('desktop-nav-menu');
+  const btn = document.getElementById('desktop-nav-btn');
+  const chevron = document.getElementById('desktop-nav-chevron');
+  if (menu) menu.classList.add('hidden');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (chevron) chevron.classList.remove('rotate-180');
+}
+
+function selectSectionFromMenu(sectionId) {
+  closeDesktopNavMenu();
+  switchSection(sectionId);
+}
+
+function switchSection(sectionId, options = {}) {
+  const valid = ['inicio', 'cartera', 'etfs', 'analisis', 'sistema'];
+  const target = valid.includes(sectionId) ? sectionId : 'inicio';
+  const wasAlreadyEtfs = ACTIVE_SECTION === 'etfs' && target === 'etfs';
+
+  closeDesktopNavMenu();
+  updateSectionNavHighlight(target);
+
   const viewControl = document.getElementById('main-view-control');
+  const viewEtfs = document.getElementById('main-view-etfs');
   const viewPerf = document.getElementById('main-view-performance');
 
-  if (viewId === 'control') {
-    if (tabControl) tabControl.classList.add('active');
-    if (tabPerf) tabPerf.classList.remove('active');
-    if (viewControl) viewControl.classList.remove('hidden');
+  if (target === 'inicio' || target === 'cartera' || target === 'sistema') {
+    LAST_CONTROL_MOBILE_TAB = target;
+    if (viewControl) {
+      viewControl.setAttribute('data-mobile-tab', target);
+      viewControl.classList.remove('hidden');
+    }
+    if (viewEtfs) viewEtfs.classList.add('hidden');
     if (viewPerf) viewPerf.classList.add('hidden');
-
-    if (!fromMobile) {
-      const targetMob = LAST_CONTROL_MOBILE_TAB || 'inicio';
-      if (viewControl) viewControl.setAttribute('data-mobile-tab', targetMob);
-      updateMobileNavHighlight(targetMob);
-    }
     fetchLiveStatus(false);
-  } else {
-    if (tabPerf) tabPerf.classList.add('active');
-    if (tabControl) tabControl.classList.remove('active');
-    if (viewPerf) viewPerf.classList.remove('hidden');
+  } else if (target === 'etfs') {
     if (viewControl) viewControl.classList.add('hidden');
+    if (viewPerf) viewPerf.classList.add('hidden');
+    if (viewEtfs) viewEtfs.classList.remove('hidden');
 
-    if (!fromMobile) {
-      updateMobileNavHighlight('analisis');
-    }
+    loadEtfData(ACTIVE_ETF_SYMBOL);
+    setTimeout(() => {
+      if (etfChart) etfChart.resize();
+      if (wasAlreadyEtfs || options.focusSelector) {
+        const sel = document.getElementById('etf-symbol-select');
+        if (sel) sel.focus();
+      }
+    }, 45);
+  } else if (target === 'analisis') {
+    if (viewControl) viewControl.classList.add('hidden');
+    if (viewEtfs) viewEtfs.classList.add('hidden');
+    if (viewPerf) viewPerf.classList.remove('hidden');
 
     if (!APP_DATA && !SUMMARY_LOADING) {
       loadSummaryDataInBackground(true);
     }
-
     setTimeout(refreshActivePerfSubTabCharts, 50);
   }
+
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function switchMobileTab(tabId) {
+  switchSection(tabId);
+}
+
+function switchMainView(viewId) {
+  if (viewId === 'performance') {
+    switchSection('analisis');
+  } else if (viewId === 'etfs') {
+    switchSection('etfs');
+  } else {
+    switchSection(LAST_CONTROL_MOBILE_TAB || 'inicio');
+  }
+}
+
+function openEtfChartForSymbol(symbol) {
+  const norm = symbol === 'SOYB' ? 'ZS' : String(symbol || 'SPY').toUpperCase();
+  ACTIVE_ETF_SYMBOL = norm;
+  switchSection('etfs');
+}
+
+// ============================================================================
+// SECCIÓN ETFS: SELECTOR INTERACTIVO Y GRÁFICA DE PRECIOS + SMA50/200 + VOLUMEN
+// ============================================================================
+async function loadEtfData(symbol, forceRefresh = false) {
+  const normSym = symbol === 'SOYB' ? 'ZS' : String(symbol || ACTIVE_ETF_SYMBOL || 'SPY').toUpperCase();
+  ACTIVE_ETF_SYMBOL = normSym;
+
+  const sel = document.getElementById('etf-symbol-select');
+  if (sel && sel.value !== normSym) {
+    sel.value = normSym;
+  }
+
+  // Pintado inmediato desde caché en memoria si ya existe la serie
+  if (!forceRefresh && ETF_DATA_CACHE[normSym]) {
+    renderEtfQuickCards();
+    renderEtfDetailHeader(ETF_DATA_CACHE[normSym]);
+    renderEtfPriceChart(true);
+    return;
+  }
+
+  const indicator = document.getElementById('etf-loading-indicator');
+  if (indicator) indicator.classList.remove('hidden');
+  etfFetchInFlight = true;
+
+  try {
+    const res = await fetch(`/api/etf/history?symbol=${encodeURIComponent(normSym)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    if (!payload || !payload.ok || !payload.etf) {
+      throw new Error(payload?.error || 'Respuesta inválida de /api/etf/history');
+    }
+
+    if (Array.isArray(payload.catalog) && payload.catalog.length > 0) {
+      ETF_CATALOG = payload.catalog;
+    }
+
+    const resolvedSym = payload.selected_symbol || normSym;
+    ETF_DATA_CACHE[resolvedSym] = payload.etf;
+    ACTIVE_ETF_SYMBOL = resolvedSym;
+
+    if (sel && sel.value !== resolvedSym) {
+      sel.value = resolvedSym;
+    }
+
+    renderEtfQuickCards();
+    renderEtfDetailHeader(payload.etf);
+
+    const viewEtfs = document.getElementById('main-view-etfs');
+    if (viewEtfs && !viewEtfs.classList.contains('hidden')) {
+      renderEtfPriceChart(true);
+    }
+  } catch (err) {
+    console.error('Error cargando histórico del ETF:', err);
+    const chgEl = document.getElementById('etf-kpi-daychg');
+    if (chgEl) chgEl.textContent = 'Error cargando serie de precios.';
+  } finally {
+    etfFetchInFlight = false;
+    if (indicator) indicator.classList.add('hidden');
+  }
+}
+
+function selectEtfSymbol(symbol) {
+  const normSym = symbol === 'SOYB' ? 'ZS' : String(symbol || 'SPY').toUpperCase();
+  ACTIVE_ETF_SYMBOL = normSym;
+  loadEtfData(normSym, false);
+}
+
+function renderEtfQuickCards() {
+  const container = document.getElementById('etf-quick-cards');
+  if (!container || ETF_CATALOG.length === 0) return;
+
+  container.innerHTML = ETF_CATALOG.map((item) => {
+    const isActive = item.symbol === ACTIVE_ETF_SYMBOL;
+    const dayChg = Number(item.day_change_pct || 0);
+    const chgCls = dayChg >= 0
+      ? 'text-brand-700 dark:text-brand-300'
+      : 'text-red-700 dark:text-red-400';
+    const cardCls = isActive
+      ? 'border-brand-700 bg-brand-50/80 dark:bg-slate-800 dark:border-brand-500 ring-1 ring-brand-700/20'
+      : 'border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/70';
+    const ucitsShort = String(item.ucits_ticker || '').split(' / ')[0];
+
+    return `
+      <button type="button" onclick="selectEtfSymbol('${escHtml(item.symbol)}')"
+        class="p-2.5 rounded-md border ${cardCls} text-left transition">
+        <div class="flex items-center justify-between gap-1 font-mono">
+          <span class="text-xs font-bold text-slate-900 dark:text-slate-100">${escHtml(item.symbol)}</span>
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${escHtml(ucitsShort)}</span>
+        </div>
+        <div class="flex items-baseline justify-between gap-1 mt-1.5 font-mono tabular-nums">
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">$${Number(item.last_close).toFixed(2)}</span>
+          <span class="text-[11px] font-semibold ${chgCls}">${fmtPct(dayChg)}</span>
+        </div>
+      </button>
+    `;
+  }).join('');
+}
+
+function renderEtfDetailHeader(etfData) {
+  if (!etfData || !etfData.meta || !etfData.metrics) return;
+  const meta = etfData.meta;
+  const m = etfData.metrics;
+
+  const setTxt = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+  };
+
+  setTxt('etf-kpi-price', `$${Number(m.last_close).toFixed(2)}`);
+
+  const dayChgEl = document.getElementById('etf-kpi-daychg');
+  if (dayChgEl) {
+    const chg = Number(m.day_change_pct || 0);
+    dayChgEl.textContent = `Sesión: ${fmtPct(chg)} · ${m.as_of_date}`;
+    dayChgEl.className = `text-[11px] mt-1 font-mono tabular-nums truncate ${
+      chg >= 0 ? 'text-brand-700 dark:text-brand-300 font-semibold' : 'text-red-700 dark:text-red-400 font-semibold'
+    }`;
+  }
+
+  const ret1yEl = document.getElementById('etf-kpi-ret1y');
+  if (ret1yEl) {
+    const r1y = Number(m.ret_1y_pct || 0);
+    ret1yEl.textContent = fmtPct(r1y);
+    ret1yEl.className = `text-lg sm:text-2xl font-bold font-mono kpi-num mt-1 ${
+      r1y >= 0 ? 'text-brand-700 dark:text-brand-300' : 'text-red-700 dark:text-red-400'
+    }`;
+  }
+
+  setTxt('etf-kpi-retytd', `YTD: ${fmtPct(m.ret_ytd_pct)} · 3M: ${fmtPct(m.ret_3m_pct)}`);
+  setTxt('etf-kpi-52w', `$${Number(m.low_52w).toFixed(2)} – $${Number(m.high_52w).toFixed(2)}`);
+  setTxt('etf-kpi-ret-total', `5A: ${fmtPct(m.ret_5y_pct)} · Desde ${String(m.start_date).slice(0, 4)}: ${fmtPct(m.ret_total_pct)}`);
+
+  const trendEl = document.getElementById('etf-kpi-trend');
+  if (trendEl) {
+    const isBull = m.trend === 'ALCISTA';
+    trendEl.textContent = isBull ? 'ALCISTA (> SMA 200)' : 'BAJISTA (< SMA 200)';
+    trendEl.className = isBull
+      ? 'inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800'
+      : 'inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300 border border-red-200 dark:border-red-900';
+  }
+
+  setTxt('etf-kpi-rsi2', `RSI(2): ${Number(m.rsi2).toFixed(1)} · SMA200: $${Number(m.sma200).toFixed(2)}`);
+  setTxt('etf-chart-title', `${meta.symbol} · ${meta.display_name}`);
+  setTxt(
+    'etf-chart-subtitle',
+    `Equivalente UCITS en Tradegate: ${meta.ucits_ticker} · ${m.bars_count.toLocaleString('es-ES')} sesiones diarias (${m.start_date} a ${m.as_of_date})`
+  );
+
+  setTxt('etf-meta-ucits', `${meta.ucits_ticker} · ${meta.venue}`);
+  setTxt('etf-meta-isin', `ISIN: ${meta.isin} · TER: ${meta.ter}`);
+  setTxt('etf-meta-smas', `SMA(50): $${Number(m.sma50).toFixed(2)} · SMA(200): $${Number(m.sma200).toFixed(2)}`);
+  setTxt('etf-meta-dist', `Distancia a SMA(200): ${fmtPct(m.dist_sma200_pct)} · 1M: ${fmtPct(m.ret_1m_pct)}`);
+  setTxt('etf-meta-engines', meta.engines);
+  setTxt('etf-meta-class', meta.asset_class);
+}
+
+function computeEtfZoomStartPct(totalBars, rangeKey) {
+  if (!totalBars || totalBars <= 2) return 0;
+  const barsByRange = {
+    '1M': 22,
+    '3M': 65,
+    '6M': 130,
+    '1Y': 253,
+    '5Y': 1260,
+    ALL: totalBars,
+  };
+  const targetBars = barsByRange[rangeKey] || 253;
+  if (targetBars >= totalBars) return 0;
+  const pct = ((totalBars - targetBars) / totalBars) * 100;
+  return Math.max(0, Math.min(99.2, Number(pct.toFixed(2))));
+}
+
+function setEtfRange(rangeKey) {
+  ETF_RANGE = rangeKey;
+  const keys = ['1M', '3M', '6M', '1Y', '5Y', 'ALL'];
+  keys.forEach((k) => {
+    const btn = document.getElementById(`etf-range-${k}`);
+    if (!btn) return;
+    if (k === rangeKey) {
+      btn.className = 'px-2 py-1 rounded font-semibold bg-brand-700 text-white transition';
+    } else {
+      btn.className = 'px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
+    }
+  });
+
+  const cached = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL];
+  if (etfChart && cached?.series?.dates) {
+    const startPct = computeEtfZoomStartPct(cached.series.dates.length, rangeKey);
+    etfChart.dispatchAction({
+      type: 'dataZoom',
+      start: startPct,
+      end: 100,
+    });
+  }
+}
+
+function setEtfChartType(chartType) {
+  ETF_CHART_TYPE = chartType === 'candle' ? 'candle' : 'line';
+  const btnLine = document.getElementById('etf-type-line');
+  const btnCandle = document.getElementById('etf-type-candle');
+
+  if (btnLine) {
+    btnLine.className = ETF_CHART_TYPE === 'line'
+      ? 'px-2.5 py-1 rounded font-semibold bg-brand-700 text-white transition'
+      : 'px-2.5 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
+  }
+  if (btnCandle) {
+    btnCandle.className = ETF_CHART_TYPE === 'candle'
+      ? 'px-2.5 py-1 rounded font-semibold bg-brand-700 text-white transition'
+      : 'px-2.5 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
+  }
+
+  if (ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL]) {
+    renderEtfPriceChart(false);
+  }
+}
+
+function renderEtfPriceChart(resetRange = false) {
+  const el = document.getElementById('etf-price-chart');
+  const etfData = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL];
+  if (!el || !etfData || !etfData.series) return;
+
+  if (!etfChart) {
+    etfChart = echarts.init(el);
+  }
+
+  const th = getChartTheme();
+  const s = etfData.series;
+  const n = s.dates.length;
+  const isMobile = window.innerWidth < 640;
+
+  // Preservar zoom actual al alternar tema o Línea/Velas salvo cambio de ETF
+  let startPct = computeEtfZoomStartPct(n, ETF_RANGE);
+  let endPct = 100;
+  if (!resetRange) {
+    try {
+      const currentOpt = etfChart.getOption();
+      if (currentOpt && Array.isArray(currentOpt.dataZoom) && currentOpt.dataZoom[0]) {
+        if (typeof currentOpt.dataZoom[0].start === 'number') startPct = currentOpt.dataZoom[0].start;
+        if (typeof currentOpt.dataZoom[0].end === 'number') endPct = currentOpt.dataZoom[0].end;
+      }
+    } catch (e) {}
+  }
+
+  const upColor = th.dark ? '#5c9d82' : '#065f46';
+  const downColor = th.dark ? '#ef4444' : '#b91c1c';
+  const volUpColor = th.dark ? 'rgba(92, 157, 130, 0.42)' : 'rgba(6, 95, 70, 0.32)';
+  const volDownColor = th.dark ? 'rgba(239, 68, 68, 0.38)' : 'rgba(185, 28, 28, 0.28)';
+
+  const volumeBars = s.volumes.map((v, i) => ({
+    value: v,
+    itemStyle: {
+      color: s.closes[i] >= s.opens[i] ? volUpColor : volDownColor,
+    },
+  }));
+
+  let primaryPriceSeries;
+  if (ETF_CHART_TYPE === 'candle') {
+    const ohlcData = s.dates.map((_, i) => [s.opens[i], s.closes[i], s.lows[i], s.highs[i]]);
+    primaryPriceSeries = {
+      name: etfData.meta.symbol,
+      type: 'candlestick',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: ohlcData,
+      itemStyle: {
+        color: upColor,
+        color0: downColor,
+        borderColor: upColor,
+        borderColor0: downColor,
+      },
+    };
+  } else {
+    primaryPriceSeries = {
+      name: etfData.meta.symbol,
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: s.closes,
+      showSymbol: false,
+      smooth: false,
+      lineStyle: { width: 2, color: th.botLine },
+      itemStyle: { color: th.botLine },
+      areaStyle: { color: th.botArea },
+    };
+  }
+
+  const option = {
+    backgroundColor: th.bg,
+    animationDuration: 220,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        lineStyle: { color: th.crosshair, width: 1 },
+      },
+      backgroundColor: th.tooltipBg,
+      borderColor: th.tooltipBorder,
+      borderWidth: 1,
+      textStyle: { color: th.tooltipText, fontSize: 12 },
+      formatter: (params) => {
+        if (!Array.isArray(params) || params.length === 0) return '';
+        const idx = params[0].dataIndex;
+        if (idx == null || idx < 0 || idx >= n) return '';
+
+        const d = s.dates[idx];
+        const o = s.opens[idx];
+        const h = s.highs[idx];
+        const l = s.lows[idx];
+        const c = s.closes[idx];
+        const prev = idx > 0 ? s.closes[idx - 1] : c;
+        const chg = prev > 0 ? ((c - prev) / prev) * 100 : 0;
+        const chgColor = chg >= 0 ? upColor : downColor;
+        const volM = (Number(s.volumes[idx] || 0) / 1e6).toFixed(2);
+
+        return `
+          <div style="font-family:'JetBrains Mono',monospace;min-width:195px;">
+            <div style="font-weight:700;margin-bottom:4px;border-bottom:1px solid ${th.tooltipBorder};padding-bottom:3px;">
+              ${escHtml(etfData.meta.symbol)} · ${escHtml(d)}
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;">
+              <span style="color:${th.tooltipMuted};">Cierre:</span>
+              <span style="font-weight:700;">$${Number(c).toFixed(2)} <span style="color:${chgColor};">(${fmtPct(chg)})</span></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-top:2px;">
+              <span style="color:${th.tooltipMuted};">A / M / m:</span>
+              <span>$${Number(o).toFixed(2)} / $${Number(h).toFixed(2)} / $${Number(l).toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-top:2px;">
+              <span style="color:#d97706;">SMA(50):</span>
+              <span>$${Number(s.sma50[idx]).toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;">
+              <span style="color:${th.spyLine};">SMA(200):</span>
+              <span>$${Number(s.sma200[idx]).toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:11px;margin-top:2px;">
+              <span style="color:${th.tooltipMuted};">Volumen:</span>
+              <span>${volM}M</span>
+            </div>
+          </div>
+        `;
+      },
+    },
+    axisPointer: {
+      link: [{ xAxisIndex: 'all' }],
+    },
+    grid: [
+      {
+        left: isMobile ? 48 : 60,
+        right: isMobile ? 12 : 20,
+        top: 16,
+        height: '64%',
+      },
+      {
+        left: isMobile ? 48 : 60,
+        right: isMobile ? 12 : 20,
+        top: '82%',
+        height: '11%',
+      },
+    ],
+    xAxis: [
+      {
+        type: 'category',
+        gridIndex: 0,
+        data: s.dates,
+        boundaryGap: ETF_CHART_TYPE === 'candle',
+        axisLine: { lineStyle: { color: th.axisLine } },
+        axisLabel: { color: th.axisLabel, fontSize: 10, fontFamily: 'JetBrains Mono' },
+        min: 'dataMin',
+        max: 'dataMax',
+      },
+      {
+        type: 'category',
+        gridIndex: 1,
+        data: s.dates,
+        boundaryGap: true,
+        axisLine: { lineStyle: { color: th.axisLine } },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        min: 'dataMin',
+        max: 'dataMax',
+      },
+    ],
+    yAxis: [
+      {
+        type: 'value',
+        gridIndex: 0,
+        scale: true,
+        splitLine: { lineStyle: { color: th.splitLine } },
+        axisLabel: {
+          color: th.axisLabel,
+          fontSize: 10,
+          fontFamily: 'JetBrains Mono',
+          formatter: (v) => '$' + Math.round(v),
+        },
+      },
+      {
+        type: 'value',
+        gridIndex: 1,
+        scale: true,
+        splitNumber: 2,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false },
+      },
+    ],
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: [0, 1],
+        start: startPct,
+        end: endPct,
+      },
+      {
+        type: 'slider',
+        xAxisIndex: [0, 1],
+        bottom: 2,
+        height: 18,
+        start: startPct,
+        end: endPct,
+        borderColor: th.zoomBorder,
+        fillerColor: th.dark ? 'rgba(92, 157, 130, 0.14)' : 'rgba(6, 95, 70, 0.10)',
+        textStyle: { color: th.axisLabel, fontSize: 10, fontFamily: 'JetBrains Mono' },
+      },
+    ],
+    series: [
+      primaryPriceSeries,
+      {
+        name: 'SMA(50)',
+        type: 'line',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: s.sma50,
+        showSymbol: false,
+        smooth: false,
+        lineStyle: { width: 1.35, color: '#d97706' },
+        itemStyle: { color: '#d97706' },
+      },
+      {
+        name: 'SMA(200)',
+        type: 'line',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: s.sma200,
+        showSymbol: false,
+        smooth: false,
+        lineStyle: { width: 1.6, type: 'dashed', color: th.spyLine },
+        itemStyle: { color: th.spyLine },
+      },
+      {
+        name: 'Volumen',
+        type: 'bar',
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: volumeBars,
+        large: true,
+      },
+    ],
+  };
+
+  etfChart.setOption(option, true);
+  etfChart.resize();
 }
 
 function refreshActivePerfSubTabCharts() {
@@ -1458,7 +2019,8 @@ function renderLiveScan() {
             : 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300';
 
           return `
-            <div class="py-2.5 flex items-center justify-between gap-2">
+            <div onclick="openEtfChartForSymbol('${escHtml(a.symbol)}')" title="Ver gráfica de precios de ${escHtml(a.symbol)}"
+              class="py-2.5 px-1.5 -mx-1.5 rounded flex items-center justify-between gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
                   <span class="font-bold font-mono text-slate-900 dark:text-slate-100">${escHtml(a.symbol)}</span>

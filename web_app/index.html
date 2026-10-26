@@ -34,8 +34,8 @@
   </script>
 
   <!-- Hojas de estilo compiladas localmente (100% autónomas, sin dependencia de CDNs externos) -->
-  <link rel="stylesheet" href="/static/tailwind.css?v=20261026b" />
-  <link rel="stylesheet" href="/static/mobile.css?v=20261026b" />
+  <link rel="stylesheet" href="/static/tailwind.css?v=20261026c" />
+  <link rel="stylesheet" href="/static/mobile.css?v=20261026c" />
   <script src="/static/echarts.min.js?v=5.5.0"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -64,15 +64,47 @@
           </div>
         </div>
 
-        <!-- NAVEGACIÓN PRINCIPAL ESCRITORIO (md+) -->
-        <nav class="hidden md:flex items-center gap-2">
-          <button id="main-tab-control" onclick="switchMainView('control')" class="main-nav-btn active px-4 py-1.5 rounded-md text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition">
-            Centro de Control
+        <!-- MENÚ SUPERIOR DE SECCIONES EN ESCRITORIO (md+ | Misma distribución de 5 secciones que en móvil) -->
+        <div id="desktop-nav-wrapper" class="hidden md:block relative">
+          <button id="desktop-nav-btn" type="button" onclick="toggleDesktopNavMenu(event)" aria-haspopup="true" aria-expanded="false" aria-controls="desktop-nav-menu"
+            class="inline-flex items-center gap-2.5 px-3.5 h-9 rounded-md text-xs font-semibold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 transition">
+            <svg class="w-4 h-4 text-slate-700 dark:text-slate-200 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+            <span class="text-slate-400 dark:text-slate-500 font-normal">Sección:</span>
+            <span id="desktop-nav-current-label" class="font-bold text-brand-700 dark:text-brand-300">Inicio</span>
+            <svg id="desktop-nav-chevron" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
           </button>
-          <button id="main-tab-performance" onclick="switchMainView('performance')" class="main-nav-btn px-4 py-1.5 rounded-md text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition">
-            Analítica e Histórico (2007–2026)
-          </button>
-        </nav>
+
+          <div id="desktop-nav-menu" role="menu" aria-label="Selector de secciones principales"
+            class="hidden absolute left-0 mt-2 w-72 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg p-1.5 z-50 text-xs space-y-0.5">
+            <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 mb-1">
+              Seleccionar Sección
+            </div>
+            <button id="desktop-item-inicio" type="button" role="menuitem" onclick="selectSectionFromMenu('inicio')" class="desktop-menu-item active">
+              <span>Inicio</span>
+              <span class="text-[11px] font-normal text-slate-400 dark:text-slate-500">Resumen y mandos</span>
+            </button>
+            <button id="desktop-item-cartera" type="button" role="menuitem" onclick="selectSectionFromMenu('cartera')" class="desktop-menu-item">
+              <span>Cartera</span>
+              <span class="text-[11px] font-normal text-slate-400 dark:text-slate-500">Posiciones y órdenes</span>
+            </button>
+            <button id="desktop-item-etfs" type="button" role="menuitem" onclick="selectSectionFromMenu('etfs')" class="desktop-menu-item">
+              <span>ETFs</span>
+              <span class="text-[11px] font-normal text-slate-400 dark:text-slate-500">Gráficas de precios</span>
+            </button>
+            <button id="desktop-item-analisis" type="button" role="menuitem" onclick="selectSectionFromMenu('analisis')" class="desktop-menu-item">
+              <span>Análisis</span>
+              <span class="text-[11px] font-normal text-slate-400 dark:text-slate-500">Histórico 2007–2026 e IRPF</span>
+            </button>
+            <button id="desktop-item-sistema" type="button" role="menuitem" onclick="selectSectionFromMenu('sistema')" class="desktop-menu-item">
+              <span>Sistema</span>
+              <span class="text-[11px] font-normal text-slate-400 dark:text-slate-500">Eventos y parámetros</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- ESTADO, TEMA Y BOTÓN ÚNICO DE CONFIGURACIÓN -->
@@ -310,26 +342,26 @@
 
       </div>
 
-      <!-- [CARTERA] RESUMEN RÁPIDO MÓVIL (< md) -->
-      <div data-mobile-group="cartera" class="md:hidden panel p-3.5">
+      <!-- [CARTERA] RESUMEN RÁPIDO DE PATRIMONIO Y LIQUIDEZ -->
+      <div data-mobile-group="cartera" class="panel p-3.5 sm:p-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Resumen de Cartera</span>
-          <button onclick="triggerLiveAction('SCAN_NOW')" class="px-2.5 py-1 rounded text-[11px] font-semibold bg-brand-700 text-white">
+          <button onclick="triggerLiveAction('SCAN_NOW')" class="px-2.5 py-1 rounded text-[11px] font-semibold bg-brand-700 hover:bg-brand-800 text-white transition">
             Sincronizar
           </button>
         </div>
         <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 font-mono tabular-nums">
           <div>
             <span class="text-[10px] text-slate-400 font-sans block">Patrimonio</span>
-            <span id="cartera-mob-equity" class="text-xs font-bold text-slate-900 dark:text-slate-100">$10,000</span>
+            <span id="cartera-mob-equity" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">$10,000</span>
           </div>
           <div>
             <span class="text-[10px] text-slate-400 font-sans block">Invertido</span>
-            <span id="cartera-mob-invested" class="text-xs font-bold text-brand-700 dark:text-brand-300">$0</span>
+            <span id="cartera-mob-invested" class="text-xs sm:text-sm font-bold text-brand-700 dark:text-brand-300">$0</span>
           </div>
           <div>
             <span class="text-[10px] text-slate-400 font-sans block">Liquidez</span>
-            <span id="cartera-mob-cash" class="text-xs font-bold text-slate-700 dark:text-slate-300">$10,000</span>
+            <span id="cartera-mob-cash" class="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">$10,000</span>
           </div>
         </div>
       </div>
@@ -524,7 +556,161 @@
     </section>
 
     <!-- ===================================================================== -->
-    <!-- VISTA 2: ANALÍTICA E HISTÓRICO (2007–2026 | 6 MOTORES)                -->
+    <!-- VISTA 2: ETFS OPERATIVOS · SELECTOR Y GRÁFICAS DE PRECIOS             -->
+    <!-- ===================================================================== -->
+    <section id="main-view-etfs" class="space-y-4 sm:space-y-6 hidden">
+
+      <!-- PANEL SELECTOR DE ETF A VISUALIZAR -->
+      <div class="panel p-4 sm:p-5 space-y-3.5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <label for="etf-symbol-select" class="text-sm font-bold text-slate-900 dark:text-slate-100 block">
+              Seleccionar ETF a visualizar
+            </label>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Universo de 6 ETFs operados por Aegis-Quant (referencia EE. UU. y equivalente UCITS en Tradegate)
+            </p>
+          </div>
+          <div class="w-full sm:w-96 shrink-0">
+            <select id="etf-symbol-select" onchange="selectEtfSymbol(this.value)" aria-label="Seleccionar ETF a visualizar"
+              class="w-full px-3 py-2.5 sm:py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs sm:text-xs font-semibold text-slate-900 dark:text-slate-100">
+              <option value="SPY">SPY — S&amp;P 500 Index ETF (UCITS: SPYL / SXR8)</option>
+              <option value="QQQ">QQQ — Nasdaq-100 ETF (UCITS: EQQQ)</option>
+              <option value="GLD">GLD — Oro Físico Bullion ETF (UCITS: 4GLD / SGLD)</option>
+              <option value="TLT">TLT — Bonos Tesoro EE. UU. 20+ (UCITS: DTLA)</option>
+              <option value="USO">USO — Petróleo WTI Energy ETF (UCITS: CRUD)</option>
+              <option value="ZS">ZS — Soja Agrícola ETF (UCITS: SOYB)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ACCESO RÁPIDO A LOS 6 ETFS -->
+        <div id="etf-quick-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+          <button type="button" onclick="selectEtfSymbol('SPY')" class="p-2.5 rounded-md border border-brand-700 bg-brand-50/70 dark:bg-slate-800 dark:border-brand-500 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>SPY</span><span class="text-[10px] text-brand-700 dark:text-brand-300">SPYL</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">S&amp;P 500</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('QQQ')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>QQQ</span><span class="text-[10px] text-slate-400">EQQQ</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Nasdaq 100</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('GLD')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>GLD</span><span class="text-[10px] text-slate-400">4GLD</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Oro Físico</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('TLT')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>TLT</span><span class="text-[10px] text-slate-400">DTLA</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Bonos 20+</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('USO')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>USO</span><span class="text-[10px] text-slate-400">CRUD</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Petróleo WTI</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('ZS')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>ZS</span><span class="text-[10px] text-slate-400">SOYB</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Soja Agrícola</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- MÉTRICAS DE COTIZACIÓN Y RÉGIMEN TÉCNICO DEL ETF SELECCIONADO -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="panel p-3.5 sm:p-4">
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Cotización Actual</div>
+          <div id="etf-kpi-price" class="text-lg sm:text-2xl font-bold font-mono kpi-num text-slate-900 dark:text-slate-100 mt-1">--</div>
+          <div id="etf-kpi-daychg" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono tabular-nums truncate">Cargando serie...</div>
+        </div>
+        <div class="panel p-3.5 sm:p-4">
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Rentabilidad 1 Año</div>
+          <div id="etf-kpi-ret1y" class="text-lg sm:text-2xl font-bold font-mono kpi-num text-brand-700 dark:text-brand-300 mt-1">--</div>
+          <div id="etf-kpi-retytd" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono tabular-nums truncate">YTD: -- · 3M: --</div>
+        </div>
+        <div class="panel p-3.5 sm:p-4">
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Rango 52 Semanas</div>
+          <div id="etf-kpi-52w" class="text-sm sm:text-lg font-bold font-mono kpi-num text-slate-900 dark:text-slate-100 mt-1.5">--</div>
+          <div id="etf-kpi-ret-total" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono tabular-nums truncate">5A: -- · Histórico: --</div>
+        </div>
+        <div class="panel p-3.5 sm:p-4">
+          <div class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Régimen Técnico (SMA 200)</div>
+          <div class="mt-1.5">
+            <span id="etf-kpi-trend" class="inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">--</span>
+          </div>
+          <div id="etf-kpi-rsi2" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 font-mono tabular-nums truncate">RSI(2): -- · SMA200: --</div>
+        </div>
+      </div>
+
+      <!-- GRÁFICA INTERACTIVA DE PRECIOS, MEDIAS MÓVILES Y VOLUMEN -->
+      <div class="panel p-4 sm:p-5 space-y-3.5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h2 id="etf-chart-title" class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
+              SPY · S&amp;P 500 Index ETF
+            </h2>
+            <p id="etf-chart-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              Equivalente UCITS en Tradegate: SPYL / SXR8 · Serie histórica diaria ajustada
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <!-- Selector Línea vs Velas OHLC -->
+            <div class="inline-flex rounded-md border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800 text-[11px]">
+              <button id="etf-type-line" type="button" onclick="setEtfChartType('line')"
+                class="px-2.5 py-1 rounded font-semibold bg-brand-700 text-white transition">
+                Línea
+              </button>
+              <button id="etf-type-candle" type="button" onclick="setEtfChartType('candle')"
+                class="px-2.5 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">
+                Velas OHLC
+              </button>
+            </div>
+
+            <!-- Selector de Horizonte Temporal -->
+            <div class="inline-flex rounded-md border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800 text-[11px] font-mono">
+              <button id="etf-range-1M" type="button" onclick="setEtfRange('1M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">1M</button>
+              <button id="etf-range-3M" type="button" onclick="setEtfRange('3M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">3M</button>
+              <button id="etf-range-6M" type="button" onclick="setEtfRange('6M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">6M</button>
+              <button id="etf-range-1Y" type="button" onclick="setEtfRange('1Y')" class="px-2 py-1 rounded font-semibold bg-brand-700 text-white transition">1A</button>
+              <button id="etf-range-5Y" type="button" onclick="setEtfRange('5Y')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">5A</button>
+              <button id="etf-range-ALL" type="button" onclick="setEtfRange('ALL')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 transition">Todo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leyenda técnica limpia -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-brand-700 dark:bg-brand-400 inline-block"></span> Precio ETF</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-amber-600 inline-block"></span> Media SMA(50)</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-slate-500 inline-block"></span> Directriz Institucional SMA(200)</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-700 inline-block"></span> Volumen Diario</span>
+          <span id="etf-loading-indicator" class="hidden font-mono text-brand-700 dark:text-brand-300 ml-auto">Actualizando serie...</span>
+        </div>
+
+        <div id="etf-price-chart" class="w-full h-[350px] sm:h-[430px] md:h-[490px]"></div>
+
+        <!-- FICHA DE EJECUCIÓN UCITS Y MOTORES ASIGNADOS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Ejecución Europea (Opción A · Tradegate)</div>
+            <div id="etf-meta-ucits" class="font-mono font-semibold text-slate-800 dark:text-slate-100 mt-1">SPYL / SXR8 · EUR</div>
+            <div id="etf-meta-isin" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">ISIN: IE000XZSV718 · TER: 0,03%</div>
+          </div>
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Niveles Técnicos Clave</div>
+            <div id="etf-meta-smas" class="font-mono font-semibold text-slate-800 dark:text-slate-100 mt-1">SMA(50): -- · SMA(200): --</div>
+            <div id="etf-meta-dist" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">Distancia a SMA(200): --</div>
+          </div>
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Motores Aegis-Quant Asignados</div>
+            <div id="etf-meta-engines" class="font-semibold text-slate-800 dark:text-slate-100 mt-1">Core Modo 3 · M1 · M2 · M3 · M5 · M6</div>
+            <div id="etf-meta-class" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Renta Variable EE. UU.</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 3: ANALÍTICA E HISTÓRICO (2007–2026 | 6 MOTORES)                -->
     <!-- ===================================================================== -->
     <section id="main-view-performance" class="space-y-4 sm:space-y-6 hidden">
 
@@ -1108,12 +1294,12 @@
   </main>
 
   <!-- ======================================================================= -->
-  <!-- BARRA DE NAVEGACIÓN INFERIOR MÓVIL (md:hidden)                          -->
+  <!-- BARRA DE NAVEGACIÓN INFERIOR MÓVIL (md:hidden | 5 Secciones)            -->
   <!-- ======================================================================= -->
   <nav id="mobile-bottom-nav" aria-label="Navegación principal móvil"
     class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 safe-bottom-nav">
-    <div class="grid grid-cols-4">
-      <button id="mobile-tab-inicio" type="button" onclick="switchMobileTab('inicio')" class="mobile-bottom-btn active flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+    <div class="grid grid-cols-5">
+      <button id="mobile-tab-inicio" type="button" onclick="switchSection('inicio')" class="mobile-bottom-btn active flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] sm:text-[11px]">
         <div class="relative">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -1123,7 +1309,7 @@
         <span>Inicio</span>
       </button>
 
-      <button id="mobile-tab-cartera" type="button" onclick="switchMobileTab('cartera')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+      <button id="mobile-tab-cartera" type="button" onclick="switchSection('cartera')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] sm:text-[11px]">
         <div class="relative">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -1133,14 +1319,21 @@
         <span>Cartera</span>
       </button>
 
-      <button id="mobile-tab-analisis" type="button" onclick="switchMobileTab('analisis')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+      <button id="mobile-tab-etfs" type="button" onclick="switchSection('etfs')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] sm:text-[11px]">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M17 7h4v4" />
+        </svg>
+        <span>ETFs</span>
+      </button>
+
+      <button id="mobile-tab-analisis" type="button" onclick="switchSection('analisis')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] sm:text-[11px]">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
         </svg>
         <span>Análisis</span>
       </button>
 
-      <button id="mobile-tab-sistema" type="button" onclick="switchMobileTab('sistema')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]">
+      <button id="mobile-tab-sistema" type="button" onclick="switchSection('sistema')" class="mobile-bottom-btn flex flex-col items-center justify-center gap-0.5 py-1.5 text-[10px] sm:text-[11px]">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -1346,6 +1539,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=20261026b"></script>
+  <script src="/static/app.js?v=20261026c"></script>
 </body>
 </html>

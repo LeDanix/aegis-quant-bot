@@ -4,6 +4,7 @@ Escucha en 0.0.0.0:8085 (accesible en local http://localhost:8085 y por VPN Tail
 Endpoints:
   - GET  /api/summary        : Dataset completo de los 4 modos, 6 motores (780 operaciones), robustez y cascada fiscal.
   - GET  /api/live/status    : Estado en tiempo real del Bot, cartera, 6 motores tácticos, órdenes y logs.
+  - GET  /api/etf/history    : Serie diaria OHLCV, SMA(50/200), RSI(2) y catálogo de los 6 ETFs operativos.
   - GET  /api/tax/live-audit : Auditoría fiscal automática AEAT (FIFO, regla 2 meses, BCE EUR/USD, Modelo 720, Renta WEB F2).
   - GET  /api/tax/export.csv : Exportación CSV UTF-8 BOM para Excel y Renta WEB.
   - POST /api/live/action    : Ejecuta acciones de mando (Iniciar/Parar, Escanear, Simular Motor M1-M6, Pánico, Test Móvil).
@@ -23,6 +24,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+from aegis_quant.data.etf_chart_service import EtfChartService
 from aegis_quant.live.bot_controller import LiveBotController
 from aegis_quant.tax.spanish_tax_engine import SpanishTaxAuditor
 
@@ -108,6 +110,18 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/live/status":
             ctrl = self.get_controller()
             self._send_json(ctrl.get_full_status())
+            return
+
+        if parsed.path == "/api/etf/history":
+            qs = urllib.parse.parse_qs(parsed.query)
+            symbol = (qs.get("symbol", ["SPY"])[0] or "SPY").upper()
+            live_prices = (
+                dict(self.bot_controller.latest_prices)
+                if self.bot_controller is not None
+                else None
+            )
+            svc = EtfChartService(self.base_dir)
+            self._send_json(svc.get_etf_payload(symbol=symbol, live_prices=live_prices))
             return
 
         if parsed.path == "/api/tax/live-audit":

@@ -122,17 +122,41 @@ html.dark textarea:focus {
   border-color: #4b8f75;
 }
 
-/* Desktop Main Navigation Active State */
-.main-nav-btn.active {
-  background-color: #065f46;
-  color: #ffffff;
-  border-color: #065f46;
+/* Desktop Top Hamburger Section Selector Menu */
+.desktop-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.375rem;
+  color: #2d3330;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-html.dark .main-nav-btn.active {
-  background-color: #1f5c45;
-  color: #f1f5f3;
-  border-color: #2e7359;
+.desktop-menu-item:hover {
+  background-color: #f7f8f7;
+}
+
+html.dark .desktop-menu-item {
+  color: #d5dcd8;
+}
+
+html.dark .desktop-menu-item:hover {
+  background-color: #212624;
+}
+
+.desktop-menu-item.active {
+  background-color: #eef6f2;
+  color: #065f46;
+  font-weight: 700;
+}
+
+html.dark .desktop-menu-item.active {
+  background-color: #212a26;
+  color: #84b9a1;
+  font-weight: 700;
 }
 
 /* Analytics Sub-Navigation Active State */
@@ -233,7 +257,30 @@ html.dark .mobile-bottom-btn.active {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Mobile Viewport Layout, Group Switching & Touch Safety (< 768px) */
+/* Unified Section Distribution (Mobile + Desktop): Inicio | Cartera | Sistema */
+#main-view-control [data-mobile-group] {
+  display: none !important;
+}
+
+#main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"]:not(.hidden),
+#main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"]:not(.hidden),
+#main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"]:not(.hidden) {
+  display: block !important;
+}
+
+#main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-grid:not(.hidden),
+#main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-grid:not(.hidden),
+#main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-grid:not(.hidden) {
+  display: grid !important;
+}
+
+#main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-flex:not(.hidden),
+#main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-flex:not(.hidden),
+#main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-flex:not(.hidden) {
+  display: flex !important;
+}
+
+/* Mobile Viewport Layout & Touch Safety (< 768px) */
 @media (max-width: 767.98px) {
   main.app-main {
     padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
@@ -252,27 +299,5 @@ html.dark .mobile-bottom-btn.active {
 
   .touch-target {
     min-height: 44px;
-  }
-
-  #main-view-control [data-mobile-group] {
-    display: none !important;
-  }
-
-  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"]:not(.hidden),
-  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"]:not(.hidden),
-  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"]:not(.hidden) {
-    display: block !important;
-  }
-
-  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-grid:not(.hidden),
-  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-grid:not(.hidden),
-  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-grid:not(.hidden) {
-    display: grid !important;
-  }
-
-  #main-view-control[data-mobile-tab="inicio"] [data-mobile-group~="inicio"].mobile-flex:not(.hidden),
-  #main-view-control[data-mobile-tab="cartera"] [data-mobile-group~="cartera"].mobile-flex:not(.hidden),
-  #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-flex:not(.hidden) {
-    display: flex !important;
   }
 }
