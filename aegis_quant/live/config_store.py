@@ -149,13 +149,11 @@ class BotConfigStore:
             "alpaca_api_key": "",
             "alpaca_secret_key": "",
             "alpaca_endpoint": "https://paper-api.alpaca.markets",
-            # Mobile Alert Channels (Signal & Telegram)
+            # Mobile Alert Channel (Signal Messenger)
             "mobile_phone": "",
             "signal_api_url": "https://api.callmebot.com/signal/send.php",
             "signal_apikey": "",
             "signal_recipient_phone": "",
-            "telegram_bot_token": "",
-            "telegram_chat_id": "",
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 

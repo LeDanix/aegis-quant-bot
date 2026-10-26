@@ -737,15 +737,6 @@ class LiveBotController:
             self.store.append_log(f"Signal notification test: {msg}", "INFO" if ok else "WARN")
             return {"ok": ok, "message": msg}
 
-        if action == "TEST_TELEGRAM":
-            cfg = self.store.get_config()
-            notifier = MultiChannelNotifier(cfg)
-            ok, msg = notifier.telegram.send_message(
-                "<b>Aegis-Quant Telegram Alert</b>\nConnection verified successfully. Real-time trading updates active."
-            )
-            self.store.append_log(f"Telegram notification test: {msg}", "INFO" if ok else "WARN")
-            return {"ok": ok, "message": msg}
-
         if action == "TEST_NOTIFICATION":
             cfg = self.store.get_config()
             notifier = MultiChannelNotifier(cfg)

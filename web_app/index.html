@@ -34,8 +34,8 @@
   </script>
 
   <!-- Hojas de estilo compiladas localmente (100% autónomas, sin dependencia de CDNs externos) -->
-  <link rel="stylesheet" href="/static/tailwind.css?v=20261026c" />
-  <link rel="stylesheet" href="/static/mobile.css?v=20261026c" />
+  <link rel="stylesheet" href="/static/tailwind.css?v=20261026d" />
+  <link rel="stylesheet" href="/static/mobile.css?v=20261026d" />
   <script src="/static/echarts.min.js?v=5.5.0"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -199,10 +199,10 @@
             </div>
           </div>
 
-          <!-- MANDOS OPERATIVOS PRINCIPALES -->
+          <!-- MANDOS OPERATIVOS PRINCIPALES (SEGUROS · SIN EJECUCIÓN ACCIDENTAL INTRADÍA) -->
           <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 shrink-0">
-            <button onclick="triggerLiveAction('SCAN_NOW')" class="touch-target px-4 py-2.5 sm:py-2 rounded-md text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white transition">
-              Escanear y Sincronizar
+            <button onclick="fetchLiveStatus(true)" type="button" aria-label="Actualizar cotizaciones y estado en pantalla" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-md text-xs font-semibold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
+              Actualizar Datos
             </button>
             <button id="btn-toggle-bot" onclick="triggerLiveAction('TOGGLE_BOT')" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
               Pausar Bot
@@ -210,53 +210,22 @@
           </div>
         </div>
 
-        <!-- DESPLEGABLES DE INICIO: 1) SIMULADOR RÁPIDO (M1-M6) Y 2) CONTROLES DE EMERGENCIA EN ROJO SUAVE -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <!-- Desplegable 1: Simulador Rápido de Motores (M1–M6) -->
-          <details class="simulator-drawer px-3.5 py-2 group">
-            <summary class="list-none flex items-center justify-between py-1 font-semibold cursor-pointer select-none">
-              <span>Simulador Rápido de Motores (M1–M6)</span>
-              <svg class="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </summary>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2.5 pb-1">
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M1_PULLBACK')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M1 Pullback
-              </button>
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M2_VIX_DIV')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M2 Divergencia VIX
-              </button>
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M3_BEAR_SHORT')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M3 Corto Crisis
-              </button>
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M4_CTA_TREND')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M4 Tendencia CTA
-              </button>
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M5_VOL_CRUSH')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M5 Vol-Crush
-              </button>
-              <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M6_TOTM')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
-                M6 Fin de Mes
-              </button>
-            </div>
-          </details>
-
-          <!-- Desplegable 2: Controles de Emergencia (Rojo Claro Institucional + Confirmación 2 Pasos) -->
+        <!-- CONTROLES DE EMERGENCIA EN ROJO CLARO INSTITUCIONAL (CONFIRMACIÓN 2 PASOS) -->
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
           <details class="emergency-drawer px-3.5 py-2 group">
             <summary class="list-none flex items-center justify-between py-1 font-semibold cursor-pointer select-none">
-              <span>Controles de Emergencia (Cierre Total y Reinicio)</span>
+              <span>Control de Emergencia (Cierre Total a Efectivo)</span>
               <svg class="w-4 h-4 transition-transform group-open:rotate-180 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </summary>
-            <div class="flex flex-col sm:grid sm:grid-cols-2 gap-2 pt-2.5 pb-1">
+            <div class="pt-2.5 pb-1">
               <button type="button" onclick="triggerLiveAction('PANIC_CLOSE_ALL')" class="touch-target w-full px-3.5 py-2.5 rounded-md text-xs font-bold bg-red-700 hover:bg-red-800 text-white transition">
-                Liquidar Cartera a Efectivo
+                Liquidar Todas las Posiciones a Efectivo
               </button>
-              <button type="button" onclick="triggerLiveAction('RESET_ACCOUNT')" class="touch-target w-full px-3.5 py-2.5 rounded-md text-xs font-semibold bg-white hover:bg-red-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-900/80 transition">
-                Reiniciar Saldo Paper
-              </button>
+              <p class="text-[11px] text-red-800/80 dark:text-red-300/80 mt-1.5 leading-tight">
+                Botón de pánico: vende todas las posiciones abiertas a mercado y cancela órdenes pendientes en el bróker.
+              </p>
             </div>
           </details>
         </div>
@@ -322,22 +291,36 @@
           </div>
         </div>
 
-        <!-- PULSO DE MERCADO Y ESTRUCTURA TEMPORAL VIX/VIX3M (5 COLS) -->
-        <div class="xl:col-span-5 panel p-4 sm:p-5 space-y-3">
+        <!-- MONITOR DE RÉGIMEN VTS Y ESTRUCTURA TEMPORAL DE VOLATILIDAD (5 COLS) -->
+        <div class="xl:col-span-5 panel p-4 sm:p-5 space-y-3.5">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Pulso de Mercado y Régimen VTS</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Estructura VIX / VIX3M y tendencia SMA(200)</p>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Régimen Macroeconómico VTS</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estructura temporal VIX / VIX3M y escudo de volatilidad</p>
             </div>
             <div class="text-right shrink-0">
               <span id="live-date-label" class="text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400 block">--</span>
               <div id="live-regime-badge" class="inline-block mt-0.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-200 border border-brand-200 dark:border-brand-800">CONTANGO</div>
-              <div id="live-vts-detail" class="text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400 mt-0.5">VIX/VIX3M: --</div>
             </div>
           </div>
-          <div id="live-assets-grid" class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            <div class="py-4 text-center text-slate-400 dark:text-slate-500">Cargando cotizaciones...</div>
+
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+            <div class="flex items-center justify-between font-mono tabular-nums">
+              <span class="text-slate-500 dark:text-slate-400">Ratio VIX / VIX3M:</span>
+              <span id="live-vts-ratio-val" class="font-bold text-slate-900 dark:text-slate-100">--</span>
+            </div>
+            <div class="flex items-center justify-between font-mono tabular-nums text-[11px] text-slate-500 dark:text-slate-400">
+              <span id="live-vix-levels">VIX: -- · VIX3M: --</span>
+              <span id="live-vts-shield-status" class="font-semibold text-brand-700 dark:text-brand-300">Escudo Normal (Bolsa Activa)</span>
+            </div>
           </div>
+
+          <!-- Acceso directo a la sección completa de ETFs (sin redundancias de tablas) -->
+          <button type="button" onclick="switchSection('etfs')"
+            class="touch-target w-full py-2.5 px-3 rounded-md bg-white dark:bg-slate-800 hover:bg-brand-50/50 dark:hover:bg-slate-700/60 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between transition group">
+            <span class="text-brand-700 dark:text-brand-300 font-medium">Ver gráficas y cotizaciones de los 6 ETFs</span>
+            <span class="text-brand-700 dark:text-brand-300 group-hover:translate-x-1 transition-transform">&rarr;</span>
+          </button>
         </div>
 
       </div>
@@ -346,8 +329,8 @@
       <div data-mobile-group="cartera" class="panel p-3.5 sm:p-4">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Resumen de Cartera</span>
-          <button onclick="triggerLiveAction('SCAN_NOW')" class="px-2.5 py-1 rounded text-[11px] font-semibold bg-brand-700 hover:bg-brand-800 text-white transition">
-            Sincronizar
+          <button onclick="fetchLiveStatus(true)" type="button" class="px-2.5 py-1 rounded text-[11px] font-semibold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
+            Actualizar
           </button>
         </div>
         <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 font-mono tabular-nums">
@@ -446,53 +429,15 @@
             <span class="text-slate-400 dark:text-slate-500">Recarga en caliente</span>
           </div>
 
-          <div class="space-y-3">
-            <div>
-              <label for="cfg-exec-mode" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Modo de Ejecución</label>
-              <select id="cfg-exec-mode" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
-                <option value="AUTO_100">100% Automático (Rebalanceo autónomo)</option>
-                <option value="COPILOT_CONFIRM">Modo Copiloto (Confirmación manual previa)</option>
-              </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label for="cfg-capital" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Capital Asignado ($)</label>
-                <input type="number" id="cfg-capital" step="500" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums font-semibold" />
-              </div>
-              <div>
-                <label for="cfg-risk-pct" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Riesgo / Trade (%)</label>
-                <input type="number" id="cfg-risk-pct" step="0.1" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label for="cfg-fast-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Tope Slot Táctico (%)</label>
-                <input type="number" id="cfg-fast-cap" step="5" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
-              </div>
-              <div>
-                <label for="cfg-cta-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Tope Slot CTA (%)</label>
-                <input type="number" id="cfg-cta-cap" step="5" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5">
-              <div>
-                <label for="cfg-kill-dd" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Cortafuegos Diario (%)</label>
-                <input type="number" id="cfg-kill-dd" step="1" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-red-700 dark:text-red-400 font-mono tabular-nums font-semibold" />
-              </div>
-              <div>
-                <label for="cfg-sched-time" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Hora Ejecución (CET)</label>
-                <input type="text" id="cfg-sched-time" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
-              </div>
-            </div>
+          <div class="space-y-4">
 
             <!-- MOTORES ACTIVOS: ANCHO COMPLETO (1 POR FILA) + CONFIRMACIÓN AL DESCONECTAR -->
-            <div class="pt-1">
-              <div class="flex items-center justify-between mb-1.5">
-                <label class="text-slate-700 dark:text-slate-200 font-semibold">Motores Tácticos Activos (M1–M6)</label>
-                <span class="text-[11px] text-slate-400">Confirmación al desconectar</span>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Motores Tácticos Activos (M1–M6)</h4>
+                  <p class="text-[11px] text-slate-400 mt-0.5">Control individual con confirmación de seguridad anti-toque accidental</p>
+                </div>
               </div>
               <div class="flex flex-col gap-2 w-full">
                 <label class="touch-target w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 cursor-pointer select-none">
@@ -545,9 +490,72 @@
               </div>
             </div>
 
-            <button onclick="saveLiveConfigFromUI()" class="touch-target w-full py-2.5 px-4 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
-              Guardar Parámetros Operativos
-            </button>
+            <!-- ACCIONES OPERATIVAS Y MANTENIMIENTO TÉCNICO -->
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Acciones Operativas y Diagnóstico</h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">Control de ejecución manual y herramientas de pruebas</p>
+              </div>
+
+              <!-- Botón Forzar Escaneo (Reubicado aquí para seguridad) -->
+              <div class="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-slate-800 dark:text-slate-200">Rebalanceo Manual Inmediato</span>
+                  <button type="button" onclick="confirmScanNowModal()" class="touch-target px-3.5 py-1.5 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+                    Forzar Escaneo y Rebalanceo
+                  </button>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  El bot opera automáticamente a las 21:55 CET (15:55 NY). Forzar un escaneo fuera de hora evaluará precios intradía y ejecutará órdenes de rebalanceo si el modo es Automático.
+                </p>
+              </div>
+
+              <!-- Simulador Rápido de Motores (Reubicado aquí desde Inicio) -->
+              <details class="simulator-drawer px-3.5 py-2 group">
+                <summary class="list-none flex items-center justify-between py-1 font-semibold cursor-pointer select-none">
+                  <span>Simulador Rápido de Motores (Sandbox Paper Trading)</span>
+                  <svg class="w-4 h-4 text-slate-500 transition-transform group-open:rotate-180 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 mb-2">
+                  Inyecta una operación simulada en la cuenta Paper Trading para verificar notificaciones Signal y el cálculo en tiempo real de cartera.
+                </p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 pb-1">
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M1_PULLBACK')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M1 Pullback
+                  </button>
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M2_VIX_DIV')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M2 Divergencia VIX
+                  </button>
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M3_BEAR_SHORT')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M3 Corto Crisis
+                  </button>
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M4_CTA_TREND')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M4 Tendencia CTA
+                  </button>
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M5_VOL_CRUSH')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M5 Vol-Crush
+                  </button>
+                  <button type="button" onclick="triggerLiveAction('SCAN_NOW', 'M6_TOTM')" class="touch-target px-2.5 py-2 rounded-md text-xs font-medium bg-white hover:bg-brand-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition">
+                    M6 Fin de Mes
+                  </button>
+                </div>
+              </details>
+
+              <!-- Botón Reinicio de Saldo Paper (Solo visible en Paper Trading) -->
+              <div id="panel-reset-paper" class="p-3 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <span class="font-bold text-red-900 dark:text-red-200 block text-xs">Reiniciar Saldo Paper Trading ($10,000)</span>
+                  <span class="text-[11px] text-red-700 dark:text-red-300">Restablece la cartera virtual a $10,000 en efectivo (solo entorno Paper).</span>
+                </div>
+                <button type="button" onclick="triggerLiveAction('RESET_ACCOUNT')" class="touch-target px-3.5 py-2 rounded-md text-xs font-semibold bg-white hover:bg-red-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-900/80 transition shrink-0">
+                  Reiniciar Paper
+                </button>
+              </div>
+
+            </div>
+
             <div id="cfg-save-feedback" class="text-xs font-medium text-center text-brand-700 dark:text-brand-300 hidden"></div>
           </div>
         </div>
@@ -857,54 +865,102 @@
           </div>
         </div>
 
-        <!-- CUADRÍCULA SIMÉTRICA 3x2 DE LOS 6 MOTORES CUANTITATIVOS -->
+        <!-- CUADRÍCULA SIMÉTRICA 3x2 DE LOS 6 MOTORES CUANTITATIVOS (INTERACTIVA) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 1 -->
+          <div onclick="openMotorDetailModal('M1_PULLBACK')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-slate-900 dark:text-slate-100">Motor 1: Pullback Tendencial (M1)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 1: Pullback Tendencial (M1)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">SPY/QQQ</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Compra correcciones agudas de corto plazo (RSI(2) &lt; 10 o 3 sesiones bajistas consecutivas) exclusivamente dentro de tendencias alcistas primarias sobre SMA(200).</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M1_PULLBACK')" class="touch-target w-full py-2 rounded-md bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700 transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
 
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 2 -->
+          <div onclick="openMotorDetailModal('M2_VIX_DIV')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-slate-900 dark:text-slate-100">Motor 2: Divergencia Intermercado VIX (M2)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 2: Divergencia Intermercado VIX (M2)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">SPY/QQQ</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Detecta agotamiento vendedor cuando el índice marca mínimos relativos mientras el VIX retrocede desde un pico superior a 20 en las últimas 5 sesiones.</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M2_VIX_DIV')" class="touch-target w-full py-2 rounded-md bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700 transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
 
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 3 -->
+          <div onclick="openMotorDetailModal('M3_BEAR_SHORT')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-slate-900 dark:text-slate-100">Motor 3: Corto en Mercado Bajista (M3)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 3: Corto en Mercado Bajista (M3)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">DXS3</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Opera posiciones bajistas tras rebotes sobrecomprados (RSI(2) &gt; 85) o rupturas bajo SMA(200) con alta volatilidad, generando rentabilidad positiva en 2008 y 2022.</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M3_BEAR_SHORT')" class="touch-target w-full py-2 rounded-md bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700 transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
 
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 4 -->
+          <div onclick="openMotorDetailModal('M4_CTA_TREND')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-slate-900 dark:text-slate-100">Motor 4: Tendencia Multi-Activo CTA (M4)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 4: Tendencia Multi-Activo CTA (M4)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Commodities</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Captura rupturas Donchian de 20 sesiones con alineación de medias en activos refugio e inflacionarios: Oro (GLD), Bonos Largo Plazo (TLT), Petróleo (USO) y Soja (SOYB).</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M4_CTA_TREND')" class="touch-target w-full py-2 rounded-md bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700 transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
 
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 5 -->
+          <div onclick="openMotorDetailModal('M5_VOL_CRUSH')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-slate-900 dark:text-slate-100">Motor 5: Compresión VIX/VIX3M Vol-Crush (M5)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 5: Compresión VIX/VIX3M Vol-Crush (M5)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">SPY/QQQ</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Entra tras episodios de Backwardation cuando el ratio VIX/VIX3M se comprime más de un 3.5% desde su máximo de 5 días, capturando el cierre de coberturas institucionales.</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M5_VOL_CRUSH')" class="touch-target w-full py-2 rounded-md bg-slate-100 hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold border border-slate-200 dark:border-slate-700 transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
 
-          <div class="panel p-4 space-y-3 flex flex-col justify-between">
+          <!-- Motor 6 (Misma dinámica visual neutra que M1-M5) -->
+          <div onclick="openMotorDetailModal('M6_TOTM')"
+            class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
             <div class="space-y-1.5">
-              <div class="font-bold text-brand-800 dark:text-brand-300">Motor 6: Flujo Institucional Fin de Mes (M6 TOTM)</div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 6: Flujo Institucional Fin de Mes (M6 TOTM)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">SPY/QQQ</span>
+              </div>
               <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Compra debilidad moderada (RSI(2) &lt; 35) en los últimos 2 días hábiles del mes en Contango previo a las aportaciones sistemáticas de planes de pensiones y nóminas (T+1 a T+4, 70.0% acierto).</p>
             </div>
-            <button onclick="jumpToMotorOnChart('M6_TOTM')" class="touch-target w-full py-2 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold transition">Ver en gráfica</button>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+              <span>Ver ficha explicativa y velas</span>
+              <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
           </div>
         </div>
 
@@ -1343,6 +1399,113 @@
   </nav>
 
   <!-- ======================================================================= -->
+  <!-- MODAL DETALLE DE MOTOR CUANTITATIVO (ESTUDIO, CÓDIGO Y VELAS REALES)    -->
+  <!-- ======================================================================= -->
+  <div id="motor-detail-modal" class="fixed inset-0 z-50 bg-black/60 hidden items-center justify-center p-2 sm:p-4 overflow-y-auto" onclick="if(event.target===this) closeMotorDetailModal()">
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl text-xs overflow-hidden">
+      
+      <!-- CABECERA DE LA FICHA DEL MOTOR -->
+      <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span id="mdm-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">--</span>
+            <h3 id="mdm-title" class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">Ficha del Motor Cuantitativo</h3>
+          </div>
+          <p id="mdm-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Estrategia algorítmica independiente</p>
+        </div>
+        <button onclick="closeMotorDetailModal()" type="button" aria-label="Cerrar ficha" class="touch-target p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- CUERPO DESPLAZABLE -->
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4">
+
+        <!-- 1. PARÁMETROS OPERATIVOS CLAVE -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono tabular-nums text-xs">
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Dirección</span>
+            <span id="mdm-param-dir" class="font-bold text-slate-900 dark:text-slate-100">LONG</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Activo(s)</span>
+            <span id="mdm-param-assets" class="font-bold text-slate-900 dark:text-slate-100">SPY / QQQ</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Permanencia Media</span>
+            <span id="mdm-param-hold" class="font-bold text-slate-900 dark:text-slate-100">1–5 sesiones</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Stop Loss</span>
+            <span id="mdm-param-stop" class="font-bold text-slate-900 dark:text-slate-100">2.5x ATR</span>
+          </div>
+        </div>
+
+        <!-- 2. FUNDAMENTO FINANCIERO Y MICROESTRUCTURA -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+            Fundamento Financiero y Microestructura Institucional
+          </div>
+          <div id="mdm-why" class="text-xs text-slate-700 dark:text-slate-200 leading-relaxed space-y-1.5"></div>
+        </div>
+
+        <!-- 3. EJEMPLO PRÁCTICO REAL CON GRÁFICA DE VELAS (OHLC) -->
+        <div class="panel p-4 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+            <div>
+              <div class="text-xs font-bold text-slate-900 dark:text-slate-100">Ejemplo Práctico Real (Operación del Backtest 2007–2026)</div>
+              <div id="mdm-trade-meta" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono tabular-nums"></div>
+            </div>
+            <div id="mdm-trade-ret" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800"></div>
+          </div>
+
+          <div id="motor-example-chart" class="w-full h-[250px] sm:h-[280px]"></div>
+
+          <p id="mdm-trade-story" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed p-3 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"></p>
+        </div>
+
+        <!-- 4. LÓGICA DE ENTRADA Y CÓDIGO PYTHON -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Reglas Algorítmicas y Código de Ejecución
+          </div>
+          <pre id="mdm-code" class="p-3 rounded bg-slate-950 text-slate-200 font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800"></pre>
+        </div>
+
+        <!-- 5. RENDIMIENTO HISTÓRICO CONSOLIDADO (2007–2026) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono tabular-nums text-xs">
+          <div class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 text-center">
+            <span class="text-[10px] text-slate-400 font-sans block">Operaciones</span>
+            <span id="mdm-stat-trades" class="font-bold text-slate-900 dark:text-slate-100 text-sm">--</span>
+          </div>
+          <div class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 text-center">
+            <span class="text-[10px] text-slate-400 font-sans block">Tasa de Acierto</span>
+            <span id="mdm-stat-winrate" class="font-bold text-brand-700 dark:text-brand-300 text-sm">--%</span>
+          </div>
+          <div class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 text-center">
+            <span class="text-[10px] text-slate-400 font-sans block">Ret. Acumulado</span>
+            <span id="mdm-stat-sumret" class="font-bold text-brand-700 dark:text-brand-300 text-sm">--%</span>
+          </div>
+          <div class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 text-center">
+            <span class="text-[10px] text-slate-400 font-sans block">Profit Factor</span>
+            <span id="mdm-stat-pf" class="font-bold text-slate-900 dark:text-slate-100 text-sm">--</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PIE DE ACCIONES -->
+      <div class="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/50 dark:bg-slate-900/60">
+        <button type="button" onclick="closeMotorDetailModal()" class="touch-target px-4 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs">
+          Cerrar
+        </button>
+        <button id="mdm-btn-filter-trades" type="button" onclick="jumpToMotorInSimulator()" class="touch-target px-4 py-2 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
+          Ver Todas las Operaciones en Simulador
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
   <!-- MODAL DE CONFIRMACIÓN PARA DESCONECTAR UN MOTOR TÁCTICO                 -->
   <!-- ======================================================================= -->
   <div id="engine-confirm-modal" class="fixed inset-0 z-50 bg-black/50 hidden items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) closeEngineConfirmModal()">
@@ -1423,15 +1586,24 @@
 
       <!-- SECCIÓN 1: BRÓKER -->
       <div class="space-y-3">
-        <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">1. Proveedor de Ejecución</h3>
+        <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">1. Proveedor de Ejecución y Bróker</h3>
 
-        <div>
-          <label for="cfg-broker-provider" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Bróker Activo</label>
-          <select id="cfg-broker-provider" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
-            <option value="LOCAL_PAPER">Simulador Paper Local (Sin riesgo)</option>
-            <option value="ALPACA_PAPER">Alpaca Paper Trading API (Entorno pruebas)</option>
-            <option value="ALPACA_LIVE">Alpaca Live API / Conector Real</option>
-          </select>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="cfg-broker-provider" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Bróker Activo</label>
+            <select id="cfg-broker-provider" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
+              <option value="LOCAL_PAPER">Simulador Paper Local (Sin riesgo · $10,000)</option>
+              <option value="ALPACA_PAPER">Alpaca Paper Trading API (Entorno pruebas)</option>
+              <option value="ALPACA_LIVE">Alpaca Live API / Conector Real</option>
+            </select>
+          </div>
+          <div>
+            <label for="cfg-exec-mode" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Modo de Operación</label>
+            <select id="cfg-exec-mode" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 text-slate-900 dark:text-slate-100 font-medium">
+              <option value="AUTO_100">100% Automático (Rebalanceo autónomo)</option>
+              <option value="COPILOT_CONFIRM">Modo Copiloto (Confirmación manual previa)</option>
+            </select>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1453,11 +1625,55 @@
         </div>
       </div>
 
-      <!-- SECCIÓN 2: ALERTAS SIGNAL Y TELEGRAM -->
+      <!-- SECCIÓN 2: PARÁMETROS OPERATIVOS Y GESTIÓN DE CAPITAL -->
+      <div class="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        <div>
+          <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">2. Parámetros Operativos y Gestión de Capital</h3>
+          <p class="text-slate-500 dark:text-slate-400 mt-0.5">Control de tamaño de posición, límites de riesgo y cortafuegos diario.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+            <label for="cfg-capital" class="block text-slate-700 dark:text-slate-200 font-semibold">Capital Asignado ($ / €)</label>
+            <input type="number" id="cfg-capital" step="500" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums font-semibold" />
+            <p class="text-[11px] text-slate-400 leading-tight">
+              En Paper Trading define el saldo simulado ($10,000). En Trading Real fija el techo máximo nocional sobre el que calcular las ponderaciones.
+            </p>
+          </div>
+          <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-1">
+            <label for="cfg-risk-pct" class="block text-slate-700 dark:text-slate-200 font-semibold">Riesgo Máximo por Operación (%)</label>
+            <input type="number" id="cfg-risk-pct" step="0.1" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums font-semibold" />
+            <p class="text-[11px] text-slate-400 leading-tight">
+              Pérdida máxima admitida en caso de saltar el Stop Loss ATR (por defecto 2.5% del capital total).
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div>
+            <label for="cfg-fast-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Tope Táctico (%)</label>
+            <input type="number" id="cfg-fast-cap" step="5" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
+          </div>
+          <div>
+            <label for="cfg-cta-cap" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Tope CTA (%)</label>
+            <input type="number" id="cfg-cta-cap" step="5" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
+          </div>
+          <div>
+            <label for="cfg-kill-dd" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Cortafuegos (%)</label>
+            <input type="number" id="cfg-kill-dd" step="1" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-red-700 dark:text-red-400 font-mono tabular-nums font-semibold" />
+          </div>
+          <div>
+            <label for="cfg-sched-time" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Hora (CET)</label>
+            <input type="text" id="cfg-sched-time" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono tabular-nums" />
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: ALERTAS MÓVILES EXCLUSIVAS VÍA SIGNAL -->
       <div class="space-y-4 pt-3 border-t border-slate-100 dark:border-slate-800">
         <div>
-          <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">2. Notificaciones Móviles</h3>
-          <p class="text-slate-500 dark:text-slate-400 mt-0.5">Recepción de reportes diarios de cierre, órdenes ejecutadas y avisos de riesgo.</p>
+          <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">3. Notificaciones Móviles (Signal)</h3>
+          <p class="text-slate-500 dark:text-slate-400 mt-0.5">Recepción de reportes diarios de cierre, órdenes ejecutadas y avisos de riesgo mediante Signal Messenger.</p>
         </div>
 
         <div class="p-3 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -1471,9 +1687,9 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-brand-600"></span>
-              <h4 class="font-bold text-brand-900 dark:text-brand-200 text-xs uppercase tracking-wide">Signal Messenger</h4>
+              <h4 class="font-bold text-brand-900 dark:text-brand-200 text-xs uppercase tracking-wide">Signal Messenger (CallMeBot)</h4>
             </div>
-            <span class="text-[11px] text-brand-800 dark:text-brand-300 font-medium">Canal principal</span>
+            <span class="text-[11px] text-brand-800 dark:text-brand-300 font-medium">Canal Activo</span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1490,34 +1706,6 @@
           <div class="flex justify-end pt-1">
             <button onclick="triggerLiveAction('TEST_SIGNAL')" type="button" class="touch-target px-3.5 py-2 sm:py-1.5 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
               Probar Alerta Signal
-            </button>
-          </div>
-        </div>
-
-        <!-- Telegram -->
-        <div class="p-4 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-              <h4 class="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wide">Telegram Messenger</h4>
-            </div>
-            <span class="text-[11px] text-slate-400">Opcional</span>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label for="cfg-tg-token" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Bot Token</label>
-              <input type="text" id="cfg-tg-token" placeholder="123456:ABC..." class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
-            </div>
-            <div>
-              <label for="cfg-tg-chat" class="block text-slate-600 dark:text-slate-300 font-medium mb-1">Chat ID</label>
-              <input type="text" id="cfg-tg-chat" placeholder="987654321" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-slate-900 dark:text-slate-100 font-mono text-xs" />
-            </div>
-          </div>
-
-          <div class="flex justify-end pt-1">
-            <button onclick="triggerLiveAction('TEST_TELEGRAM')" type="button" class="touch-target px-3.5 py-2 sm:py-1.5 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-semibold text-xs transition">
-              Probar Alerta Telegram
             </button>
           </div>
         </div>
@@ -1539,6 +1727,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=20261026c"></script>
+  <script src="/static/app.js?v=20261026d"></script>
 </body>
 </html>

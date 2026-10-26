@@ -1,11 +1,8 @@
 """
 Object-Oriented Mobile Notification Service (aegis_quant/live/notifier_service.py).
-Supports:
-  1. Signal Messenger:
-     - Direct HTTP via CallMeBot Signal Gateway (free personal API)
-     - Local Docker signal-cli-rest-api daemon (e.g. http://127.0.0.1:8085/v2/send)
-  2. Telegram Bot API:
-     - Direct HTTPS via Telegram official Bot API
+Dedicated to Signal Messenger:
+  - Direct HTTP via CallMeBot Signal Gateway (free personal API)
+  - Local Docker signal-cli-rest-api daemon (e.g. http://127.0.0.1:8085/v2/send)
 """
 
 import json
@@ -21,45 +18,6 @@ class BaseNotifier(ABC):
     @abstractmethod
     def send_message(self, text: str) -> Tuple[bool, str]:
         pass
-
-
-class TelegramNotifier(BaseNotifier):
-    """Lightweight client for official Telegram Bot API."""
-
-    def __init__(self, bot_token: str, chat_id: str):
-        self.bot_token = (bot_token or "").strip()
-        self.chat_id = (chat_id or "").strip()
-
-    def is_configured(self) -> bool:
-        return bool(self.bot_token and self.chat_id)
-
-    def send_message(self, text: str) -> Tuple[bool, str]:
-        if not self.is_configured():
-            return False, "Telegram not configured (Bot Token or Chat ID missing)."
-
-        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-        payload = json.dumps(
-            {
-                "chat_id": self.chat_id,
-                "text": text,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            }
-        ).encode("utf-8")
-
-        req = urllib.request.Request(
-            url,
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                if resp.status == 200:
-                    return True, "Message delivered successfully to Telegram."
-                return False, f"Telegram API returned HTTP status {resp.status}"
-        except Exception as exc:
-            return False, f"Telegram connection error: {exc}"
 
 
 class SignalRestNotifier(BaseNotifier):
@@ -79,7 +37,7 @@ class SignalRestNotifier(BaseNotifier):
 
     def send_message(self, text: str) -> Tuple[bool, str]:
         if not self.is_configured():
-            return False, "Signal not configured (Missing phone number or gateway URL/apikey)."
+            return False, "Signal no configurado (falta número de teléfono o apikey/URL de pasarela)."
 
         # Strip basic HTML tags for plain Signal formatting
         clean_text = (
@@ -129,7 +87,7 @@ class SignalRestNotifier(BaseNotifier):
 
 
 class MultiChannelNotifier:
-    """Dispatches notifications across configured active channels (Signal and/or Telegram)."""
+    """Dispatches notifications across configured active channels (Signal Messenger)."""
 
     def __init__(self, config: Dict[str, Any]):
         phone = config.get("mobile_phone") or config.get("signal_recipient_phone", "")
@@ -138,26 +96,9 @@ class MultiChannelNotifier:
             phone=phone,
             apikey=config.get("signal_apikey", ""),
         )
-        self.telegram = TelegramNotifier(
-            bot_token=config.get("telegram_bot_token", ""),
-            chat_id=config.get("telegram_chat_id", ""),
-        )
 
     def notify(self, text: str) -> Tuple[bool, str]:
-        results = []
-        any_ok = False
-
-        if self.signal.is_configured():
-            ok, msg = self.signal.send_message(text)
-            any_ok = any_ok or ok
-            results.append(f"Signal: {msg}")
-
-        if self.telegram.is_configured():
-            ok, msg = self.telegram.send_message(text)
-            any_ok = any_ok or ok
-            results.append(f"Telegram: {msg}")
-
-        if not results:
-            return True, "No mobile notification channels configured."
-
-        return any_ok, " | ".join(results)
+        if not self.signal.is_configured():
+            return True, "Canal de notificaciones Signal no configurado."
+        ok, msg = self.signal.send_message(text)
+        return ok, f"Signal: {msg}"

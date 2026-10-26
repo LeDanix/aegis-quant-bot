@@ -49,6 +49,8 @@ let monteCarloChart = null;
 let frictionChart = null;
 let taxChart = null;
 let etfChart = null;
+let motorExampleChart = null;
+let ACTIVE_EXPLAINER_MOTOR = 'M1_PULLBACK';
 
 // Metadatos de los 6 Motores Cuantitativos + Núcleo Modo 3 Élite
 const MOTOR_META = {
@@ -246,6 +248,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeDesktopNavMenu();
+      closeMotorDetailModal();
       closeEngineConfirmModal();
       closeDestructiveConfirmModal();
       closeConfigModal();
@@ -375,6 +378,7 @@ function handleWindowResize() {
   if (frictionChart) frictionChart.resize();
   if (taxChart) taxChart.resize();
   if (etfChart) etfChart.resize();
+  if (motorExampleChart) motorExampleChart.resize();
 }
 
 // ============================================================================
@@ -466,6 +470,7 @@ function switchSection(sectionId, options = {}) {
     loadEtfData(ACTIVE_ETF_SYMBOL);
     setTimeout(() => {
       if (etfChart) etfChart.resize();
+  if (motorExampleChart) motorExampleChart.resize();
       if (wasAlreadyEtfs || options.focusSelector) {
         const sel = document.getElementById('etf-symbol-select');
         if (sel) sel.focus();
@@ -1122,6 +1127,15 @@ function openDestructiveConfirmModal(actionName) {
       ctxEl.textContent = `Posiciones activas: ${posCount} (${posVal}) · Patrimonio actual: ${eq}`;
     }
     if (confirmBtn) confirmBtn.textContent = 'Liquidar Cartera';
+  } else if (actionName === 'SCAN_NOW') {
+    if (titleEl) titleEl.textContent = 'Forzar Escaneo y Rebalanceo Inmediato';
+    if (descEl) {
+      descEl.textContent = 'Precaución: El bot opera de forma programada a las 21:55 CET. Forzar un escaneo fuera de hora evaluará precios intradía y ejecutará compras o ventas en el bróker si el modo es Automático.';
+    }
+    if (ctxEl) {
+      ctxEl.textContent = `Bróker: ${LAST_LIVE_STATUS?.config?.broker_provider || 'LOCAL_PAPER'} · Modo: ${LAST_LIVE_STATUS?.config?.execution_mode || 'AUTO_100'}`;
+    }
+    if (confirmBtn) confirmBtn.textContent = 'Forzar Escaneo Ahora';
   } else {
     if (titleEl) titleEl.textContent = 'Reiniciar Saldo Paper Trading';
     if (descEl) {
@@ -1214,6 +1228,1206 @@ function setMotorFilter(filterId) {
       renderTradeStory(best);
     }
   }
+}
+
+
+// ============================================================================
+// FICHA TÉCNICA Y ESTUDIO INTERACTIVO DE MOTORES CUANTITATIVOS (M1–M6)
+// ============================================================================
+const MOTOR_EXPLAINER_DATA = {
+  "M1_PULLBACK": {
+    "badge": "M1 Pullback",
+    "title": "Motor 1: Pullback Tendencial",
+    "subtitle": "Reversi\u00f3n a la media en SPY y QQQ dentro de tendencias primarias alcistas",
+    "dir": "LONG",
+    "assets": "SPY (S&P 500) y QQQ (Nasdaq 100)",
+    "holding": "1\u20135 sesiones (m\u00e1x. 10 d\u00edas)",
+    "stop": "2.5x ATR(14) din\u00e1mico (~1.8% a 2.5%)",
+    "target": "Cierre > SMA(5) o RSI(2) > 75",
+    "trades": "328 operaciones",
+    "winRate": "72.6%",
+    "sumRet": "+74.59%",
+    "pf": "1.91",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>En \u00edndices burs\u00e1tiles diversificados como el S&P 500 o el Nasdaq 100, las empresas subyacentes no quiebran al un\u00edsono. Cuando el mercado se encuentra en una tendencia secular sana (por encima de su media institucional de 200 d\u00edas), las ca\u00eddas repentinas de 2 o 3 sesiones provocadas por noticias de impacto generan liquidaciones impulsivas de inversores minoristas y saltos de stop-loss automatizados.</p><p>Los creadores de mercado (<i>market makers</i>) e inversores institucionales aprovechan esa sobreelevada prima de liquidez para absorber papel con descuento. La reversi\u00f3n a la media es una ley emp\u00edrica s\u00f3lida en renta variable estadounidense: el precio tiende a rebotar con alta probabilidad hacia su equilibrio de corto plazo en 3 a 5 sesiones.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar):\n    # 1. Filtro tendencial macro: precio sobre media de 200 d\u00edas y volatilidad positiva\n    if b.close <= b.sma200 or b.atr14 <= 0:\n        return False, \"\"\n    \n    # 2. Gatillo de capitulaci\u00f3n (basta uno de tres):\n    cond_rsi = b.rsi2 < 10.0                          # Sobreventa extrema\n    cond_band = b.close < b.lower_band30 and b.rsi2 < 25.0  # Perforaci\u00f3n banda Bollinger\n    cond_streak = b.down_streak >= 3 and b.rsi2 < 18.0     # 3 o m\u00e1s d\u00edas rojos seguidos\n    \n    if cond_rsi or cond_band or cond_streak:\n        return True, \"Pullback Tendencial validado\"\n    return False, \"\"\n\n# Salida: Cierre sobre media corta SMA(5) o RSI(2) > 75 (o Stop ATR 2.5x)",
+    "sample": {
+      "sym": "QQQ",
+      "entry": "2020-02-28",
+      "entryPrice": "$205.80",
+      "exit": "2020-03-02",
+      "exitPrice": "$216.42",
+      "ret": "+5.16%",
+      "days": "1 sesi\u00f3n",
+      "story": "Caso Real: El 28-02-2020, durante el inicio del p\u00e1nico por COVID-19, QQQ cay\u00f3 marcando un RSI(2) de 6.2 y perforando su banda de Bollinger, manteniendo a\u00fan soporte sobre SMA(200). El Motor 1 compr\u00f3 en el cierre a $205.80. En la sesi\u00f3n siguiente, el rebote institucional devolvi\u00f3 el precio sobre la SMA(5), cerrando a $216.42 con un +5.16% de beneficio limpio en 24 horas."
+    },
+    "chartData": {
+      "dates": [
+        "2020-02-20",
+        "2020-02-21",
+        "2020-02-24",
+        "2020-02-25",
+        "2020-02-26",
+        "2020-02-27",
+        "2020-02-28",
+        "2020-03-02",
+        "2020-03-03",
+        "2020-03-04",
+        "2020-03-05",
+        "2020-03-06",
+        "2020-03-09"
+      ],
+      "candles": [
+        [
+          236.46,
+          234.78,
+          231.88,
+          236.95
+        ],
+        [
+          233.61,
+          230.27,
+          229.32,
+          234.01
+        ],
+        [
+          221.68,
+          221.39,
+          220.26,
+          224.25
+        ],
+        [
+          223.25,
+          215.37,
+          214.74,
+          223.99
+        ],
+        [
+          216.71,
+          216.48,
+          214.9,
+          220.28
+        ],
+        [
+          210.9,
+          205.64,
+          205.5,
+          216.42
+        ],
+        [
+          198.64,
+          205.8,
+          198.17,
+          207.17
+        ],
+        [
+          208.88,
+          216.42,
+          205.94,
+          216.57
+        ],
+        [
+          217.11,
+          209.48,
+          207.62,
+          219.61
+        ],
+        [
+          213.32,
+          218.22,
+          211.37,
+          218.33
+        ],
+        [
+          212.69,
+          211.59,
+          210.1,
+          216.36
+        ],
+        [
+          204.67,
+          208.02,
+          202.91,
+          209.15
+        ],
+        [
+          193.48,
+          193.57,
+          192.11,
+          201.16
+        ]
+      ],
+      "entry_date": "2020-02-28",
+      "exit_date": "2020-03-02",
+      "entry_idx": 6,
+      "exit_idx": 7
+    }
+  },
+  "M2_VIX_DIV": {
+    "badge": "M2 Divergencia VIX",
+    "title": "Motor 2: Divergencia Intermercado VIX",
+    "subtitle": "Agotamiento vendedor detectado por desinflado de volatilidad impl\u00edcita en opciones",
+    "dir": "LONG",
+    "assets": "SPY (S&P 500) y QQQ (Nasdaq 100)",
+    "holding": "2\u20136 sesiones (m\u00e1x. 10 d\u00edas)",
+    "stop": "2.2x ATR(14) din\u00e1mico",
+    "target": "Cierre > SMA(5) con >=2 d\u00edas o RSI(2) > 80",
+    "trades": "28 operaciones",
+    "winRate": "71.4%",
+    "sumRet": "+3.54%",
+    "pf": "1.31",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>El \u00edndice VIX del CBOE mide la demanda de opciones put para proteger carteras institucionales. Cuando las acciones marcan nuevos m\u00ednimos relativos o permanecen en sobreventa, pero el VIX no logra marcar un nuevo m\u00e1ximo y comienza a caer desde niveles de estr\u00e9s (>=20.0), se produce una <b>divergencia intermercado</b>.</p><p>Significa que los grandes gestores ya han comprado todas las coberturas que necesitaban y ya no est\u00e1n dispuestos a pagar primas caras. Al desaparecer la compra de puts, la presi\u00f3n vendedora en el mercado de futuros se agota, abriendo paso a un rally alcista inminente.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar, recent_bars: List[EnrichedBar]):\n    if b.close <= b.sma200 * 0.96 or b.rsi2 >= 20.0:\n        return False, \"\"\n    \n    recent_vix_high = max(x.vix_close for x in recent_bars) # Pico VIX en 5 d\u00edas\n    recent_px_low = min(x.low for x in recent_bars)          # M\u00ednimo del precio\n    \n    # El VIX cae m\u00e1s de un 4% desde su pico mientras el precio sigue deprimido\n    vix_turning_down = (\n        recent_vix_high >= 20.0\n        and b.vix_close < recent_vix_high * 0.96\n        and (b.low <= recent_px_low * 1.008 or b.rsi2 < 12.0)\n    )\n    return (True, \"Divergencia VIX\") if vix_turning_down else (False, \"\")",
+    "sample": {
+      "sym": "QQQ",
+      "entry": "2009-05-21",
+      "entryPrice": "$33.65",
+      "exit": "2009-05-26",
+      "exitPrice": "$34.79",
+      "ret": "+3.39%",
+      "days": "2 sesiones",
+      "story": "Caso Real: El 21-05-2009, tras un pico de volatilidad VIX en 33.1, el \u00edndice comenz\u00f3 a ceder hasta 31.4 mientras el precio de QQQ tocaba m\u00ednimos en sobreventa (RSI 18.5). El Motor 2 detect\u00f3 la divergencia y compr\u00f3 a $33.65. Dos sesiones despu\u00e9s, la normalizaci\u00f3n sobre SMA(5) cerr\u00f3 la operaci\u00f3n a $34.79 con +3.39% de ganancia."
+    },
+    "chartData": {
+      "dates": [
+        "2009-05-13",
+        "2009-05-14",
+        "2009-05-15",
+        "2009-05-18",
+        "2009-05-19",
+        "2009-05-20",
+        "2009-05-21",
+        "2009-05-22",
+        "2009-05-26",
+        "2009-05-27",
+        "2009-05-28",
+        "2009-05-29",
+        "2009-06-01",
+        "2009-06-02"
+      ],
+      "candles": [
+        [
+          33.63,
+          33.02,
+          32.96,
+          33.65
+        ],
+        [
+          33.1,
+          33.39,
+          33.08,
+          33.7
+        ],
+        [
+          33.34,
+          33.37,
+          33.23,
+          33.82
+        ],
+        [
+          33.6,
+          34.24,
+          33.39,
+          34.28
+        ],
+        [
+          34.16,
+          34.4,
+          33.95,
+          34.74
+        ],
+        [
+          34.53,
+          34.28,
+          34.18,
+          35.04
+        ],
+        [
+          34.02,
+          33.65,
+          33.31,
+          34.26
+        ],
+        [
+          33.78,
+          33.54,
+          33.32,
+          33.97
+        ],
+        [
+          33.25,
+          34.79,
+          33.18,
+          34.83
+        ],
+        [
+          34.69,
+          34.55,
+          34.43,
+          35.19
+        ],
+        [
+          34.76,
+          34.95,
+          34.21,
+          35.07
+        ],
+        [
+          34.97,
+          35.38,
+          34.76,
+          35.5
+        ],
+        [
+          35.76,
+          36.39,
+          35.61,
+          36.5
+        ],
+        [
+          36.19,
+          36.44,
+          36.11,
+          36.79
+        ]
+      ],
+      "entry_date": "2009-05-21",
+      "exit_date": "2009-05-26",
+      "entry_idx": 6,
+      "exit_idx": 8
+    }
+  },
+  "M3_BEAR_SHORT": {
+    "badge": "M3 Corto en Crisis",
+    "title": "Motor 3: Corto en Mercado Bajista (Crisis Alpha)",
+    "subtitle": "Monetizaci\u00f3n de ca\u00eddas sist\u00e9micas en reg\u00edmenes bajistas confirmados",
+    "dir": "SHORT (ETF inverso DXS3)",
+    "assets": "SPY / QQQ (Inverso -1x en Tradegate)",
+    "holding": "2\u20138 sesiones (m\u00e1x. 12 d\u00edas)",
+    "stop": "2.2x ATR(14) por encima de la entrada",
+    "target": "Cierre < SMA(5) o RSI(2) < 20 / 12 sesiones",
+    "trades": "114 operaciones",
+    "winRate": "58.8%",
+    "sumRet": "+16.30%",
+    "pf": "1.32",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>Durante los grandes mercados bajistas (como el crash de 2008 o el mercado bajista de 2022), los rebotes temporales no son compras institucionales sanas, sino cierres de posiciones cortas (<i>short covering</i>). Al toparse con la resistencia de la media m\u00f3vil de 200 d\u00edas y agotarse el impulso comprador, el precio se desploma de nuevo con virulencia.</p><p>El Motor 3 no opera cortos en mercados normales; espera exclusivamente a que la tendencia estructural sea bajista confirmada (Precio < SMA200 y SMA50 < SMA200) y abre posici\u00f3n corta cuando un rebote t\u00e9cnico se sobrecompra (RSI(2) > 85 con VIX > 18) o se produce una ruptura de m\u00ednimos de 20 d\u00edas con p\u00e1nico.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar):\n    # 1. R\u00e9gimen bajista confirmado\n    is_bear = (b.close < b.sma200) and (b.sma50 < b.sma200 or not b.sma200_rising)\n    if not is_bear:\n        return False, \"\"\n    \n    # 2. Gatillo: Rebote sobrecomprado en mercado bajista listo para colapsar\n    cond_bounce = (\n        (b.rsi2 > 85.0 or b.up_streak >= 3)\n        and b.close < b.sma200 * 0.99\n        and b.vix_close > 18.0\n    )\n    return (True, \"Bear Rally Exhaustion\") if cond_bounce else (False, \"\")",
+    "sample": {
+      "sym": "QQQ",
+      "entry": "2008-10-13",
+      "entryPrice": "$35.13",
+      "exit": "2008-10-15",
+      "exitPrice": "$30.60",
+      "ret": "+12.90%",
+      "days": "2 sesiones",
+      "story": "Caso Real: En plena crisis financiera de 2008 (13-10-2008), tras una subida de 3 d\u00edas con RSI(2) en 87.2 y VIX disparado a 55.0, el Motor 3 vendi\u00f3 corto a $35.13. Dos sesiones m\u00e1s tarde, el desplome bajista llev\u00f3 a QQQ a $30.60, cerrando la posici\u00f3n con un rendimiento positivo del +12.90% mientras el mercado se hund\u00eda."
+    },
+    "chartData": {
+      "dates": [
+        "2008-10-03",
+        "2008-10-06",
+        "2008-10-07",
+        "2008-10-08",
+        "2008-10-09",
+        "2008-10-10",
+        "2008-10-13",
+        "2008-10-14",
+        "2008-10-15",
+        "2008-10-16",
+        "2008-10-17",
+        "2008-10-20",
+        "2008-10-21",
+        "2008-10-22"
+      ],
+      "candles": [
+        [
+          37.26,
+          36.18,
+          36.1,
+          38.18
+        ],
+        [
+          35.26,
+          34.86,
+          32.91,
+          35.53
+        ],
+        [
+          35.14,
+          32.65,
+          32.27,
+          35.2
+        ],
+        [
+          31.95,
+          32.39,
+          31.84,
+          34.12
+        ],
+        [
+          33.15,
+          31.52,
+          30.97,
+          33.68
+        ],
+        [
+          30.52,
+          31.32,
+          29.38,
+          32.48
+        ],
+        [
+          32.86,
+          35.13,
+          32.4,
+          35.25
+        ],
+        [
+          36.15,
+          33.61,
+          33.19,
+          36.15
+        ],
+        [
+          33.23,
+          30.6,
+          30.54,
+          33.35
+        ],
+        [
+          30.81,
+          32.26,
+          29.25,
+          32.27
+        ],
+        [
+          31.67,
+          32.3,
+          31.41,
+          33.65
+        ],
+        [
+          32.76,
+          33.2,
+          31.7,
+          33.26
+        ],
+        [
+          32.66,
+          31.48,
+          31.48,
+          33.26
+        ],
+        [
+          31.37,
+          30.61,
+          29.71,
+          31.6
+        ]
+      ],
+      "entry_date": "2008-10-13",
+      "exit_date": "2008-10-15",
+      "entry_idx": 6,
+      "exit_idx": 8
+    }
+  },
+  "M4_CTA_TREND": {
+    "badge": "M4 Tendencia CTA",
+    "title": "Motor 4: Tendencia Multi-Activo CTA",
+    "subtitle": "Seguimiento sistem\u00e1tico de tendencias en Oro, Petr\u00f3leo, Bonos y Materias Primas",
+    "dir": "LONG",
+    "assets": "GLD (Oro), USO (Petr\u00f3leo), ZS/SOYB (Soja), TLT (Bonos)",
+    "holding": "15\u201340 sesiones (m\u00e1x. 45 d\u00edas)",
+    "stop": "Trailing stop din\u00e1mico Donchian 10d / 3x ATR",
+    "target": "Corte de trailing stop o p\u00e9rdida de SMA(50)",
+    "trades": "189 operaciones",
+    "winRate": "42.3%",
+    "sumRet": "+93.16%",
+    "pf": "1.93",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>Las materias primas y los bonos soberanos responden a ciclos macroecon\u00f3micos lentos y persistentes: inflaci\u00f3n, shocks de oferta geopol\u00edticos o pol\u00edticas monetarias de bancos centrales. A diferencia de las acciones (que revierten r\u00e1pido a la media), las materias primas presentan <i>autocorrelaci\u00f3n positiva de largo plazo</i>: cuando una tendencia arranca, suele extenderse durante semanas o meses.</p><p>El Motor 4 implementa la metodolog\u00eda cl\u00e1sica de los grandes fondos CTA (Commodity Trading Advisors como Winton o AQR): entra en rupturas del canal Donchian de 20 sesiones con confirmaci\u00f3n de medias (SMA50 > SMA200) y deja correr los beneficios con un stop din\u00e1mico que persigue al precio.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar, symbol: str):\n    # Ruptura Donchian de 20 d\u00edas con alineaci\u00f3n alcista de medias m\u00f3viles\n    if (\n        b.close > b.sma50\n        and b.sma50 > b.sma200\n        and b.close > b.prev_high_20   # Nuevo m\u00e1ximo de 20 sesiones\n        and b.atr14 > 0\n    ):\n        return True, f\"Ruptura Donchian 20d en {symbol}\"\n    return False, \"\"\n\n# Salida con Trailing Stop: max(Stop Inicial, M\u00ednimo 10 d\u00edas, Cierre M\u00e1x - 3x ATR)",
+    "sample": {
+      "sym": "USO",
+      "entry": "2026-02-27",
+      "entryPrice": "$81.95",
+      "exit": "2026-04-17",
+      "exitPrice": "$114.73",
+      "ret": "+40.00%",
+      "days": "34 sesiones",
+      "story": "Caso Real: En febrero de 2026, el petr\u00f3leo (USO) rompi\u00f3 al alza su canal Donchian de 20 d\u00edas sobre $81.92 con SMA50 sobre SMA200. El Motor 4 abri\u00f3 posici\u00f3n a $81.95. Acompa\u00f1\u00f3 la tendencia alcista durante 34 sesiones elevando continuamente el trailing stop, hasta salir a $114.73 capturando un +40.00% de rentabilidad descorrelacionada de la bolsa."
+    },
+    "chartData": {
+      "dates": [
+        "2026-02-19",
+        "2026-02-20",
+        "2026-02-23",
+        "2026-02-24",
+        "2026-02-25",
+        "2026-02-26",
+        "2026-02-27",
+        "2026-03-02",
+        "2026-03-03",
+        "2026-03-04",
+        "2026-03-05",
+        "2026-03-06",
+        "2026-03-09",
+        "2026-03-10",
+        "2026-03-11",
+        "2026-03-12",
+        "2026-03-13",
+        "2026-03-16",
+        "2026-03-17",
+        "2026-03-18",
+        "2026-03-19",
+        "2026-03-20",
+        "2026-03-23",
+        "2026-03-24",
+        "2026-03-25",
+        "2026-03-26",
+        "2026-03-27",
+        "2026-03-30",
+        "2026-03-31",
+        "2026-04-01",
+        "2026-04-02",
+        "2026-04-06",
+        "2026-04-07",
+        "2026-04-08",
+        "2026-04-09",
+        "2026-04-10",
+        "2026-04-13",
+        "2026-04-14",
+        "2026-04-15",
+        "2026-04-16",
+        "2026-04-17",
+        "2026-04-20",
+        "2026-04-21",
+        "2026-04-22",
+        "2026-04-23",
+        "2026-04-24"
+      ],
+      "candles": [
+        [
+          80.43,
+          81.19,
+          79.69,
+          81.27
+        ],
+        [
+          80.54,
+          80.85,
+          80.17,
+          81.24
+        ],
+        [
+          81.49,
+          80.9,
+          80.5,
+          81.92
+        ],
+        [
+          81.19,
+          80.76,
+          79.8,
+          81.22
+        ],
+        [
+          80.1,
+          79.73,
+          79.32,
+          80.14
+        ],
+        [
+          78.15,
+          79.77,
+          78.04,
+          81.24
+        ],
+        [
+          82.0,
+          81.95,
+          80.58,
+          82.12
+        ],
+        [
+          87.62,
+          87.19,
+          83.2,
+          88.64
+        ],
+        [
+          94.1,
+          90.2,
+          87.33,
+          94.37
+        ],
+        [
+          90.22,
+          91.56,
+          89.11,
+          91.59
+        ],
+        [
+          94.46,
+          96.31,
+          94.06,
+          98.83
+        ],
+        [
+          105.38,
+          108.77,
+          104.53,
+          109.98
+        ],
+        [
+          119.42,
+          104.33,
+          98.47,
+          124.07
+        ],
+        [
+          107.13,
+          105.86,
+          94.23,
+          107.56
+        ],
+        [
+          105.03,
+          108.05,
+          100.99,
+          108.36
+        ],
+        [
+          115.69,
+          118.39,
+          113.91,
+          119.13
+        ],
+        [
+          115.08,
+          119.89,
+          114.56,
+          121.15
+        ],
+        [
+          116.93,
+          115.03,
+          114.36,
+          118.91
+        ],
+        [
+          117.42,
+          118.84,
+          116.07,
+          119.13
+        ],
+        [
+          121.03,
+          121.67,
+          117.45,
+          122.87
+        ],
+        [
+          120.4,
+          117.36,
+          114.68,
+          125.19
+        ],
+        [
+          118.96,
+          121.43,
+          118.33,
+          123.02
+        ],
+        [
+          113.29,
+          110.56,
+          106.45,
+          114.45
+        ],
+        [
+          115.23,
+          114.54,
+          112.77,
+          116.35
+        ],
+        [
+          109.29,
+          113.39,
+          109.02,
+          114.25
+        ],
+        [
+          116.73,
+          117.26,
+          115.2,
+          118.94
+        ],
+        [
+          120.79,
+          124.2,
+          120.47,
+          125.3
+        ],
+        [
+          126.84,
+          129.83,
+          126.31,
+          130.08
+        ],
+        [
+          129.35,
+          127.25,
+          124.2,
+          130.93
+        ],
+        [
+          124.86,
+          124.09,
+          122.48,
+          125.73
+        ],
+        [
+          139.27,
+          137.92,
+          131.89,
+          140.0
+        ],
+        [
+          138.51,
+          138.94,
+          136.38,
+          140.89
+        ],
+        [
+          141.33,
+          138.08,
+          130.0,
+          143.98
+        ],
+        [
+          119.06,
+          124.58,
+          118.06,
+          125.23
+        ],
+        [
+          127.19,
+          126.96,
+          123.06,
+          129.64
+        ],
+        [
+          125.61,
+          124.82,
+          123.98,
+          127.78
+        ],
+        [
+          133.37,
+          128.47,
+          127.16,
+          133.53
+        ],
+        [
+          127.1,
+          123.85,
+          122.91,
+          127.23
+        ],
+        [
+          123.25,
+          122.59,
+          122.33,
+          125.24
+        ],
+        [
+          124.07,
+          125.84,
+          124.05,
+          128.28
+        ],
+        [
+          114.73,
+          116.04,
+          110.35,
+          116.87
+        ],
+        [
+          119.84,
+          121.32,
+          119.4,
+          122.88
+        ],
+        [
+          121.51,
+          128.25,
+          121.03,
+          128.89
+        ],
+        [
+          127.36,
+          129.4,
+          127.07,
+          131.01
+        ],
+        [
+          131.26,
+          134.72,
+          129.87,
+          137.46
+        ],
+        [
+          132.63,
+          132.4,
+          129.55,
+          133.87
+        ]
+      ],
+      "entry_date": "2026-02-27",
+      "exit_date": "2026-04-17",
+      "entry_idx": 6,
+      "exit_idx": 40
+    }
+  },
+  "M5_VOL_CRUSH": {
+    "badge": "M5 Vol-Crush",
+    "title": "Motor 5: Compresi\u00f3n VIX/VIX3M Vol-Crush",
+    "subtitle": "Captura del flujo de cobertura Vanna de creadores de mercado tras episodios de p\u00e1nico",
+    "dir": "LONG",
+    "assets": "SPY (S&P 500) y QQQ (Nasdaq 100)",
+    "holding": "2\u20138 sesiones (m\u00e1x. 12 d\u00edas)",
+    "stop": "2.3x ATR(14) din\u00e1mico",
+    "target": "Normalizaci\u00f3n a SMA(20) o RSI(2) > 82",
+    "trades": "41 operaciones",
+    "winRate": "65.9%",
+    "sumRet": "+16.25%",
+    "pf": "1.82",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>Bajo condiciones normales, la estructura temporal de volatilidad est\u00e1 en Contango (VIX < VIX3M, ratio VTS < 1.00). Durante ventas de p\u00e1nico extremas, la demanda de opciones a corto plazo se dispara y la curva se invierte a Backwardation (VTS >= 1.00). Los creadores de mercado de opciones quedan con <i>gamma negativa</i> y deben vender futuros del \u00edndice para cubrirse a medida que cae el precio.</p><p>En cuanto el p\u00e1nico cede y el ratio VTS se comprime m\u00e1s de un 3.5% desde su pico, la volatilidad impl\u00edcita colapsa (<i>vol-crush</i>). Esta compresi\u00f3n mec\u00e1nica obliga a los creadores de mercado a recomprar agresivamente sus futuros cortos (flujo Vanna positivo), generando rebotes explosivos en 'V' de alt\u00edsima fiabilidad.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar, recent_bars: List[EnrichedBar]):\n    peak_vts = max(x.vts_ratio for x in recent_bars) # Pico de estr\u00e9s en 5 d\u00edas\n    \n    # Compresi\u00f3n de Backwardation: el ratio VTS cede > 3.5% y el precio se estabiliza\n    vts_crush = (\n        peak_vts >= 1.00\n        and b.vts_ratio < peak_vts * 0.965\n        and b.rsi2 < 45.0\n        and b.close > prev_bar.low\n    )\n    return (True, \"Vol-Crush + Flujo Vanna\") if vts_crush else (False, \"\")",
+    "sample": {
+      "sym": "QQQ",
+      "entry": "2015-08-25",
+      "entryPrice": "$98.09",
+      "exit": "2015-08-27",
+      "exitPrice": "$105.64",
+      "ret": "+7.70%",
+      "days": "2 sesiones",
+      "story": "Caso Real: Tras el famoso 'Flash Crash' del 24 de agosto de 2015, el ratio VTS marc\u00f3 un pico de 1.31. Al d\u00eda siguiente, la curva se comprimi\u00f3 a 1.22 mientras QQQ se estabilizaba. El Motor 5 entr\u00f3 a $98.09. Dos sesiones despu\u00e9s, la ola de compras mec\u00e1nicas de cobertura impuls\u00f3 el precio a $105.64 (+7.70% de beneficio en 48 horas)."
+    },
+    "chartData": {
+      "dates": [
+        "2015-08-17",
+        "2015-08-18",
+        "2015-08-19",
+        "2015-08-20",
+        "2015-08-21",
+        "2015-08-24",
+        "2015-08-25",
+        "2015-08-26",
+        "2015-08-27",
+        "2015-08-28",
+        "2015-08-31",
+        "2015-09-01",
+        "2015-09-02",
+        "2015-09-03"
+      ],
+      "candles": [
+        [
+          110.24,
+          111.43,
+          109.96,
+          111.46
+        ],
+        [
+          111.28,
+          110.86,
+          110.71,
+          111.37
+        ],
+        [
+          110.52,
+          110.13,
+          109.49,
+          111.11
+        ],
+        [
+          109.11,
+          107.08,
+          107.07,
+          109.46
+        ],
+        [
+          105.57,
+          102.4,
+          102.4,
+          106.47
+        ],
+        [
+          94.23,
+          98.46,
+          84.74,
+          102.53
+        ],
+        [
+          102.07,
+          98.09,
+          98.01,
+          102.74
+        ],
+        [
+          100.96,
+          103.03,
+          98.93,
+          103.23
+        ],
+        [
+          104.52,
+          105.64,
+          103.28,
+          105.71
+        ],
+        [
+          105.08,
+          105.62,
+          104.85,
+          106.0
+        ],
+        [
+          105.03,
+          104.31,
+          104.05,
+          105.61
+        ],
+        [
+          101.71,
+          101.05,
+          100.63,
+          103.29
+        ],
+        [
+          102.88,
+          103.9,
+          101.7,
+          103.92
+        ],
+        [
+          104.31,
+          103.39,
+          103.1,
+          105.02
+        ]
+      ],
+      "entry_date": "2015-08-25",
+      "exit_date": "2015-08-27",
+      "entry_idx": 6,
+      "exit_idx": 8
+    }
+  },
+  "M6_TOTM": {
+    "badge": "M6 Fin de Mes",
+    "title": "Motor 6: Flujo Institucional Fin de Mes (TOTM)",
+    "subtitle": "Monetizaci\u00f3n del flujo pasivo de n\u00f3minas, 401(k) y rebalanceo de pensiones",
+    "dir": "LONG",
+    "assets": "SPY (S&P 500) y QQQ (Nasdaq 100)",
+    "holding": "2\u20134 sesiones (m\u00e1x. T+4)",
+    "stop": "2.5x ATR(14) din\u00e1mico",
+    "target": "Impulso sobre SMA(5) tras >=2 d\u00edas o cierre ventana T+4",
+    "trades": "80 operaciones",
+    "winRate": "70.0%",
+    "sumRet": "+6.40%",
+    "pf": "1.32",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>A diferencia de los patrones t\u00e9cnicos tradicionales, el efecto de fin de mes (<i>Turn-of-the-Month</i>, documentado acad\u00e9micamente por Lakonishok & Smidt en 1988 y McConnell & Xu en 2008) est\u00e1 respaldado por <b>flujos de caja estructurales y obligatorios</b>: aportaciones autom\u00e1ticas de planes de pensiones con cada n\u00f3mina mensual, reinversi\u00f3n de dividendos corporativos y rebalanceos de fondos soberanos concentrados entre el \u00faltimo d\u00eda del mes (T-1) y los 4 primeros d\u00edas del nuevo mes (T+1 a T+4).</p><p>El Motor 6 filtra ese flujo con disciplina cuantitativa: entra en los 2 \u00faltimos d\u00edas h\u00e1biles del mes si el mercado presenta una debilidad moderada (RSI(2) < 35) bajo un entorno sano de Contango, comprando inventario con descuento justo antes de que se ejecute la marea compradora institucional.</p>",
+    "code": "def _check_entry(self, b: EnrichedBar):\n    rem_bdays = business_days_remaining_in_month(b.date)\n    \n    # \u00daltimos 1-2 d\u00edas h\u00e1biles del mes + Tendencia alcista + Contango + Sobreventa moderada\n    if (\n        rem_bdays <= 1\n        and b.close > b.sma200\n        and b.vts_ratio < 0.98\n        and b.rsi2 < 35.0\n    ):\n        return True, f\"Flujo Fin de Mes (T-{rem_bdays}d)\"\n    return False, \"\"",
+    "sample": {
+      "sym": "QQQ",
+      "entry": "2012-06-28",
+      "entryPrice": "$62.20",
+      "exit": "2012-07-02",
+      "exitPrice": "$64.35",
+      "ret": "+3.46%",
+      "days": "2 sesiones",
+      "story": "Caso Real: El 28-06-2012 (T-1 antes de fin de mes), QQQ retrocedi\u00f3 marcando un RSI(2) de 27.3 en Contango. El Motor 6 compr\u00f3 a $62.20. La inyecci\u00f3n de capital de principios de julio gener\u00f3 un impulso inmediato que super\u00f3 la media de 5 d\u00edas en T+2, cerrando la posici\u00f3n a $64.35 con un +3.46% de rendimiento."
+    },
+    "chartData": {
+      "dates": [
+        "2012-06-20",
+        "2012-06-21",
+        "2012-06-22",
+        "2012-06-25",
+        "2012-06-26",
+        "2012-06-27",
+        "2012-06-28",
+        "2012-06-29",
+        "2012-07-02",
+        "2012-07-03",
+        "2012-07-05",
+        "2012-07-06",
+        "2012-07-09",
+        "2012-07-10"
+      ],
+      "candles": [
+        [
+          64.38,
+          64.29,
+          63.81,
+          64.57
+        ],
+        [
+          64.24,
+          62.69,
+          62.62,
+          64.31
+        ],
+        [
+          62.9,
+          63.35,
+          62.73,
+          63.43
+        ],
+        [
+          62.83,
+          62.13,
+          61.95,
+          62.85
+        ],
+        [
+          62.34,
+          62.52,
+          62.06,
+          62.7
+        ],
+        [
+          62.76,
+          62.9,
+          62.69,
+          63.18
+        ],
+        [
+          62.43,
+          62.2,
+          61.54,
+          62.47
+        ],
+        [
+          63.4,
+          64.16,
+          63.21,
+          64.16
+        ],
+        [
+          64.25,
+          64.35,
+          63.87,
+          64.38
+        ],
+        [
+          64.39,
+          64.89,
+          64.29,
+          64.89
+        ],
+        [
+          64.83,
+          64.93,
+          64.48,
+          65.25
+        ],
+        [
+          64.63,
+          64.12,
+          63.65,
+          64.69
+        ],
+        [
+          64.05,
+          64.0,
+          63.68,
+          64.26
+        ],
+        [
+          64.35,
+          63.37,
+          63.12,
+          64.51
+        ]
+      ],
+      "entry_date": "2012-06-28",
+      "exit_date": "2012-07-02",
+      "entry_idx": 6,
+      "exit_idx": 8
+    }
+  }
+};
+
+function openMotorDetailModal(motorId) {
+  const data = MOTOR_EXPLAINER_DATA[motorId] || MOTOR_EXPLAINER_DATA.M1_PULLBACK;
+  ACTIVE_EXPLAINER_MOTOR = motorId;
+  const modal = document.getElementById('motor-detail-modal');
+  if (!modal) return;
+
+  const setTxt = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setTxt('mdm-badge', data.badge);
+  setTxt('mdm-title', data.title);
+  setTxt('mdm-subtitle', data.subtitle);
+
+  setTxt('mdm-param-dir', data.dir);
+  setTxt('mdm-param-assets', data.assets);
+  setTxt('mdm-param-hold', data.holding);
+  setTxt('mdm-param-stop', data.stop);
+
+  const whyEl = document.getElementById('mdm-why');
+  if (whyEl) whyEl.innerHTML = data.why;
+
+  const codeEl = document.getElementById('mdm-code');
+  if (codeEl) codeEl.textContent = data.code;
+
+  setTxt('mdm-stat-trades', data.trades);
+  setTxt('mdm-stat-winrate', data.winRate);
+  setTxt('mdm-stat-sumret', data.sumRet);
+  setTxt('mdm-stat-pf', data.pf);
+
+  const s = data.sample;
+  setTxt('mdm-trade-meta', `${s.sym} · Entrada: ${s.entry} (${s.entryPrice}) -> Salida: ${s.exit} (${s.exitPrice}) · Duración: ${s.days}`);
+  setTxt('mdm-trade-ret', s.ret);
+  setTxt('mdm-trade-story', s.story);
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  setTimeout(() => {
+    renderMotorExampleCandles(motorId);
+  }, 50);
+}
+
+function closeMotorDetailModal() {
+  const modal = document.getElementById('motor-detail-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function jumpToMotorInSimulator(motorId) {
+  const mId = motorId || ACTIVE_EXPLAINER_MOTOR || 'M1_PULLBACK';
+  closeMotorDetailModal();
+  switchSection('analisis');
+  switchPerfSubTab('simulator');
+  const sel = document.getElementById('trade-filter-motor');
+  if (sel) {
+    sel.value = mId;
+    renderTradesTable();
+    try {
+      document.getElementById('perf-view-simulator')?.scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {}
+  }
+}
+
+function renderMotorExampleCandles(motorId) {
+  const el = document.getElementById('motor-example-chart');
+  const data = MOTOR_EXPLAINER_DATA[motorId] || MOTOR_EXPLAINER_DATA.M1_PULLBACK;
+  if (!el || !data || !data.chartData) return;
+
+  if (motorExampleChart) {
+    motorExampleChart.dispose();
+  }
+  motorExampleChart = echarts.init(el);
+
+  const th = getChartTheme();
+  const cData = data.chartData;
+  const upColor = th.dark ? '#5c9d82' : '#065f46';
+  const downColor = th.dark ? '#ef4444' : '#b91c1c';
+
+  const markPoints = [
+    {
+      name: 'Entrada',
+      coord: [cData.entry_date, cData.candles[cData.entry_idx][1]],
+      value: data.dir.includes('SHORT') ? 'VENTA CORTO' : 'COMPRA',
+      itemStyle: { color: data.dir.includes('SHORT') ? downColor : upColor },
+      label: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+    },
+    {
+      name: 'Salida',
+      coord: [cData.exit_date, cData.candles[cData.exit_idx][1]],
+      value: data.sample.ret,
+      itemStyle: { color: '#d97706' },
+      label: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+    }
+  ];
+
+  const option = {
+    backgroundColor: th.bg,
+    animationDuration: 300,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross', lineStyle: { color: th.crosshair } },
+      backgroundColor: th.tooltipBg,
+      borderColor: th.tooltipBorder,
+      textStyle: { color: th.tooltipText, fontSize: 11 },
+      formatter: (params) => {
+        if (!params || !params[0]) return '';
+        const idx = params[0].dataIndex;
+        const d = cData.dates[idx];
+        const [o, c, l, h] = cData.candles[idx];
+        return `
+          <div style="font-family:'JetBrains Mono',monospace;">
+            <b>${data.sample.sym} · ${d}</b><br/>
+            Apertura: $${o}<br/>
+            Cierre: $${c}<br/>
+            Mín: $${l} · Máx: $${h}
+          </div>
+        `;
+      }
+    },
+    grid: {
+      left: 50,
+      right: 18,
+      top: 25,
+      bottom: 25,
+    },
+    xAxis: {
+      type: 'category',
+      data: cData.dates,
+      axisLine: { lineStyle: { color: th.axisLine } },
+      axisLabel: { color: th.axisLabel, fontSize: 10, fontFamily: 'JetBrains Mono' }
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      splitLine: { lineStyle: { color: th.splitLine } },
+      axisLabel: {
+        color: th.axisLabel,
+        fontSize: 10,
+        fontFamily: 'JetBrains Mono',
+        formatter: (v) => '$' + Math.round(v)
+      }
+    },
+    series: [
+      {
+        name: data.sample.sym,
+        type: 'candlestick',
+        data: cData.candles,
+        itemStyle: {
+          color: upColor,
+          color0: downColor,
+          borderColor: upColor,
+          borderColor0: downColor
+        },
+        markPoint: {
+          data: markPoints
+        }
+      }
+    ]
+  };
+
+  motorExampleChart.setOption(option);
+  motorExampleChart.resize();
+}
+
+function confirmScanNowModal() {
+  openDestructiveConfirmModal('SCAN_NOW');
 }
 
 function jumpToMotorOnChart(motorId) {
@@ -1989,6 +3203,24 @@ function renderLiveScan() {
     badgeEl.textContent = vtsState.split(' (')[0];
     styleVtsPill(badgeEl, vtsState, vtsRatio);
   }
+  const ratioValEl = document.getElementById('live-vts-ratio-val');
+  if (ratioValEl) {
+    ratioValEl.textContent = vtsRatio !== undefined ? Number(vtsRatio).toFixed(3) : '--';
+  }
+  const vixLevelsEl = document.getElementById('live-vix-levels');
+  if (vixLevelsEl) {
+    if (live && live.vix_close !== undefined) {
+      vixLevelsEl.textContent = `VIX: ${Number(live.vix_close).toFixed(2)} · VIX3M: ${Number(live.vix3m_close).toFixed(2)}`;
+    } else {
+      vixLevelsEl.textContent = 'VIX / VIX3M Estructura Temporal';
+    }
+  }
+  const shieldEl = document.getElementById('live-vts-shield-status');
+  if (shieldEl) {
+    const isBack = String(vtsState).toUpperCase().includes('BACKWARD');
+    shieldEl.textContent = isBack ? 'Escudo Activo (Bolsa al 0% · Coberturas)' : 'Escudo Normal (Bolsa al 100% · SPY/QQQ)';
+    shieldEl.className = isBack ? 'font-semibold text-red-700 dark:text-red-400' : 'font-semibold text-brand-700 dark:text-brand-300';
+  }
   if (detailEl) {
     if (live && live.vix_close !== undefined) {
       const ratioTxt = vtsRatio !== undefined ? Number(vtsRatio).toFixed(3) : live.vts_ratio;
@@ -2299,6 +3531,13 @@ async function fetchLiveStatus(initForm = false) {
 }
 
 function renderLiveControlCenter(data, populateForm = false) {
+  if (data?.config) {
+    const resetPanel = document.getElementById('panel-reset-paper');
+    if (resetPanel) {
+      const isPaper = data.config.broker_provider === 'LOCAL_PAPER' || data.config.broker_provider === 'ALPACA_PAPER';
+      resetPanel.style.display = isPaper ? 'flex' : 'none';
+    }
+  }
   if (!data || !data.config || !data.state) return;
   const cfg = data.config;
   const state = data.state;
@@ -2650,8 +3889,6 @@ function renderLiveControlCenter(data, populateForm = false) {
     setVal('cfg-mobile-phone', cfg.mobile_phone || cfg.signal_recipient_phone || '');
     setVal('cfg-sig-url', cfg.signal_api_url || 'https://api.callmebot.com/signal/send.php');
     setVal('cfg-sig-apikey', cfg.signal_apikey || '');
-    setVal('cfg-tg-token', cfg.telegram_bot_token || '');
-    setVal('cfg-tg-chat', cfg.telegram_chat_id || '');
   }
 }
 
@@ -2718,8 +3955,6 @@ async function saveLiveConfigFromUI(fromModal = false) {
     signal_recipient_phone: mobilePhone,
     signal_api_url: getVal('cfg-sig-url'),
     signal_apikey: getVal('cfg-sig-apikey'),
-    telegram_bot_token: getVal('cfg-tg-token'),
-    telegram_chat_id: getVal('cfg-tg-chat'),
   };
 
   try {
