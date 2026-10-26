@@ -148,6 +148,40 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
                 pass
             return
 
+        # Servir activos estáticos locales (HTML, CSS compilado, JS, SVG) con gzip y MIME explícito
+        local_file = self.translate_path(self.path)
+        if os.path.isfile(local_file):
+            ext = os.path.splitext(local_file)[1].lower()
+            mime_map = {
+                ".html": "text/html; charset=utf-8",
+                ".css": "text/css; charset=utf-8",
+                ".js": "application/javascript; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".svg": "image/svg+xml",
+            }
+            if ext in mime_map:
+                try:
+                    with open(local_file, "rb") as f:
+                        payload = f.read()
+                    use_gzip = len(payload) > 1024 and self._client_accepts_gzip()
+                    if use_gzip:
+                        payload = gzip.compress(payload, compresslevel=6)
+                    self.send_response(200)
+                    self.send_header("Content-Type", mime_map[ext])
+                    if "echarts.min.js" in local_file:
+                        self.send_header("Cache-Control", "public, max-age=86400")
+                    else:
+                        self.send_header("Cache-Control", "no-cache, must-revalidate")
+                    if use_gzip:
+                        self.send_header("Content-Encoding", "gzip")
+                        self.send_header("Vary", "Accept-Encoding")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.end_headers()
+                    self.wfile.write(payload)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                return
+
         return super().do_GET()
 
     def do_POST(self):

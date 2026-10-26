@@ -33,53 +33,13 @@
     })();
   </script>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            slate: {
-              50: '#f7f8f7',
-              100: '#eef1ef',
-              200: '#dfe4e1',
-              300: '#c7cfcb',
-              400: '#8b9490',
-              500: '#636c68',
-              600: '#464e4b',
-              700: '#2d3330',
-              800: '#212624',
-              900: '#191d1b',
-              950: '#121514',
-            },
-            brand: {
-              50: '#eef6f2',
-              100: '#d7eae0',
-              200: '#b3d6c5',
-              300: '#84b9a1',
-              400: '#5c9d82',
-              500: '#2e7b5d',
-              600: '#1b6649',
-              700: '#065f46',
-              800: '#064e3b',
-              900: '#053b2d',
-              950: '#03221a',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <link rel="stylesheet" href="/static/mobile.css" />
+  <!-- Hojas de estilo compiladas localmente (100% autónomas, sin dependencia de CDNs externos) -->
+  <link rel="stylesheet" href="/static/tailwind.css?v=20261026b" />
+  <link rel="stylesheet" href="/static/mobile.css?v=20261026b" />
+  <script src="/static/echarts.min.js?v=5.5.0"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
 </head>
 <body class="min-h-screen flex flex-col selection:bg-brand-100 dark:selection:bg-brand-900">
 
@@ -1386,6 +1346,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20261026b"></script>
 </body>
 </html>
