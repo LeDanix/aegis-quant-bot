@@ -1,13 +1,14 @@
 """
 Aegis-Quant Strategy Engines Package (aegis_quant/strategies/__init__.py).
 
-Exports the BaseStrategy and the 5 modular trading engines:
+Exports the BaseStrategy and the 6 modular trading engines:
   - BaseStrategy (base.py)
   - SchermanPullbackStrategy (m1_pullback.py)
   - SchermanVixDivergenceStrategy (m2_vix_divergence.py)
   - BearMarketShortStrategy (m3_bear_short.py)
   - CommodityBreakoutCTAStrategy (m4_cta_trend.py)
   - VolTermStructureCrushStrategy (m5_vol_crush.py)
+  - TurnOfTheMonthFlowStrategy (m6_totm_flow.py)
 """
 
 from aegis_quant.strategies.base import BaseStrategy
@@ -16,6 +17,7 @@ from aegis_quant.strategies.m2_vix_divergence import SchermanVixDivergenceStrate
 from aegis_quant.strategies.m3_bear_short import BearMarketShortStrategy
 from aegis_quant.strategies.m4_cta_trend import CommodityBreakoutCTAStrategy
 from aegis_quant.strategies.m5_vol_crush import VolTermStructureCrushStrategy
+from aegis_quant.strategies.m6_totm_flow import TurnOfTheMonthFlowStrategy
 
 __all__ = [
     "BaseStrategy",
@@ -24,4 +26,5 @@ __all__ = [
     "BearMarketShortStrategy",
     "CommodityBreakoutCTAStrategy",
     "VolTermStructureCrushStrategy",
+    "TurnOfTheMonthFlowStrategy",
 ]

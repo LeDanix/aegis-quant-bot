@@ -1,23 +1,24 @@
 /* ==========================================================================
-   Aegis-Quant | Institutional Mobile-First & Dark Mode Stylesheet
-   Optimized for 360px–430px Mobile Viewports (Tailscale) & Desktop Studio
+   Aegis-Quant | Institutional Mobile-First & Sober Matte Stylesheet
+   Default: Crisp Paper Light + Deep Forest Green (#065f46)
+   Dark Mode: Matte Neutral Graphite (#121514 / #191d1b) — Zero Glow / Neon
    ========================================================================== */
 
 :root {
-  --aq-bg: #f8fafc;
-  --aq-text: #0f172a;
+  --aq-bg: #f7f8f7;
+  --aq-text: #141816;
   --aq-panel-bg: #ffffff;
-  --aq-panel-border: #e2e8f0;
-  --aq-panel-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --aq-panel-border: #dfe4e1;
+  --aq-panel-shadow: 0 1px 2px 0 rgba(15, 20, 18, 0.04);
 }
 
 html.dark {
   color-scheme: dark;
-  --aq-bg: #0b1120;
-  --aq-text: #f1f5f9;
-  --aq-panel-bg: #111827;
-  --aq-panel-border: #1e293b;
-  --aq-panel-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.35);
+  --aq-bg: #121514;
+  --aq-text: #e5e9e7;
+  --aq-panel-bg: #191d1b;
+  --aq-panel-border: #2a302d;
+  --aq-panel-shadow: none;
 }
 
 html {
@@ -53,34 +54,72 @@ summary {
   -webkit-tap-highlight-color: transparent;
 }
 
+summary::-webkit-details-marker {
+  display: none;
+}
+
 /* Core Panel Surface */
 .panel {
   background-color: var(--aq-panel-bg);
   border: 1px solid var(--aq-panel-border);
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   box-shadow: var(--aq-panel-shadow);
 }
 
-/* Dark Mode Form Controls */
+/* Emergency Collapsible Drawer — Soft Light Red in Light Mode, Matte Burgundy in Dark Mode */
+.emergency-drawer {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #7f1d1d;
+  border-radius: 0.5rem;
+}
+
+html.dark .emergency-drawer {
+  background-color: #221717;
+  border-color: #3f2626;
+  color: #fca5a5;
+}
+
+/* Simulator Collapsible Drawer */
+.simulator-drawer {
+  background-color: #f7f8f7;
+  border: 1px solid #dfe4e1;
+  color: #2d3330;
+  border-radius: 0.5rem;
+}
+
+html.dark .simulator-drawer {
+  background-color: #202523;
+  border-color: #2d3330;
+  color: #d5dcd8;
+}
+
+/* Dark Mode Form Controls — Matte Charcoal (No Blue Navy, No Neon Focus Rings) */
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.dark select,
 html.dark textarea {
-  background-color: #0f172a;
-  border-color: #334155;
-  color: #f1f5f9;
+  background-color: #141816;
+  border-color: #2f3633;
+  color: #e5e9e7;
 }
 
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #64748b;
+  color: #6c7571;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #065f46;
 }
 
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
   outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  border-color: #4b8f75;
 }
 
 /* Desktop Main Navigation Active State */
@@ -91,41 +130,41 @@ html.dark textarea:focus {
 }
 
 html.dark .main-nav-btn.active {
-  background-color: #059669;
-  color: #ffffff;
-  border-color: #10b981;
+  background-color: #1f5c45;
+  color: #f1f5f3;
+  border-color: #2e7359;
 }
 
 /* Analytics Sub-Navigation Active State */
 .sub-nav-btn.active {
-  border-bottom: 2px solid #059669;
+  border-bottom: 2px solid #065f46;
   color: #065f46;
   font-weight: 600;
 }
 
 html.dark .sub-nav-btn.active {
-  border-bottom-color: #34d399;
-  color: #34d399;
+  border-bottom-color: #6ab095;
+  color: #88c4ad;
 }
 
 /* Mobile Pill Styling for 5 Analytics Subtabs */
 @media (max-width: 767.98px) {
   .sub-nav-btn {
-    border: 1px solid #e2e8f0;
-    border-radius: 9999px;
-    padding: 0.5rem 0.875rem !important;
+    border: 1px solid #dfe4e1;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.85rem !important;
     min-height: 40px;
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
     flex-shrink: 0;
-    background-color: #f8fafc;
+    background-color: #f7f8f7;
   }
 
   html.dark .sub-nav-btn {
-    border-color: #334155;
-    background-color: #0f172a;
-    color: #94a3b8;
+    border-color: #2d3330;
+    background-color: #141816;
+    color: #9ba39f;
   }
 
   .sub-nav-btn.active {
@@ -135,13 +174,13 @@ html.dark .sub-nav-btn.active {
   }
 
   html.dark .sub-nav-btn.active {
-    background-color: #059669 !important;
-    border-color: #10b981 !important;
-    color: #ffffff !important;
+    background-color: #1f5c45 !important;
+    border-color: #2e7359 !important;
+    color: #f1f5f3 !important;
   }
 }
 
-/* Mobile Bottom Navigation Bar */
+/* Mobile Safe Areas & Bottom Navigation Bar */
 .safe-top {
   padding-top: max(0.65rem, env(safe-area-inset-top));
 }
@@ -157,31 +196,30 @@ html.dark .sub-nav-btn.active {
 .mobile-bottom-btn {
   min-height: 54px;
   position: relative;
-  color: #64748b;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  color: #646d69;
+  transition: color 0.15s ease;
 }
 
 html.dark .mobile-bottom-btn {
-  color: #94a3b8;
+  color: #8f9894;
 }
 
 .mobile-bottom-btn.active {
-  color: #059669;
+  color: #065f46;
   font-weight: 700;
 }
 
 html.dark .mobile-bottom-btn.active {
-  color: #34d399;
+  color: #7ab8a0;
 }
 
 .mobile-bottom-btn.active::before {
   content: "";
   position: absolute;
   top: 0;
-  left: 24%;
-  right: 24%;
-  height: 2.5px;
-  border-radius: 0 0 4px 4px;
+  left: 26%;
+  right: 26%;
+  height: 2px;
   background-color: currentColor;
 }
 
@@ -201,7 +239,6 @@ html.dark .mobile-bottom-btn.active {
     padding-bottom: calc(5.25rem + env(safe-area-inset-bottom)) !important;
   }
 
-  /* Prevent iOS Safari auto-zoom on input focus (must be >= 16px) & enforce >=44px tap targets */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select,
   textarea {
@@ -217,7 +254,6 @@ html.dark .mobile-bottom-btn.active {
     min-height: 44px;
   }
 
-  /* Logical Sub-Group Filtering inside #main-view-control on Mobile only */
   #main-view-control [data-mobile-group] {
     display: none !important;
   }
@@ -239,13 +275,4 @@ html.dark .mobile-bottom-btn.active {
   #main-view-control[data-mobile-tab="sistema"] [data-mobile-group~="sistema"].mobile-flex:not(.hidden) {
     display: flex !important;
   }
-}
-
-/* Subtle Pulse Skeleton for Deferred 4MB Summary JSON */
-@keyframes aqPulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-.aq-skeleton {
-  animation: aqPulse 1.6s ease-in-out infinite;
 }

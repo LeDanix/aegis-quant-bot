@@ -1,12 +1,12 @@
 {
-  "name": "Aegis-Quant | Quantitative Trading Control",
+  "name": "Aegis-Quant | Control Cuantitativo",
   "short_name": "Aegis-Quant",
-  "description": "Mode 3 Élite Institutional Trading Control Center & Performance Analytics (5 Tactical Engines + VTS)",
+  "description": "Sistema Cuantitativo Modo 3 Élite (6 Motores Tácticos + Estructura VIX/VIX3M + Módulo Fiscal AEAT)",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0b1120",
+  "background_color": "#f7f8f7",
   "theme_color": "#065f46",
   "icons": [
     {

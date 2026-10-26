@@ -8,6 +8,7 @@ All strategy engines have been modularized into dedicated files:
   - BearMarketShortStrategy         -> aegis_quant.strategies.m3_bear_short
   - CommodityBreakoutCTAStrategy    -> aegis_quant.strategies.m4_cta_trend
   - VolTermStructureCrushStrategy   -> aegis_quant.strategies.m5_vol_crush
+  - TurnOfTheMonthFlowStrategy      -> aegis_quant.strategies.m6_totm_flow
 
 This file re-exports all strategy classes to preserve 100% backwards compatibility.
 """
@@ -18,6 +19,7 @@ from aegis_quant.strategies.m2_vix_divergence import SchermanVixDivergenceStrate
 from aegis_quant.strategies.m3_bear_short import BearMarketShortStrategy
 from aegis_quant.strategies.m4_cta_trend import CommodityBreakoutCTAStrategy
 from aegis_quant.strategies.m5_vol_crush import VolTermStructureCrushStrategy
+from aegis_quant.strategies.m6_totm_flow import TurnOfTheMonthFlowStrategy
 
 __all__ = [
     "BaseStrategy",
@@ -26,4 +28,5 @@ __all__ = [
     "BearMarketShortStrategy",
     "CommodityBreakoutCTAStrategy",
     "VolTermStructureCrushStrategy",
+    "TurnOfTheMonthFlowStrategy",
 ]

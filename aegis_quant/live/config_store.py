@@ -136,13 +136,14 @@ class BotConfigStore:
             "daily_kill_switch_dd_pct": -8.0,
             "schedule_time_cet": "21:55",
             "use_soyb_etf_for_zs": True,
-            # Interruptores individuales de los 5 motores
+            # Interruptores individuales de los 6 motores
             "enabled_motors": {
                 "M1_PULLBACK": True,
                 "M2_VIX_DIV": True,
                 "M3_BEAR_SHORT": True,
                 "M4_CTA_TREND": True,
                 "M5_VOL_CRUSH": True,
+                "M6_TOTM": True,
             },
             # Credenciales Alpaca Paper Trading (https://app.alpaca.markets)
             "alpaca_api_key": "",
@@ -202,6 +203,9 @@ class BotConfigStore:
             for k, v in defaults.items():
                 if k not in cfg:
                     cfg[k] = v
+            if isinstance(cfg.get("enabled_motors"), dict):
+                for mk, mv in defaults["enabled_motors"].items():
+                    cfg["enabled_motors"].setdefault(mk, mv)
             return cfg
 
     def update_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:

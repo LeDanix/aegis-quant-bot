@@ -2,7 +2,7 @@
 
 > **DOCUMENTO OFICIAL DEL REPOSITORIO — SISTEMA AEGIS-QUANT**  
 > *Destinatario: Operador del Sistema & Inversor Residente en España*  
-> *Última actualización: 25 de Octubre de 2026*
+> *Última actualización: 26 de Octubre de 2026*
 
 Este documento consolida de forma viva y permanente todas las dudas operativas, decisiones de arquitectura cuantitativa, marco legal y fiscal en España, y análisis de riesgo resueltos para el funcionamiento del bot en dinero real.
 
@@ -14,20 +14,21 @@ Este documento consolida de forma viva y permanente todas las dudas operativas, 
 En la Unión Europea y en España (supervisado por la CNMV), los brókers minoristas (incluido **Interactive Brokers**) tienen prohibido por ley permitir la compra directa de ETFs domiciliados en EE. UU. (`SPY`, `QQQ`, `GLD`, `TLT`, `USO`). Esto se debe a que la directiva **PRIIPs** exige que los emisores publiquen un folleto estandarizado denominado **KID (Key Information Document)** en el idioma local, algo que las gestoras norteamericanas no emiten para sus fondos domésticos.
 
 ### B. La Solución Oficial de Aegis-Quant: ETFs UCITS Europeos
-Para operar de forma 100% legal, líquida y sin trabas administrativas, el bot mapea los activos de referencia mundial a sus **equivalentes UCITS europeos**:
+Para operar de forma 100% legal, líquida y sin trabas administrativas desde España bajo la **Opción A (`Tradegate Exchange` en Euros)**, el bot mapea los activos de referencia mundial a sus **equivalentes UCITS europeos**:
 
-| Activo Modelo | Equivalente UCITS Elegido | Emisor / Gestora | Bolsa / Divisa | Patrimonio Gestionado (AUM) | Tipo de Réplica |
-| :--- | :--- | :--- | :--- | :---: | :---: |
-| **SPY** (S&P 500) | **`CSPX`** (USD) / **`SXR8`** (EUR) | BlackRock iShares | Xetra / Borsa Italiana / LSE | **> 85.000 Millones de €** | Física Directa (Acciones reales) |
-| **QQQ** (Nasdaq 100) | **`EQQQ`** (EUR/USD) / **`CSNDX`** | Invesco / BlackRock | Xetra / Borsa Italiana / LSE | **> 12.000 Millones de €** | Física Directa |
-| **GLD** (Oro Físico) | **`SGLD`** / **`4GLD`** | Invesco / Xetra-Gold | Xetra / Suiza / Borsa Italiana | **> 16.000 Millones de €** | Oro Físico en Bóveda |
-| **TLT** (Bonos 20+ Años)| **`DTLA`** / **`IDTL`** | BlackRock iShares | Xetra / LSE | **> 4.800 Millones de €** | Física Directa (Deuda Tesoro USA) |
-| **USO** (Petróleo WTI)| **`CRUD`** / **`OD7F`** | WisdomTree | Borsa Italiana / Xetra | **> 1.200 Millones de €** | Sintética con colateral de grado AAA |
-| **ZS** (Soja Agrícola) | **`SOYB`** / **`A0KRK2`** | WisdomTree | Xetra / Borsa Italiana | **> 40 Millones de €** | ETC regulado sobre contratos de futuros |
+| Activo Modelo | Equivalente UCITS Elegido | ISIN | Emisor / Gestora | Plaza / Divisa | Patrimonio Gestionado (AUM) | Tipo de Réplica |
+| :--- | :--- | :--- | :--- | :--- | :---: | :---: |
+| **SPY** (S&P 500) | **`SPYL`** (~14 €) / **`SXR8`** (~580 €) | `IE000XZSV718` / `IE00B5BMR087` | SPDR (TER 0,03%) / BlackRock iShares (0,07%) | Tradegate (`TGATE`) · EUR | **> 85.000 M€ (`SXR8`) / > 15.000 M€ (`SPYL`)** | Física Directa (Acumulación) |
+| **QQQ** (Nasdaq 100) | **`EQQQ`** / **`SXRV`** | `IE0032077012` | Invesco / BlackRock | Tradegate (`TGATE`) · EUR | **> 12.000 Millones de €** | Física Directa |
+| **GLD** (Oro Físico) | **`4GLD`** / **`SGLD`** | `DE000A0S9GB0` / `IE00B579F325` | Xetra-Gold / Invesco | Tradegate (`TGATE`) · EUR | **> 16.000 Millones de €** | Oro Físico en Bóveda |
+| **TLT** (Bonos 20+ Años) | **`DTLA`** | `IE00BFM6TC58` | BlackRock iShares | Tradegate (`TGATE`) · EUR | **> 4.800 Millones de €** | Física Directa (Deuda Tesoro USA, Acc) |
+| **USO** (Petróleo WTI) | **`CRUD`** / **`OD7F`** | `GB00B15KXV33` | WisdomTree | Tradegate (`TGATE`) · EUR | **> 1.200 Millones de €** | Sintética con colateral AAA |
+| **ZS** (Soja Agrícola) | **`SOYB`** / **`OD7Z`** | `GB00B15KY211` | WisdomTree | Tradegate (`TGATE`) · EUR | **> 40 Millones de €** | ETC regulado sobre futuros |
+| **SPY Corto (`M3`)** | **`DXS3`** (-1x Diario) | `LU0322251520` | Xtrackers (DWS) | Tradegate (`TGATE`) · EUR | **> 180 Millones de €** | Swap UCITS Inverso -1x (Sin margen) |
 
 ### C. Solvencia y Fiabilidad de los ETFs UCITS
-1. **Seguridad Patrimonial (UCITS V):** Los activos no están en el balance de la gestora (BlackRock o Invesco), sino segregados en bancos custodios independientes (State Street / BNY Mellon). En caso de quiebra del bróker o de la gestora, los títulos pertenecen al inversor.
-2. **Liquidez Institucional:** Fondos como `CSPX/SXR8` mueven más de 100 millones de euros diarios, garantizando horquillas de compra-venta (*spreads*) de tan solo 1 o 2 céntimos (~0.01% - 0.02%).
+1. **Seguridad Patrimonial (UCITS V):** Los activos no están en el balance de la gestora (BlackRock, SPDR o Invesco), sino segregados en bancos custodios independientes (State Street / BNY Mellon). En caso de quiebra del bróker o de la gestora, los títulos pertenecen al inversor.
+2. **Liquidez Institucional:** Fondos como `SXR8` y `SPYL` mueven decenas de millones de euros diarios en horario europeo y americano, garantizando horquillas ajustadas.
 3. **Optimización por Acumulación:** Al ser ETFs de **acumulación**, los dividendos se reinvierten internamente sin sufrir la retención del 15% en EE. UU. ni el 19% en España, maximizando el interés compuesto.
 
 ---
@@ -62,37 +63,37 @@ Si en un ejercicio fiscal el bot experimentase un año negativo:
 Transferir fondos desde Interactive Brokers a tu cuenta bancaria personal en España (BBVA, Santander, etc.) es un simple movimiento entre cuentas propias: **no tributa de nuevo ni se declara como un nuevo ingreso**.
 
 ### E. Declaraciones Informativas: El Modelo 720
-Interactive Brokers opera para clientes de la UE a través de su filial europea (**IBKR Ireland - IBIE** o **IBKR Central Europe**).  
-Si el saldo o valor de los valores depositados en el extranjero supera los **50.000 € a 31 de diciembre**, la ley española exige presentar el **Modelo 720** (declaración meramente informativa antes del 31 de marzo, sin coste impositivo).
+Interactive Brokers opera para clientes de la UE a través de su filial europea (**IBKR Ireland - IBIE**).  
+Si el saldo a 31 de diciembre o el saldo medio del cuarto trimestre de los valores depositados en el extranjero supera los **50.000 €**, la ley española exige presentar el **Modelo 720** (declaración meramente informativa entre el 1 de enero y el 31 de marzo, sin coste impositivo).
 
 ---
 
-## 3. Costes Operacionales Reales y Cascada de Rentabilidad (2007–2026)
+## 3. Costes Operacionales Reales y Cascada de Rentabilidad (6 Motores · 2007–2026)
 
 ### A. Desglose de Gastos Operacionales en Interactive Brokers
-1. **Comisión de Bróker (Tarifa *Tiered*):** 0.05% por orden (mínimo de ~1.25 € a 2.00 €).
-2. **Deslizamiento (*Slippage* / *Bid-Ask Spread*):** ~0.02% en ETFs ultra-líquidos.
-3. **TER del ETF:** ~0.10% medio ponderado anual (descontado de forma invisible del NAV).
+1. **Comisión de Bróker (Tarifa *Tiered*):** 0,05% por orden (mínimo de ~1,25 € a 2,00 € en Europa).
+2. **Deslizamiento (*Slippage* / *Bid-Ask Spread*):** ~0,02%–0,05% operando con órdenes limitadas en horario coincidente con Wall Street.
+3. **TER del ETF:** ~0,10% medio ponderado anual (descontado internamente del valor liquidativo; `0,03%` en `SPYL`).
 4. **Custodia y Mantenimiento:** **0,00 €** (IBKR no cobra comisiones de custodia ni de inactividad).
 
-### B. Cascada Auditada de Rendimiento Real (Capital Inicial: $10,000 | 2007–2026)
+### B. Cascada Auditada de Rendimiento Real — Modo 3 Élite con 6 Motores ($10,000 | 2007–2026)
 
 ```text
 Capital Inicial (2007)                                       : $10,000.00
-  ├── Retorno Bruto del Algoritmo (18.15% CAGR)              : $281,068.69 (+2,710.69%)
+  ├── Retorno Bruto del Algoritmo (19.54% CAGR · 780 trades) : $341,057.69 (+3,310.58%)
   │
-  ├── (-) Costes Operacionales (Comisiones + Spread + TER)   : -$5,165.87 (-0.65% CAGR)
-  │    └── Capital Neto Operacional                          : $251,722.68 (+2,417.23% | 17.50% CAGR)
+  ├── (-) Costes Operacionales (Comisiones + Spread + TER)   : -$6,083.93 (-0.70% CAGR)
+  │    └── Capital Neto Operacional                          : $303,668.08 (+2,936.68% | 18.84% CAGR)
   │
-  ├── (-) Impuestos IRPF España (Base del Ahorro año a año)  : -$32,908.41 (-3.35% CAGR)
+  ├── (-) Impuestos IRPF España (Base del Ahorro año a año)  : -$39,087.84 (-3.63% CAGR)
   │
-  └── (=) CAPITAL FINAL NETO EN TU BOLSILLO                  : $141,077.59 (+1,310.78% | 14.15% CAGR)
+  └── (=) CAPITAL FINAL NETO EN TU BOLSILLO                  : $164,521.64 (+1,545.22% | 15.21% CAGR)
 ```
 
 **Comparativa frente al S&P 500 Buy & Hold:**
-- **S&P 500 Bruto:** $54,685.58 (8.97% CAGR)
-- **S&P 500 Neto tras IRPF al liquidar:** **$45,421.61** (7.98% CAGR)
-- **Ventaja Patrimonial Neta:** **3.11 veces más capital limpio en tu bolsillo** que la inversión pasiva tradicional, habiendo batido las 4 grandes crisis de las últimas dos décadas.
+- **S&P 500 Bruto:** $53,757.52 (8.88% CAGR | -56.47% MaxDD)
+- **S&P 500 Neto tras TER (0,07%) e IRPF único al liquidar:** **$44,104.42**
+- **Ventaja Patrimonial Neta:** **3,73 veces más capital limpio en tu bolsillo** que la inversión pasiva tradicional, reduciendo la caída máxima a la cuarta parte (`-14,86%` frente a `-56,47%`).
 
 ---
 
@@ -100,9 +101,9 @@ Capital Inicial (2007)                                       : $10,000.00
 
 ### A. Comparativa de Estrategias
 - **Estrategia A (Dejar el dinero reinvertido — Recomendada):**  
-  Aprovecha el crecimiento exponencial del interés compuesto. Al reinvertir el capital neto tras pagar impuestos, la base operativa crece anualmente ($10k $\rightarrow$ $11.7k $\rightarrow$ $15.3k $\rightarrow$ ... $\rightarrow$ **$141,077**).
+  Aprovecha el crecimiento exponencial del interés compuesto. Al reinvertir el capital neto tras pagar impuestos, la base operativa crece anualmente ($10k $\rightarrow$ $12k $\rightarrow$ $16k $\rightarrow$ ... $\rightarrow$ **$164,521**).
 - **Estrategia B (Retirar las ganancias cada año):**  
-  El bot opera perpetuamente sobre la base fija de $10,000. Retiras entre 1.500 € y 2.500 € al año para gastos personales. Tras 20 años habrás cobrado unos 35.000 € en rentas, pero habrás renunciado a tener una cartera de más de 140.000 €.
+  El bot opera perpetuamente sobre la base fija de $10,000. Retiras entre 1.500 € y 2.500 € al año para gastos personales, pero renuncias a construir un patrimonio superior a los 160.000 $.
 
 ### B. La Regla de Oro Institucional (Plan de Dos Fases)
 1. **Fase de Acumulación (Años 1 al 5-7):** No retirar dinero. Dejar que la cartera supere el umbral de los **50.000 € - 100.000 €**.
@@ -113,7 +114,7 @@ Capital Inicial (2007)                                       : $10,000.00
 ## 5. Análisis Cuantitativo de Apalancamiento y Modelos de Futuros x3
 
 ### A. La Pregunta del Millón: ¿Qué pasaría si usamos un multiplicador x3 en futuros?
-A nivel intuitivo, parece tentador pensar que multiplicar por 3 el rendimiento convertiría un 18% anual en un 54% anual. Sin embargo, en matemáticas financieras esto es una **trampa mortal** debido a dos fenómenos destructivos:
+A nivel intuitivo, parece tentador pensar que multiplicar por 3 el rendimiento convertiría un 19% anual en un 57% anual. Sin embargo, en matemáticas financieras esto es una **trampa mortal** debido a dos fenómenos destructivos:
 
 ### B. El Fenómeno del Decaimiento por Volatilidad (*Volatility Drag / Beta Decay*)
 Los productos o futuros con apalancamiento estático sufren una erosión geométrica matemática inevitable cuando el mercado oscila:
@@ -124,80 +125,97 @@ Los productos o futuros con apalancamiento estático sufren una erosión geomét
   - Un modelo con apalancamiento x3 estático:
     - Día 1: Cae un $-30\%$ ($100 \times 0.70 = 70$).
     - Día 2: Sube un $+33.33\%$ ($70 \times 1.3333 = 93.33$).
-    - **¡El mercado no ha perdido nada y tú has perdido un -6.67% de tu dinero en 48 horas!**
-
-En mercados laterales o volátiles, este decaimiento actúa como un impuesto invisible que drena el capital de forma irreversible.
+    - **El mercado no ha perdido nada y tú has perdido un -6.67% de tu dinero en 48 horas.**
 
 ### C. El Riesgo de Ruina Absoluta (*Drawdown Trap*)
 - Para recuperar una caída del **-20%**, necesitas ganar un **+25%**.
 - Para recuperar una caída del **-50%**, necesitas ganar un **+100%**.
 - Para recuperar una caída del **-80%**, necesitas ganar un **+400%**.
-- **Si el mercado cae un -33.4%:**
-  - Con apalancamiento x3: $-33.4\% \times 3 = -100.2\%$. **Tu cuenta quiebra a 0 € y quedas liquidado permanentemente.**
-  - En la crisis de 2008 el S&P 500 cayó un **-56%** y en el Crash COVID de 2020 cayó un **-35%**. Un modelo x3 estático habría quebrado dos veces en los últimos 20 años.
+- **Si el mercado cae un -33.4%:** con apalancamiento x3 ($-33.4\% \times 3 = -100.2\%$), **la cuenta quiebra a 0 €**. En 2008 el S&P 500 cayó un `-56%` y en marzo de 2020 un `-35%`.
 
 ### D. Llamadas de Margen (*Margin Calls*) en Interactive Brokers
-Si operas futuros apalancados (`MES`, `MNQ`) y tu capital cae por debajo del margen de mantenimiento exigido por la cámara de compensación, el algoritmo de riesgo de IBKR **ejecuta una liquidación forzosa automática en el peor momento posible (en el mínimo del pánico)**, materializando pérdidas irrecuperables.
+Si operas futuros apalancados (`MES`, `MNQ`) y tu capital cae por debajo del margen de mantenimiento exigido por la cámara de compensación, el algoritmo de riesgo de IBKR ejecuta una liquidación forzosa automática en el mínimo del pánico, materializando pérdidas irrecuperables.
 
-### E. La Solución Científica de Aegis-Quant: Apalancamiento Variable (Meta-Kelly & VolTarget)
-Aegis-Quant no utiliza apalancamiento estático x3, sino **apalancamiento dinámico e inteligente**:
-1. **Regímenes de Calma Chicha (VIX < 13):** Cuando el riesgo sistémico es mínimo, el motor eleva la convicción hasta **1.25x - 1.35x** para acelerar el crecimiento.
-2. **Regímenes de Pánico (VIX > 25 o VTS en Backwardation):** El tamaño de posición se reduce drásticamente (a **0.3x o 0% a liquidez**), esquivando el colapso.
+### E. La Solución Científica de Aegis-Quant: Exposición Adaptativa sin Deuda
+Aegis-Quant opera con tope máximo de exposición del **100% del capital en efectivo** (0% deuda): en regímenes de calma (`Contango`, `VIX < VIX3M`) asigna el capital entre el núcleo Dual-Momentum y oportunidades tácticas; en regímenes de pánico (`Backwardation`, `VIX >= VIX3M`) vacía el núcleo alcista a liquidez y solo activa motores tácticos de alta convicción.
 
 ---
 
-## 6. Desfase Horario Europa vs Wall Street (Problema #4 de Auditoría): ¿Qué Supone Cada Opción?
+## 6. Desfase Horario Europa vs Wall Street y Guía Completa de la Opción A (`Tradegate`)
 
-### El Problema Operativo Real
-Las bolsas principales europeas (**XETRA** en Fráncfort, **Borsa Italiana**, **LSE**) donde cotizan los ETFs UCITS (`SXR8`/`CSPX`, `EQQQ`, `4GLD`, `DTLA`, `CRUD`) **cierran a las 17:30 CET** (11:30 AM en Nueva York). Sin embargo, el escáner del bot evalúa el cierre estadounidense a las **21:55 CET (15:55 NY)**. Si lanzas una orden a XETRA a las 21:55 CET, queda retenida hasta las 09:00 CET del día siguiente (sufriendo *gap* nocturno).
+### A. El Problema Operativo Real
+Las bolsas principales europeas (**XETRA** en Fráncfort, **Borsa Italiana**, **LSE**) donde cotizan los ETFs UCITS **cierran a las 17:30 CET** (11:30 AM en Nueva York). Sin embargo, el escáner del bot evalúa el cierre estadounidense a las **21:55 CET (15:55 NY)**. Si lanzas una orden a XETRA a las 21:55 CET, queda retenida hasta las 09:00 CET del día siguiente (sufriendo *gap* nocturno).
 
-### Comparativa Detallada de Opciones en Interactive Brokers (España)
+### B. Comparativa de Opciones Evaluadas y Decisión Adoptada: **Opción A (`Tradegate`)**
 
-| Criterio | Opción A: **Tradegate / Gettex** (ETFs UCITS en Horario Extendido) | Opción B: **Micro-Futuros CME** (`MES` S&P 500 / `MNQ` Nasdaq) |
+| Criterio | **Opción A Adoptada: Tradegate (`TGATE`)** — ETFs UCITS en Horario Extendido | Opción B Descartada: Micro-Futuros CME (`MES` / `MNQ`) |
 | :--- | :--- | :--- |
-| **Horario de negociación** | **08:00 a 22:00 CET** (cubre las 21:55 CET y las 20:55 CET en semanas DST). | **23 horas al día** (00:00 a 23:00 CET) directo en EE. UU. |
-| **Vehículo que compras** | **Exactamente los mismos ETFs UCITS** (`SXR8`, `EQQQ`, `4GLD`) en Euros, sin deuda ni derivados. | Contratos de derivados con liquidación diaria de pérdidas y ganancias (*mark-to-market*). |
-| **Capital mínimo necesario** | **Cualquier capital (ej. 5.000 € – 10.000 €)**. Permite ajustar pesos exactos (55%, 85%, 15%) con participaciones o fracciones. | **Muy exigente para evitar apalancamiento**: 1 solo contrato `MES` equivale a $5 × S&P 500 ≈ **29.000 $ – 38.000 $** de valor nocional. Con 10.000 € estarías apalancado ~x3 forzosamente y no puedes comprar "medio contrato". |
-| **Coste / Horquilla (Spread)** | Comisión IBKR ~1,25 €–3 €; horquilla entre 17:30 y 22:00 CET sube ligeramente de `0,02%` a **`0,05%–0,10%`** (órdenes limitadas obligatorias). | Comisión mínima (~0,60 $ por contrato) y horquilla casi nula (`0,004%`). |
-| **Gestión y Fiscalidad IRPF** | **Simple**: mientras mantienes el Core (`SXR8`) meses seguidos, **0 eventos fiscales** y 0 gestiones. | **Compleja (Roll-over trimestral)**: los futuros caducan cada 3 meses (marzo, junio, septiembre, diciembre). Hay que vender el contrato viejo y comprar el nuevo 4 veces al año, aflorando impuestos cada trimestre aunque no toques la posición. |
-| **Veredicto Recomendado** | **OPCIÓN RECOMENDADA para cuentas < 60.000 € – 100.000 €**: mantiene 0% apalancamiento, simplicidad fiscal y permite operar a las 21:55 CET usando órdenes *Limit* en Tradegate (`TGATE` en IBKR). | Solo recomendable a partir de capitales elevados (> 80.000 €) o exclusivamente para el **Motor 3 (Corto en Crisis)**, donde vender un futuro `MES` es más limpio que tomar acciones prestadas. |
+| **Horario de negociación** | **08:00 a 22:00 CET** (cubre las 21:55 CET y las 20:55 CET en semanas DST). | 23 horas al día (00:00 a 23:00 CET) en EE. UU. |
+| **Vehículo que compras** | **ETFs UCITS al contado** (`SPYL`/`SXR8`, `EQQQ`, `4GLD`, `DTLA`, `CRUD`, `SOYB`) en Euros, sin deuda ni margen. | Derivados con liquidación diaria de pérdidas y ganancias (*mark-to-market*). |
+| **Capital mínimo sin apalancamiento** | **Cualquier capital (ej. 5.000 € – 10.000 €)** ajustando pesos exactos. | Exige > 60.000 € – 80.000 € (1 solo contrato `MES` mueve ~30.000 $–38.000 $ nocionales). |
+| **Coste / Horquilla** | Comisión IBKR Tiered ~1,25 €–2,50 €; horquilla vespertina `0,04%–0,08%` acotada con orden `Limit`. | Comisión ~0,60 $ y horquilla mínima, pero coste fiscal trimestral. |
+| **Fiscalidad IRPF** | **Óptima**: 0 eventos fiscales mientras se mantiene el Core meses seguidos. | **Penalizada**: vencimiento trimestral obligatorio (4 ventas/año aflorando IRPF). |
+
+### C. Checklist Operativo: Todo lo que Debes Tener en Cuenta para Operar con la Opción A (`Tradegate`)
+
+Al dar el salto a cuenta real en **Interactive Brokers (IBKR Ireland)** con la **Opción A**, ten presentes estos **6 puntos críticos**:
+
+1. **Prohibido usar Órdenes a Mercado (`Market`) — Usar siempre Órdenes Limitadas (`Limit`):**
+   - Entre las `17:30 CET` y las `22:00 CET`, XETRA está cerrado y la liquidez la proveen los creadores de mercado (*Market Makers*) de **Tradegate Exchange**.
+   - Nunca envíes una orden `Market` a las `21:55 CET`, ya que un pico puntual de horquilla podría ejecutarse peor de lo debido. Toda orden debe enviarse como **`Limit`**, con vigencia **`DAY`** (para que si no se cruza antes de las `22:00 CET` se cancele limpia y no quede colgada para el día siguiente) y un **colchón máximo de precio del `0,08%`** sobre la cotización actual (`Ask` en compras / `Bid` en ventas).
+2. **Permisos de Negociación y Enrutamiento en Interactive Brokers (`TGATE`):**
+   - En el portal de cliente de Interactive Brokers (*Settings -> Trading Permissions -> Stocks*), debes activar permisos para **Alemania (`Germany`)** (que habilita XETRA, Tradegate y Gettex) y elegir el plan de comisiones **IBKR Tiered** (más barato que *Fixed* para órdenes europeas de importe pequeño/medio).
+   - Al enviar órdenes por API a las `21:55 CET`, el destino (`Exchange`) debe fijarse explícitamente en **`TGATE`** (o `SMART` con permiso de ejecución fuera del mercado primario), **nunca en `IBIS` (XETRA)**, porque `IBIS` dejaría la orden dormida hasta las `09:00 CET` de la mañana siguiente.
+   - Para no pagar suscripción mensual de datos en tiempo real de bolsa alemana, el bot calcula la señal sobre la serie oficial gratuita de EE. UU. y traduce el precio objetivo al equivalente en Euros aplicando el tipo de cambio EUR/USD en tiempo real.
+3. **Operativa Directa en Euros (`EUR`) = Cero Comisiones por Cambio de Divisa:**
+   - Todos los equivalentes elegidos en Tradegate cotizan directamente en **Euros (`EUR`)**.
+   - Aunque el activo subyacente sea estadounidense (S&P 500, Nasdaq 100 o Bonos del Tesoro USA), el propio ETF convierte internamente los dólares a tipo interbancario institucional (`~0,002%`). Así te ahorras pagar la comisión mínima de `2,00 $` por conversión de divisa EUR/USD en IBKR en cada operación.
+4. **Truco de Precisión con Participaciones Enteras: Preferir `SPYL` (~14 €) frente a `SXR8` (~580 €):**
+   - En centros europeos alternativos como `TGATE` y en órdenes limitadas de última hora, Interactive Brokers **solo admite participaciones enteras** (no fracciones de acción).
+   - `SXR8` cotiza alrededor de **~580 € por participación** (en una cuenta de `10.000 €`, cada acción representa un salto del `5,8%`).
+   - En cambio, **`SPYL`** (*SPDR S&P 500 UCITS ETF Acc*, ISIN `IE000XZSV718`, gestionado por State Street con más de `15.000 millones €` de patrimonio) replica exactamente el mismo S&P 500 de acumulación, tiene una comisión anual aún menor (**TER `0,03%`** frente a `0,07%` de `SXR8`) y cotiza a **~14 € por participación**, permitiendo clavar cualquier porcentaje de cartera con precisión del `0,14%` usando acciones enteras.
+5. **Ventana de Ejecución (`21:55 CET`) y Cierre Estricto (`22:00:00 CET`):**
+   - El mejor tramo de liquidez en Tradegate es de **`15:30 CET` a `22:00 CET`**, porque Wall Street está abierto simultáneamente y los creadores de mercado arbitran el ETF europeo contra el futuro americano en tiempo real.
+   - Tradegate cierra de forma estricta a las **`22:00:00 CET`**. Como el bot escanea a las **`21:55 CET`** (`15:55 NY`), dispone de **5 minutos completos** para cruzar las órdenes limitadas (y de **65 minutos** en las semanas de marzo/octubre con desfase DST donde `15:55 NY` equivale a las `20:55 CET`). Es fundamental mantener activo `systemd-timesyncd` / NTP en el servidor Linux para que el reloj nunca tenga deriva.
+6. **Cómo Ejecutar los Cortos del Motor 3 (`M3_BEAR_SHORT`) sin Préstamo ni Margen:**
+   - Ponerse corto tomando prestadas participaciones de un ETF europeo a las `21:55 CET` en Tradegate tiene poca disponibilidad de préstamo y requiere cuenta de margen (*Margin Account*).
+   - Con la Opción A, cuando `M3_BEAR_SHORT` dispara una operación bajista táctica (duración media de **3 a 5 sesiones**), se ejecuta como una simple **compra al contado (`BUY Limit`)** del ETF UCITS inverso diario **`DXS3`** (*Xtrackers S&P 500 Inverse Daily Swap UCITS ETF -1x*, ISIN `LU0322251520`). Al no tener apalancamiento x3 (es `-1x` diario) y mantenerse solo unos pocos días, no sufre erosión significativa y funciona en una cuenta normal de efectivo (*Cash Account*) sin riesgo de *margin call*.
 
 ---
 
-## 7. Evaluación Empírica (2007–2026) de los Nuevos Motores Propuestos (M6 a M9)
+## 7. Evaluación Empírica (2007–2026) y Promoción del Sexto Motor (`M6_TOTM`)
 
-Para comprobar científicamente si añadir los 4 módulos propuestos en la auditoría (`docs/AUDIT_AND_PROPOSALS.md`) mejora de verdad la rentabilidad o si sobrefiltra el sistema, se ha construido el módulo reproducible [`aegis_quant/research/evaluate_audit_proposals.py`](aegis_quant/research/evaluate_audit_proposals.py) probándolos con datos reales de Yahoo Finance (`HYG`, `LQD`, `RSP`, `SPY`, `QQQ`, `VIX`, `VIX3M`, `GLD`, `TLT`, `USO`, `ZS`) entre **2007 y 2026** sobre **$10,000 iniciales**:
+### A. Comparativa de Candidatos Propuestos en Auditoría (`evaluate_audit_proposals.py`)
+Se evaluaron empíricamente entre **2007 y 2026** sobre **$10,000 iniciales** los 4 módulos candidatos propuestos en `docs/AUDIT_AND_PROPOSALS.md`:
 
 | Arquitectura Evaluada (2007–2026) | Capital Final | CAGR Anual | Max Drawdown | Sharpe | Sortino | Calmar | Nº Trades | Conclusión Empírica |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **0. Baseline: Modo 3 Élite Actual (M1–M5)** | **$281,092** | **18,38%** | -15,02% | 1,59 | 2,89 | 1,22 | 725 | Referencia actual auditada. |
-| **1. + M6 Spread Crédito (`HYG/LQD`)** | $190,211 | 16,07% | -17,92% | 1,42 | 2,59 | 0,90 | 664 | **DESCARTADO (-$90.881)**: Bloquea los mejores rebotes de M1/M2 y duplica lo que ya detecta `VIX/VIX3M`. |
-| **2. + M7 Turn-of-the-Month (Solo Filtro)** | **$289,648** | **18,56%** | -15,14% | 1,59 | 2,90 | 1,23 | 725 | **MEJORA (+$8.556)**: Refuerza convicción en los 5 días de flujos de pensiones/nóminas de fin de mes. |
-| **3. + M7 TOTM (Motor Táctico + Overlay)** | **$346,015** | **19,63%** | **-14,86%** | **1,62** | **3,08** | **1,32** | 780 | **ÚNICO GANADOR CLARO (+$64.923 y menor caída)**: Consistente en ambas décadas (73,1% acierto 2007–16 y 63,9% en 2017–26) con solo ~2,7 operaciones extra/año. |
-| **4. + M8 Prima Varianza (`VRP`)** | $256,682 | 17,84% | -14,67% | 1,56 | 2,84 | 1,22 | 724 | **DESCARTADO**: Reduce -0,35% el drawdown pero cuesta -$24.410 porque `VolTarget` ya regula la volatilidad realizada. |
-| **5. + M9 Amplitud (`RSP/SPY`)** | $265,759 | 18,05% | -15,02% | 1,58 | 2,88 | 1,20 | 725 | **DESCARTADO (-$15.333)**: En mercados liderados por tecnológicas (2017–2025), recorta exposición demasiado pronto. |
-| **6. Combo Completo Filtros (M6+M7+M8+M9)** | $171,100 | 15,45% | -17,61% | 1,39 | 2,53 | 0,88 | 663 | **DESCARTADO**: Ejemplo clásico de *sobre-filtrado* defensivo. |
+| **0. Baseline 5 Motores (`M1–M5`)** | $277,065 | 18,29% | -15,02% | 1,58 | 2,88 | 1,22 | 700 | Referencia previa de 5 motores. |
+| **1. + Spread Crédito (`HYG/LQD`)** | $190,211 | 16,07% | -17,92% | 1,42 | 2,59 | 0,90 | 664 | **DESCARTADO**: Sobrefiltra rebotes de M1/M2 y duplica `VIX/VIX3M`. |
+| **2. + Prima Varianza (`VRP`)** | $256,682 | 17,84% | -14,67% | 1,56 | 2,84 | 1,22 | 724 | **DESCARTADO**: Duplica el control que ya realiza `VolTarget`. |
+| **3. + Amplitud (`RSP/SPY`)** | $265,759 | 18,05% | -15,02% | 1,58 | 2,88 | 1,20 | 725 | **DESCARTADO**: Recorta exposición prematuramente en ciclos tecnológicos. |
+| **4. Modo 3 Élite Producción (`M1–M6` con `M6_TOTM`)** | **$341,058** | **19,54%** | **-14,86%** | **1,61** | **3,06** | **1,31** | **780** | **PROMOCIONADO A PRODUCCIÓN (+$63.993 y menor caída)**. |
 
-> [!TIP]
-> **Lección Cuantitativa Clave:** Más indicadores no equivalen a más dinero. Los filtros defensivos M6, M8 y M9 miden el mismo miedo macro que **ya captura de forma más rápida la estructura `VIX/VIX3M`** del Modo 3 Élite. En cambio, **M7 (Turn-of-the-Month)** aporta una fuente de rentabilidad **ortogonal** (flujos automáticos de liquidez de fin/inicio de mes), mejorando tanto el CAGR (`18,38% -> 19,63%`) como el Drawdown (`-15,02% -> -14,86%`).
+### B. Prueba de Ablación (*Leave-One-Out*) y Análisis de No-Confrontación (`M1–M6`)
+Antes de decidir si `M6_TOTM` debía **añadirse como sexto motor** o **sustituir** a alguno de los cinco anteriores, se auditó qué ocurre al apagar individualmente cada motor entre 2007 y 2026:
+- ** Cero colisión destructiva:** `M6_TOTM` opera exclusivamente en los últimos 2 días hábiles del mes bajo `Contango` cuando existe debilidad moderada (`RSI(2) < 35`) sin requerir sobreventa extrema (`RSI(2) < 10`). Cuando coincide con `M1_PULLBACK`, actúa en la misma dirección alcista con prioridad ordenada; nunca colisiona con `M3_BEAR_SHORT` (que exige mercado bajista bajo `SMA200`) ni con `M4_CTA_TREND` (que usa el slot independiente de activos refugio).
+- **Todos los motores existentes suman valor:** Apagar `M1` reduce el capital final en `-$149k`; apagar `M4` cuesta `-$189k`; apagar `M5` cuesta `-$31k`; apagar `M2` cuesta `-$8k`; y apagar `M3` deteriora la protección en las crisis seculares de 2008 y 2022 (`+16,30%` de retorno acumulado en desplomes).
+- **Conclusión de Arquitectura:** Se mantienen íntegros `M1` a `M5` y se incorpora oficialmente **`M6_TOTM` (`TurnOfTheMonthFlowStrategy`)** como **sexto motor táctico** en todo el sistema (`aegis_engine.py`, `bot_controller.py`, simulador e interfaz web).
 
 ---
 
-## 8. ¿Qué es el "Módulo Fiscal Automático" para España? (Explicación Sencilla)
+## 8. Módulo Fiscal Automático AEAT / IRPF (Arquitectura en Producción)
 
-Mientras operamos en **Paper Trading (dinero virtual)** no existe **ninguna** obligación con Hacienda. Esta herramienta solo entra en juego el día que conectes dinero real en Interactive Brokers (`IBKR`):
+El sistema incluye en producción el paquete [`aegis_quant/tax/spanish_tax_engine.py`](aegis_quant/tax/spanish_tax_engine.py), expuesto en los endpoints `GET /api/tax/live-audit` y `GET /api/tax/export.csv` e integrado visualmente en la pestaña **`5. Fiscalidad España (IRPF)`**:
 
-### ¿Por qué hace falta si ya tienes extractos del bróker?
-Un banco español (ej. MyInvestor, Renta 4) envía automáticamente tus datos fiscales a la Agencia Tributaria para que salgan ya rellenos en tu borrador de la Renta. **Interactive Brokers (domiciliado en Irlanda) NO envía datos automáticos al borrador español** y te entrega un extracto bruto en inglés/dólares. Al hacer la Declaración de la Renta en primavera, Hacienda exige cumplir **4 reglas exactas**:
-
-1. **Conversión al Euro con el cambio oficial del BCE de cada día:**  
-   Si compras en dólares el 12 de marzo y vendes el 18 de marzo, Hacienda no te deja usar el cambio dólar/euro de diciembre; exige convertir el precio de compra al cambio oficial del Banco Central Europeo del 12 de marzo y la venta al cambio del 18 de marzo.
-2. **Regla FIFO obligatoria (*First-In, First-Out*):**  
-   Si el bot compró participaciones de `CSPX` en enero a 500 € y otra tanda en abril a 530 €, y en mayo vende la mitad, la ley obliga a calcular la ganancia contra las más antiguas (las de 500 €), no contra el precio medio.
-3. **Regla Antiaplicación de los "2 Meses" (Muy importante en bots automáticos):**  
-   En España, si cierras una operación en un ETF con pérdidas (por ejemplo, `-150 €` en `SXR8`) y el bot **vuelve a comprar ese mismo ETF antes de que pasen 2 meses**, Hacienda **bloquea temporalmente esa pérdida**: no te deja restar esos `-150 €` de tus ganancias de ese año hasta que pases 2 meses seguidos sin recomprar esas participaciones. Si no llevas esa cuenta, puedes deducirte pérdidas por error y recibir un requerimiento de la AEAT.
-4. **Informe listo para copiar en Renta WEB + Aviso Modelo 720:**  
-   El Módulo Fiscal Automático toma el libro contable del bot (`ledger_real_trades.jsonl`), aplica automáticamente las 3 reglas anteriores y te genera una tabla anual en Euros lista para copiar en la casilla de *Ganancias y pérdidas patrimoniales* de Renta WEB, además de avisarte si tu saldo en Interactive Brokers supera los **50.000 €** (umbral a partir del cual hay que presentar el **Modelo 720**, meramente informativo y sin pagar impuestos extra).
+1. **Conversión Oficial Diaria EUR/USD del BCE (`ECBExchangeRateProvider`):**  
+   Cada ejecución en el libro contable (`ledger_paper_trades.jsonl` y `ledger_real_trades.jsonl`) registra su ISIN UCITS homogéneo y el tipo de cambio EUR/USD del Banco Central Europeo de su fecha exacta, calculando de forma independiente el valor de adquisición en Euros el día de la compra y el valor de transmisión en Euros el día de la venta (Consulta Vinculante DGT `V1097-19`).
+2. **Emparejamiento Estricto FIFO por ISIN Homogéneo (`Art. 37.2 LIRPF`):**  
+   Agrupa todas las compras y ventas por código ISIN (`IE00B5BMR087` / `IE000XZSV718`, `IE0032077012`, `IE00B579F325`, `IE00BFM6TC58`, `GB00B15KXV33`, `GB00B15KY211`, `LU0322251520`), consumiendo siempre las participaciones más antiguas e incorporando las comisiones de bróker al precio de adquisición/transmisión.
+3. **Detector Automático de la Regla Antiaplicación de los 2 Meses (`Art. 33.5.f LIRPF`):**  
+   Analiza la ventana de **$\pm 60$ días naturales** alrededor de cada venta con pérdida. Si el bot recompra el mismo ISIN antes de 60 días (o conserva lotes comprados en los 60 días previos), marca automáticamente la minusvalía como **Diferida 2M**, excluyéndola de la base imponible de ese año hasta que el ISIN quede liquidado a cero durante más de 60 días, y muestra un aviso activo en pantalla con la fecha exacta de desbloqueo.
+4. **Cuota Progresiva del Ahorro, Casillas Renta WEB y Vigilancia del Modelo 720:**  
+   Calcula en tiempo real la cuota íntegra según la escala del ahorro (19%–28%), agrupa los totales por emisor para copiar en el **Apartado F2 de Renta WEB (Casillas `0326–0335`)**, vigila el porcentaje de uso respecto al umbral de **50.000 € del Modelo 720**, y permite descargar con un clic el **CSV compatible con Excel en España** (UTF-8 BOM y separador `;`).
 
 ---
 
@@ -211,8 +229,11 @@ Un banco español (ej. MyInvestor, Renta 4) envía automáticamente tus datos fi
 | **2026-10-25** | Pulso de Mercado & Redondeo en Notificaciones | Creación de `refresh_market_pulse` con lectura en vivo de variaciones de SPY/QQQ/VIX. Eliminación de arrastres de punto flotante `,999`. |
 | **2026-10-25** | Modularización de Estrategias & Tests | Separación de los 5 motores en `aegis_quant/strategies/` (`m1` a `m5`) con documentación académica y suite de 33 tests unitarios. |
 | **2026-10-25** | Simulación Fiscal IRPF & Costes Operacionales | Incorporación en la web de la pestaña `5. Fiscalidad España & Rentabilidad Neta`. Integración de comisiones IBKR, spreads, TER e IRPF progresivo. |
-| **2026-10-25** | Vehículos Operativos en España | Adopción oficial de ETFs UCITS equivalentes de réplica física acumulativa (`CSPX`, `EQQQ`, `SGLD`, `DTLA`, `CRUD`). |
+| **2026-10-25** | Vehículos Operativos en España | Adopción oficial de ETFs UCITS equivalentes de réplica física acumulativa (`CSPX`/`SXR8`/`SPYL`, `EQQQ`, `SGLD`/`4GLD`, `DTLA`, `CRUD`, `SOYB`). |
 | **2026-10-25** | Seguridad en Control de Versiones | Protección de credenciales en `.gitignore` y sincronización con GitHub mediante Personal Access Token. |
-| **2026-10-25** | Política de Apalancamiento | **Descarte definitivo de futuros o productos con apalancamiento estático x3** debido al decaimiento por volatilidad (*volatility drag*) y riesgo de ruina. Se ratifica el uso exclusivo del apalancamiento adaptativo y dinámico (Meta-Kelly y Volatility Targeting) ya integrado en el motor. |
+| **2026-10-25** | Política de Apalancamiento | **Descarte definitivo de futuros o productos con apalancamiento estático x3** debido al decaimiento por volatilidad (*volatility drag*) y riesgo de ruina. Uso exclusivo de exposición adaptativa sin deuda. |
 | **2026-10-25** | Auditoría Institucional & Propuestas Estratégicas | Realización de auditoría técnica por subagente cuantitativo (dictamen 7.25/10). Documento completo archivado en [`docs/AUDIT_AND_PROPOSALS.md`](docs/AUDIT_AND_PROPOSALS.md). |
-| **2026-10-25** | Resolución de Problemas Críticos 1 a 3 + UI Móvil | **1)** Conectada evaluación dinámica en vivo de motores M1–M5 + Core Modo 3 Élite en `LiveBotController` y `AegisPortfolioEngine` (`compute_live_portfolio`). **2)** Migrado `web_app/server.py` a `ThreadingHTTPServer` concurrente con compresión `gzip`. **3)** Escrituras atómicas `atomic_write_json` (`tempfile` + `fsync` + `os.replace`) en `config_store.py`. Suite ampliada a **43 tests unitarios**. Evaluados empíricamente (2007–2026) los motores M6–M9 en `aegis_quant/research/evaluate_audit_proposals.py` (descartando M6/M8/M9 y validando M7 TOTM). Interfaz rediseñada con arquitectura **Mobile-First + Dark Mode**. |
+| **2026-10-25** | Resolución de Problemas Críticos 1 a 3 + UI Móvil | **1)** Evaluación dinámica en vivo en `LiveBotController` y `AegisPortfolioEngine`. **2)** `ThreadingHTTPServer` concurrente con compresión `gzip`. **3)** Escrituras atómicas `atomic_write_json`. Evaluación empírica 2007–2026 de candidatos M6–M9. |
+| **2026-10-26** | Promoción del 6º Motor (`M6_TOTM`) y Expansión Total | Incorporado `TurnOfTheMonthFlowStrategy` (`M6_TOTM`) como sexto motor tras validar por ablación que suma `+$63.993` (`$341.057,69`, `19,54% CAGR`, `-14,86% MaxDD`, `Sharpe 1,61`, `780 trades`) sin confrontar `M1–M5`. Expandidas todas las pestañas de control y analítica a 6 motores. |
+| **2026-10-26** | Rediseño Sobrio Institucional & Ergonomía Móvil | Eliminado el 100% de emojis, textos genéricos y brillos de IA. Modo Claro blanco + verde institucional (`#065f46`) por defecto y Modo Oscuro grafito mate neutro (`#121514` / `#191d1b`). Botón único superior de Configuración (eliminado duplicado y botones de test de `Sistema`), selectores verticales a ancho completo para `M1–M6` con confirmación anti-toque accidental, y Controles de Emergencia reubicados en `Inicio` dentro de desplegable en rojo suave. |
+| **2026-10-26** | Adopción de Opción A (`Tradegate`) y Módulo Fiscal Automático AEAT | Adoptada oficialmente la **Opción A (`Tradegate` / `TGATE` en IBKR en EUR con órdenes `Limit` y `SPYL`/`DXS3`)** documentando su checklist completo en la Sección 6.C. Desplegado `SpanishTaxAuditor` (`FIFO` + regla 2 meses Art. 33.5.f LIRPF + cambio diario BCE + Modelo 720 + exportación CSV Renta WEB) y suite ampliada a **52 tests unitarios**. |

@@ -14,6 +14,7 @@ import math
 from typing import Any, Dict, List, Optional
 from aegis_quant.models.market_models import EnrichedBar, ClosedTrade, TradeSignal
 from aegis_quant.strategies.base import OPEN_TRADE_EXIT_DATE
+from aegis_quant.strategies.m6_totm_flow import is_totm_window
 from aegis_quant.strategies.strategies import (
     BaseStrategy,
     SchermanPullbackStrategy,
@@ -21,6 +22,7 @@ from aegis_quant.strategies.strategies import (
     BearMarketShortStrategy,
     CommodityBreakoutCTAStrategy,
     VolTermStructureCrushStrategy,
+    TurnOfTheMonthFlowStrategy,
 )
 from aegis_quant.risk.meta_kelly_sizer import MetaLabelRiskManager
 
@@ -43,12 +45,13 @@ class AegisPortfolioEngine:
                 else:
                     self.ret_map[sym][b.date] = 0.0
 
-        # Instanciar los 5 motores OOP
+        # Instanciar los 6 motores cuantitativos OOP
         self.m1_pullback = SchermanPullbackStrategy()
         self.m2_vix_div = SchermanVixDivergenceStrategy()
         self.m3_bear_short = BearMarketShortStrategy()
         self.m4_cta_trend = CommodityBreakoutCTAStrategy()
         self.m5_vol_crush = VolTermStructureCrushStrategy()
+        self.m6_totm = TurnOfTheMonthFlowStrategy()
 
         self.all_strategies: List[BaseStrategy] = [
             self.m1_pullback,
@@ -56,6 +59,7 @@ class AegisPortfolioEngine:
             self.m3_bear_short,
             self.m4_cta_trend,
             self.m5_vol_crush,
+            self.m6_totm,
         ]
 
     def generate_raw_trades(
@@ -63,12 +67,17 @@ class AegisPortfolioEngine:
         include_motor5: bool = True,
         include_open: bool = False,
         enabled_motors: Optional[Dict[str, bool]] = None,
+        include_motor6: Optional[bool] = None,
     ) -> List[ClosedTrade]:
         raw: List[ClosedTrade] = []
         en = enabled_motors or {}
+        if include_motor6 is None:
+            include_motor6 = include_motor5
 
         def _is_on(engine_id: str) -> bool:
             return bool(en.get(engine_id, True))
+
+        totm_enabled = bool(include_motor6 and _is_on("M6_TOTM"))
 
         for eq_sym in ("SPY", "QQQ"):
             if eq_sym in self.universe:
@@ -96,6 +105,18 @@ class AegisPortfolioEngine:
                             eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
                         )
                     )
+
+        if totm_enabled:
+            for eq_sym in ("QQQ", "SPY"):
+                if eq_sym in self.universe:
+                    raw.extend(
+                        self.m6_totm.simulate(
+                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
+                        )
+                    )
+            for t in raw:
+                if t.engine_id in ("M1_PULLBACK", "M5_VOL_CRUSH") and is_totm_window(t.entry_date):
+                    t.meta_confidence = round(min(1.35, t.meta_confidence + 0.20), 2)
 
         if _is_on("M4_CTA_TREND"):
             for cta_sym in ("GLD", "USO", "ZS", "TLT"):
@@ -155,14 +176,21 @@ class AegisPortfolioEngine:
         include_motor5: bool,
         core_type: str,  # 'NONE' | 'SPY_SMA200' | 'ELITE_PYRAMID'
         overlay_scale: float = 1.0,
+        include_motor6: Optional[bool] = None,
     ) -> Dict:
+        if include_motor6 is None:
+            include_motor6 = include_motor5 and core_type == "ELITE_PYRAMID"
+
         risk_mgr = MetaLabelRiskManager(
             base_risk_pct=base_risk_pct,
             max_tactical_weight=max_tactical_weight,
             target_vol_pct=16.0,
             use_meta_confidence=use_meta_confidence,
         )
-        raw_trades = self.generate_raw_trades(include_motor5=include_motor5)
+        raw_trades = self.generate_raw_trades(
+            include_motor5=include_motor5,
+            include_motor6=include_motor6,
+        )
         tactical_trades = self.filter_and_size_tactical_trades(raw_trades, risk_mgr, max_slots=max_slots)
 
         trades_by_exit: Dict[str, List[ClosedTrade]] = {}
@@ -185,6 +213,8 @@ class AegisPortfolioEngine:
         daily_returns: List[float] = []
         equity_by_date: Dict[str, float] = {}
         spy_eq_by_date: Dict[str, float] = {}
+        pnl_by_engine: Dict[str, float] = {}
+        trade_pnl_usd: Dict[int, float] = {}
 
         # Puntero eficiente para saber qué operaciones tácticas están abiertas cada día
         trade_ptr = 0
@@ -235,7 +265,9 @@ class AegisPortfolioEngine:
                         if prev_d in self.date_map[sym]
                     }
                     alloc_weights = risk_mgr.compute_elite_core_allocation(
-                        prev_bars, idle_capital_fraction=idle_cash_fraction
+                        prev_bars,
+                        idle_capital_fraction=idle_cash_fraction,
+                        totm_boost=bool(include_motor6 and is_totm_window(d)),
                     )
                     for sym, weight in alloc_weights.items():
                         core_ret_d += weight * self.ret_map[sym].get(d, 0.0)
@@ -246,7 +278,10 @@ class AegisPortfolioEngine:
             if d in trades_by_exit:
                 for t in trades_by_exit[d]:
                     eff_ret = t.portfolio_ret_pct * overlay_scale
-                    equity *= (1.0 + eff_ret / 100.0)
+                    pnl_usd = equity * (eff_ret / 100.0)
+                    equity += pnl_usd
+                    pnl_by_engine[t.engine_id] = pnl_by_engine.get(t.engine_id, 0.0) + pnl_usd
+                    trade_pnl_usd[id(t)] = round(pnl_usd, 2)
                     yearly_stats[yr]["trades"] += 1
                     if t.win:
                         yearly_stats[yr]["wins"] += 1
@@ -340,6 +375,7 @@ class AegisPortfolioEngine:
                 "profit_factor": round(gp / gl, 2) if gl > 0 else 99.0,
                 "avg_ret_pct": round(sum(t.portfolio_ret_pct for t in sub) / len(sub), 2),
                 "sum_ret_pct": round(sum(t.portfolio_ret_pct for t in sub), 2),
+                "total_pnl_usd": round(pnl_by_engine.get(strat.engine_id, 0.0), 2),
             }
 
         total_wins = sum(1 for t in tactical_trades if t.win)
@@ -349,6 +385,7 @@ class AegisPortfolioEngine:
         trades_serialized = []
         for t in tactical_trades:
             td = t.to_dict()
+            td["pnl_usd"] = trade_pnl_usd.get(id(t), 0.0)
             td["eq_at_exit"] = equity_by_date.get(t.exit_date, round(equity, 2))
             td["spy_eq_at_exit"] = spy_eq_by_date.get(t.exit_date, round(spy_bh_eq, 2))
             trades_serialized.append(td)
@@ -386,14 +423,23 @@ class AegisPortfolioEngine:
         spy = latest_bars["SPY"]
         risk_mgr = MetaLabelRiskManager()
         regime = risk_mgr.classify_regime(spy)
-        core_alloc = risk_mgr.compute_elite_core_allocation(latest_bars, idle_capital_fraction=1.0)
         en = enabled_motors or {}
+        totm_on = bool(en.get("M6_TOTM", True) and is_totm_window(spy.date))
+        core_alloc = risk_mgr.compute_elite_core_allocation(
+            latest_bars, idle_capital_fraction=1.0, totm_boost=totm_on
+        )
 
         signals: List[TradeSignal] = []
         for eq_sym in ("SPY", "QQQ"):
             if eq_sym not in self.universe:
                 continue
-            for strat in (self.m1_pullback, self.m2_vix_div, self.m3_bear_short, self.m5_vol_crush):
+            for strat in (
+                self.m1_pullback,
+                self.m2_vix_div,
+                self.m3_bear_short,
+                self.m5_vol_crush,
+                self.m6_totm,
+            ):
                 if not en.get(strat.engine_id, True):
                     continue
                 sig = strat.evaluate_live(eq_sym, self.universe[eq_sym])
@@ -416,6 +462,7 @@ class AegisPortfolioEngine:
                 "symbol": sym,
                 "date": b.date,
                 "close": round(b.close, 2),
+                "last_close": round(b.close, 2),
                 "sma50": round(b.sma50, 2),
                 "sma200": round(b.sma200, 2),
                 "rsi2": round(b.rsi2, 1),
@@ -423,6 +470,7 @@ class AegisPortfolioEngine:
                 "mom60_vol_adj": round(b.mom60_vol_adj, 2),
                 "core_weight_pct": round(core_alloc.get(sym, 0.0) * 100.0, 1),
                 "trend": "ALCISTA" if b.close > b.sma200 else "BAJISTA",
+                "sma200_trend": "BULL" if b.close > b.sma200 else "BEAR",
             })
 
         return {
@@ -446,7 +494,7 @@ class AegisPortfolioEngine:
         max_slots: int = 3,
     ) -> Dict[str, Any]:
         """
-        Evalúa en vivo los 5 motores tácticos (incluyendo tanto señales disparadas hoy
+        Evalúa en vivo los 6 motores tácticos (incluyendo tanto señales disparadas hoy
         como operaciones multisesión abiertas en días previos que aún no han alcanzado
         su objetivo/stop) y asigna el capital ocioso restante al Core Modo 3 Élite.
         """
@@ -463,6 +511,7 @@ class AegisPortfolioEngine:
             include_motor5=bool(en.get("M5_VOL_CRUSH", True)),
             include_open=True,
             enabled_motors=en,
+            include_motor6=bool(en.get("M6_TOTM", True)),
         )
         sized_trades = self.filter_and_size_tactical_trades(
             raw_trades, risk_mgr, max_slots=max_slots
@@ -473,8 +522,10 @@ class AegisPortfolioEngine:
         idle_cash_fraction = round(max(0.0, 1.0 - active_tactical_weight), 4)
 
         latest_bars = {sym: series[-1] for sym, series in self.universe.items() if series}
+        spy_date = latest_bars["SPY"].date if "SPY" in latest_bars else "2026-01-15"
+        totm_on = bool(en.get("M6_TOTM", True) and is_totm_window(spy_date))
         core_alloc = risk_mgr.compute_elite_core_allocation(
-            latest_bars, idle_capital_fraction=idle_cash_fraction
+            latest_bars, idle_capital_fraction=idle_cash_fraction, totm_boost=totm_on
         )
         live_scan = self.scan_live_market(enabled_motors=en)
         # Actualizar core_allocation efectivo tras descontar capital ocupado por tácticos

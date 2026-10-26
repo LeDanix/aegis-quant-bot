@@ -14,6 +14,7 @@ from aegis_quant.data.market_repository import MarketDataRepository
 from aegis_quant.indicators.quant_feature_engine import QuantFeatureEngine
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 from aegis_quant.robustness.robustness_analyzer import RobustnessAnalyzer
+from aegis_quant.tax.spanish_tax_engine import compute_backtest_tax_waterfall
 
 
 def run_aegis_backtest() -> dict:
@@ -78,7 +79,7 @@ def run_aegis_backtest() -> dict:
 
     mode_3_elite = engine.simulate_mode(
         mode_id="MODO_3_ELITE",
-        mode_name="Modo 3 Elite (Cuspide Piramide: Dual-Momentum + VolTarget + VIX/VIX3M + Meta-Kelly)",
+        mode_name="Modo 3 Elite (6 Motores + Dual-Momentum + VolTarget + VIX/VIX3M + TOTM)",
         base_risk_pct=2.5,
         max_tactical_weight=0.55,
         max_slots=3,
@@ -86,10 +87,12 @@ def run_aegis_backtest() -> dict:
         include_motor5=True,
         core_type="ELITE_PYRAMID",
         overlay_scale=1.0,
+        include_motor6=True,
     )
 
     live_scan = engine.scan_live_market()
     robustness = RobustnessAnalyzer(engine).generate_full_report(mode_3_elite)
+    tax_analysis = compute_backtest_tax_waterfall(mode_3_elite)
 
     summary_payload = {
         "generated_at": live_scan["as_of_date"],
@@ -109,6 +112,7 @@ def run_aegis_backtest() -> dict:
         },
         "robustness": robustness,
         "live_scan": live_scan,
+        "tax_analysis": tax_analysis,
     }
 
     out_path = os.path.join(data_dir, "aegis_backtest_summary.json")

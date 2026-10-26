@@ -14,7 +14,8 @@
     "M2_VIX_DIV": true,
     "M3_BEAR_SHORT": true,
     "M4_CTA_TREND": true,
-    "M5_VOL_CRUSH": true
+    "M5_VOL_CRUSH": true,
+    "M6_TOTM": true
   },
   "alpaca_api_key": "",
   "alpaca_secret_key": "",

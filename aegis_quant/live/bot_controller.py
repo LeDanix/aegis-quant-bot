@@ -447,7 +447,22 @@ class LiveBotController:
             }
             return targets
 
-        # Evaluación dinámica en vivo de Motores M1–M5 + Core Modo 3 Élite
+        if simulate_motor == "M6_TOTM" and enabled.get("M6_TOTM", True):
+            targets["QQQ"] = {
+                "weight": max_fast,
+                "direction": "LONG",
+                "motor": "M6_TOTM",
+                "reason": "Motor 6 (Flujo Fin de Mes TOTM): Debilidad RSI(2)<35 previa a flujos institucionales T+1..T+4",
+            }
+            targets["SPY"] = {
+                "weight": round(1.0 - max_fast, 2),
+                "direction": "LONG",
+                "motor": "CORE_BULL",
+                "reason": "Core Inteligente S&P 500 (Ventana TOTM en Contango)",
+            }
+            return targets
+
+        # Evaluación dinámica en vivo de Motores M1–M6 + Core Modo 3 Élite
         return self._evaluate_live_engine(refresh_remote=refresh_remote)
 
     # -------------------------------------------------------------------------

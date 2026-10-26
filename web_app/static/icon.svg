@@ -1,20 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#064e3b" />
-      <stop offset="55%" stop-color="#065f46" />
-      <stop offset="100%" stop-color="#0f172a" />
-    </linearGradient>
-    <linearGradient id="lineGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#34d399" stop-opacity="0.35" />
-      <stop offset="100%" stop-color="#10b981" stop-opacity="1" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
-  <rect x="20" y="20" width="472" height="472" rx="94" fill="none" stroke="#10b981" stroke-opacity="0.28" stroke-width="4" />
-  <!-- Subtle Quant Equity Curve -->
-  <path d="M76 384 L154 352 L212 368 L286 290 L344 304 L436 168" fill="none" stroke="url(#lineGrad)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" />
-  <circle cx="436" cy="168" r="14" fill="#34d399" />
-  <!-- Institutional Monogram -->
-  <text x="256" y="272" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-weight="800" font-size="164" letter-spacing="-6">AQ</text>
+  <rect width="512" height="512" rx="96" fill="#065f46" />
+  <rect x="24" y="24" width="464" height="464" rx="76" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4" />
+  <path d="M84 382 L160 350 L218 364 L292 292 L348 304 L428 176" fill="none" stroke="#a7f3d0" stroke-opacity="0.55" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="256" y="274" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-weight="700" font-size="160" letter-spacing="-6">AQ</text>
 </svg>

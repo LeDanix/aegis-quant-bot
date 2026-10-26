@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
 from aegis_quant.live.config_store import BotConfigStore
+from aegis_quant.tax.spanish_tax_engine import ECBExchangeRateProvider, map_to_ucits_metadata
 
 
 class BaseBrokerAdapter(ABC):
@@ -245,17 +246,24 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         state["last_scan_time"] = now_str
         self.store.save_state(state)
 
-        # Registro contable inmutable para auditoría e IRPF
+        # Registro contable inmutable para auditoría e IRPF (con metadatos UCITS/ISIN y cambio BCE)
+        fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
         for o in executed_orders:
+            ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
             self.store.append_trade_ledger({
                 "timestamp": now_str,
                 "environment": self.store.get_config().get("environment", "PAPER"),
                 "order_id": f"ORD-{int(time.time() * 1000)}",
                 "symbol": o.get("symbol"),
+                "ucits_ticker": ucits_meta["primary_ucits"],
+                "isin": ucits_meta["isin"],
                 "side": o.get("side"),
                 "qty": o.get("qty"),
                 "price_usd": o.get("price"),
                 "notional_usd": o.get("notional_usd"),
+                "currency": "USD",
+                "fx_eur_usd": fx_rate,
+                "commission_usd": 0.0,
                 "motor": o.get("motor"),
                 "reason": o.get("reason"),
                 "status": "FILLED",
@@ -303,16 +311,23 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         state["orders_history"] = (orders + state.get("orders_history", []))[:100]
         self.store.save_state(state)
 
+        fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
         for o in orders:
+            ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
             self.store.append_trade_ledger({
                 "timestamp": now_str,
                 "environment": self.store.get_config().get("environment", "PAPER"),
                 "order_id": f"ORD-KILL-{int(time.time() * 1000)}",
                 "symbol": o.get("symbol"),
+                "ucits_ticker": ucits_meta["primary_ucits"],
+                "isin": ucits_meta["isin"],
                 "side": o.get("side"),
                 "qty": o.get("qty"),
                 "price_usd": o.get("price"),
                 "notional_usd": o.get("notional_usd"),
+                "currency": "USD",
+                "fx_eur_usd": fx_rate,
+                "commission_usd": 0.0,
                 "motor": o.get("motor"),
                 "reason": o.get("reason"),
                 "status": "FILLED",

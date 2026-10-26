@@ -2,10 +2,12 @@
 Servidor Web y Centro de Mando REST Orientado a Objetos para Aegis-Quant Studio (web_app/server.py).
 Escucha en 0.0.0.0:8085 (accesible en local http://localhost:8085 y por VPN Tailscale desde el móvil).
 Endpoints:
-  - GET  /api/summary     : Dataset completo de los 4 modos, 725 operaciones, robustez y escáner.
-  - GET  /api/live/status : Estado en tiempo real del Bot Paper Trading, cartera, órdenes y logs.
-  - POST /api/live/action : Ejecuta acciones de mando (Iniciar/Parar, Escanear, Simular Motor, Pánico, Test Móvil).
-  - POST /api/live/config : Actualiza parámetros del bot en caliente desde la web o móvil.
+  - GET  /api/summary        : Dataset completo de los 4 modos, 6 motores (780 operaciones), robustez y cascada fiscal.
+  - GET  /api/live/status    : Estado en tiempo real del Bot, cartera, 6 motores tácticos, órdenes y logs.
+  - GET  /api/tax/live-audit : Auditoría fiscal automática AEAT (FIFO, regla 2 meses, BCE EUR/USD, Modelo 720, Renta WEB F2).
+  - GET  /api/tax/export.csv : Exportación CSV UTF-8 BOM para Excel y Renta WEB.
+  - POST /api/live/action    : Ejecuta acciones de mando (Iniciar/Parar, Escanear, Simular Motor M1-M6, Pánico, Test Móvil).
+  - POST /api/live/config    : Actualiza parámetros del bot en caliente desde la web o móvil.
 """
 
 import os
@@ -22,6 +24,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from aegis_quant.live.bot_controller import LiveBotController
+from aegis_quant.tax.spanish_tax_engine import SpanishTaxAuditor
 
 
 class AegisRequestHandler(SimpleHTTPRequestHandler):
@@ -105,6 +108,44 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/live/status":
             ctrl = self.get_controller()
             self._send_json(ctrl.get_full_status())
+            return
+
+        if parsed.path == "/api/tax/live-audit":
+            qs = urllib.parse.parse_qs(parsed.query)
+            env = (qs.get("env", ["PAPER"])[0] or "PAPER").upper()
+            year = qs.get("year", ["ALL"])[0] or "ALL"
+            prior_loss = 0.0
+            try:
+                prior_loss = max(0.0, float(qs.get("prior_loss", ["0"])[0]))
+            except (TypeError, ValueError):
+                prior_loss = 0.0
+            auditor = SpanishTaxAuditor(self.base_dir, allow_network_fx=False)
+            report = auditor.audit_environment(
+                env=env,
+                tax_year=year,
+                prior_loss_carryforward_eur=prior_loss,
+            )
+            self._send_json(report)
+            return
+
+        if parsed.path == "/api/tax/export.csv":
+            qs = urllib.parse.parse_qs(parsed.query)
+            env = (qs.get("env", ["PAPER"])[0] or "PAPER").upper()
+            year = qs.get("year", ["ALL"])[0] or "ALL"
+            auditor = SpanishTaxAuditor(self.base_dir, allow_network_fx=False)
+            csv_text = auditor.export_audit_csv(env=env, tax_year=year)
+            csv_bytes = csv_text.encode("utf-8")
+            filename = f"aegis_quant_aeat_irpf_{env.lower()}_{year.lower()}.csv"
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(csv_bytes)))
+                self.end_headers()
+                self.wfile.write(csv_bytes)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
             return
 
         return super().do_GET()

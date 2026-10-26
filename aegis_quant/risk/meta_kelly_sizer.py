@@ -70,6 +70,7 @@ class MetaLabelRiskManager:
         self,
         bars_by_sym: Dict[str, EnrichedBar],
         idle_capital_fraction: float = 1.0,
+        totm_boost: bool = False,
     ) -> Dict[str, float]:
         """
         Asigna únicamente el Capital Ocioso (1.0 - Exposición Táctica Activa), garantizando
@@ -77,6 +78,9 @@ class MetaLabelRiskManager:
           - En Régimen BULL_QUIET_CONTANGO: invierte el capital ocioso combinando Dual-Momentum
             (SPY + QQQ) escalado por Volatility Targeting.
           - En Régimen BULL_MODERATE_VOL: invierte el 50% del capital ocioso en SPY/GLD.
+          - Durante la ventana institucional Turn-of-the-Month (totm_boost=True) en régimen
+            alcista sano, despliega hasta el 100% de la liquidez ociosa para capturar los flujos
+            automáticos de pensiones y nóminas de T-1..T+4.
           - En Régimen Bajista o Backwardation (VIX/VIX3M >= 1.0): 0% bolsa pasiva (cero whipsaws)
             y rotación defensiva de hasta un 30% del capital ocioso hacia Oro (GLD) o Bonos (TLT)
             únicamente si están en tendencia alcista confirmada.
@@ -114,5 +118,13 @@ class MetaLabelRiskManager:
             gld = bars_by_sym.get("GLD")
             if gld and gld.close > gld.sma50 > gld.sma200 and gld.mom60_vol_adj > 0.55:
                 alloc["GLD"] = round(idle_capital_fraction * 0.30, 4)
+
+        if totm_boost and regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
+            eq_sum = sum(alloc.get(s, 0.0) for s in ("SPY", "QQQ"))
+            if 0.0 < eq_sum < idle_capital_fraction:
+                scale_up = idle_capital_fraction / eq_sum
+                for s in ("SPY", "QQQ"):
+                    if s in alloc:
+                        alloc[s] = round(alloc[s] * scale_up, 4)
 
         return alloc
