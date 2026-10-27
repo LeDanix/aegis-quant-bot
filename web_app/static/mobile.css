@@ -257,6 +257,14 @@ html.dark .mobile-bottom-btn.active {
   -webkit-overflow-scrolling: touch;
 }
 
+@keyframes aq-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.animate-pulse {
+  animation: aq-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Unified Section Distribution (Mobile + Desktop): Inicio | Cartera | Sistema */
 #main-view-control [data-mobile-group] {
   display: none !important;

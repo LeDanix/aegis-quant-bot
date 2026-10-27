@@ -37,6 +37,88 @@ from aegis_quant.live.broker_adapter import (
 from aegis_quant.live.notifier_service import MultiChannelNotifier
 
 
+def _calc_easter(year: int) -> date:
+    """Calcula el domingo de Pascua usando el algoritmo anónimo de Meeus/Jones/Butcher."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def get_nyse_holidays(year: int) -> Dict[date, str]:
+    """Calcula los festivos oficiales de la Bolsa de Nueva York (NYSE/Nasdaq) para un año dado."""
+    import datetime as _dt
+    holidays: Dict[date, str] = {}
+
+    def add_observed(d: date, name: str) -> None:
+        if d.weekday() == 5:
+            holidays[d - _dt.timedelta(days=1)] = f"{name} (Observado)"
+        elif d.weekday() == 6:
+            holidays[d + _dt.timedelta(days=1)] = f"{name} (Observado)"
+        else:
+            holidays[d] = name
+
+    # 1. Año Nuevo
+    nyd = date(year, 1, 1)
+    if nyd.weekday() == 6:
+        holidays[date(year, 1, 2)] = "Año Nuevo (Observado)"
+    elif nyd.weekday() < 5:
+        holidays[nyd] = "Año Nuevo"
+
+    # 2. Martin Luther King Jr. (3er lunes de enero)
+    first_mon_jan = 1 + (7 - date(year, 1, 1).weekday()) % 7
+    if date(year, 1, 1).weekday() == 0:
+        first_mon_jan = 1
+    holidays[date(year, 1, first_mon_jan + 14)] = "Martin Luther King Jr. Day"
+
+    # 3. Presidents' Day / Washington (3er lunes de febrero)
+    first_mon_feb = 1 + (7 - date(year, 2, 1).weekday()) % 7
+    if date(year, 2, 1).weekday() == 0:
+        first_mon_feb = 1
+    holidays[date(year, 2, first_mon_feb + 14)] = "Presidents' Day (Washington)"
+
+    # 4. Viernes Santo (Good Friday: 2 días antes de Pascua)
+    easter = _calc_easter(year)
+    holidays[easter - _dt.timedelta(days=2)] = "Viernes Santo (Good Friday)"
+
+    # 5. Memorial Day (último lunes de mayo)
+    last_day_may = date(year, 5, 31)
+    last_mon_may = 31 - (last_day_may.weekday() % 7)
+    holidays[date(year, 5, last_mon_may)] = "Memorial Day"
+
+    # 6. Juneteenth (19 de junio)
+    add_observed(date(year, 6, 19), "Juneteenth")
+
+    # 7. Día de la Independencia (4 de julio)
+    add_observed(date(year, 7, 4), "Día de la Independencia (4 de Julio)")
+
+    # 8. Labor Day (primer lunes de septiembre)
+    first_mon_sep = 1 + (7 - date(year, 9, 1).weekday()) % 7
+    if date(year, 9, 1).weekday() == 0:
+        first_mon_sep = 1
+    holidays[date(year, 9, first_mon_sep)] = "Labor Day"
+
+    # 9. Acción de Gracias (4º jueves de noviembre)
+    first_thu_nov = 1 + (3 - date(year, 11, 1).weekday()) % 7
+    holidays[date(year, 11, first_thu_nov + 21)] = "Acción de Gracias (Thanksgiving)"
+
+    # 10. Navidad (25 de diciembre)
+    add_observed(date(year, 12, 25), "Navidad")
+
+    return holidays
+
+
 class LiveBotController:
     """Controlador Central del Bot de Paper Trading 24/7 y Centro de Mando Web/Móvil."""
 
@@ -151,11 +233,38 @@ class LiveBotController:
             ),
         }
 
+    @staticmethod
+    def get_market_session_status(now_ny: Optional[datetime] = None) -> Tuple[bool, str]:
+        """
+        Devuelve (is_closed: bool, reason: str).
+        Determina si el mercado estadounidense (NYSE/Nasdaq) está cerrado hoy
+        por fin de semana (sábado/domingo) o festivo oficial en Wall Street.
+        """
+        if now_ny is None:
+            try:
+                now_ny = datetime.now(ZoneInfo("America/New_York"))
+            except Exception:
+                now_ny = datetime.now()
+
+        today_date = now_ny.date() if isinstance(now_ny, datetime) else now_ny
+        weekday = today_date.weekday()
+
+        if weekday == 5:
+            return True, "Mercado cerrado: Fin de semana (Sábado). Wall Street inactivo."
+        if weekday == 6:
+            return True, "Mercado cerrado: Fin de semana (Domingo). Wall Street inactivo."
+
+        holidays = get_nyse_holidays(today_date.year)
+        if today_date in holidays:
+            return True, f"Mercado cerrado: Festivo oficial en Wall Street ({holidays[today_date]})."
+
+        return False, "Mercado abierto: Sesión de negociación activa."
+
     def _scheduler_loop(self) -> None:
         """
         Bucle vigilante 24/7.
         Verifica cada 25 segundos si es la hora de cierre en Wall Street (15:55 America/New_York)
-        de lunes a viernes para ejecutar el rebalanceo de fin de sesión.
+        de lunes a domingo para ejecutar el rebalanceo de fin de sesión o emitir el reporte diario.
         """
         while True:
             try:
@@ -170,10 +279,9 @@ class LiveBotController:
                     today_ny_str = now_ny.strftime("%Y-%m-%d")
                     target_ny = cfg.get("schedule_time_ny", "15:55")
 
-                    # Lunes (0) a Viernes (4) a la hora fijada de Wall Street (15:55 NY)
+                    # Disparo diario los 7 días de la semana a la hora fijada de Wall Street (15:55 NY)
                     if (
-                        now_ny.weekday() < 5
-                        and hhmm_ny == target_ny
+                        hhmm_ny == target_ny
                         and self._last_auto_run_date != today_ny_str
                     ):
                         self._last_auto_run_date = today_ny_str
@@ -475,6 +583,7 @@ class LiveBotController:
         orders: List[Dict[str, Any]],
         pulse: Dict[str, Any],
         state_after: Dict[str, Any],
+        direct_reason: Optional[str] = None,
     ) -> str:
         """
         Construye un mensaje informativo e institucional para Signal y Telegram.
@@ -555,7 +664,8 @@ class LiveBotController:
                 notional = float(o.get("notional_usd", 0.0))
                 lines.append(f"- <b>{o['side']} {o['symbol']}</b>: ${notional:,.2f} ({o.get('motor', 'CORE')})")
         else:
-            lines.append("⚡ <b>OPERATIVA HOY:</b> Sin rotación necesaria. Cartera alineada al régimen.")
+            reason_txt = direct_reason or "Sin rotación necesaria. Cartera alineada al régimen."
+            lines.append(f"⚡ <b>OPERATIVA HOY:</b> {reason_txt}")
 
         return "\n".join(lines)
 
@@ -568,13 +678,50 @@ class LiveBotController:
     ) -> Dict[str, Any]:
         """
         Ejecuta el ciclo de escaneo de mercado (protegido por lock reentrante):
-          1. Refresca precios de mercado y pulso del día en vivo.
-          2. Evalúa en vivo los motores tácticos M1–M5 + Core Modo 3 Élite.
-          3. Ejecuta órdenes en el bróker o genera propuesta en modo Copiloto.
-          4. Emite notificación enriquecida a los canales móviles activos.
+          1. Verifica si el mercado está abierto o cerrado (fin de semana o festivo en Wall Street).
+          2. Si está cerrado, genera y emite el reporte de estado con frase explicativa directa a Signal.
+          3. Si está abierto, refresca cotizaciones, evalúa motores tácticos y ejecuta órdenes.
+          4. Emite reporte diario puntual a Signal especificando la razón exacta si no hay operaciones.
         """
         with self._scan_lock:
             cfg = self.store.get_config()
+            try:
+                now_ny = datetime.now(ZoneInfo("America/New_York"))
+            except Exception:
+                now_ny = datetime.now()
+
+            is_closed, closed_reason = self.get_market_session_status(now_ny)
+
+            # Si el mercado está cerrado (fin de semana o festivo en Wall Street) y no es simulación Sandbox
+            if is_closed and simulate_motor is None:
+                pulse = self.market_pulse_cache or self.refresh_market_pulse()
+                state = self.store.get_state()
+                pos = state.get("positions", [])
+                if pos:
+                    pos_desc = ", ".join(
+                        [
+                            f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
+                            for p in pos
+                        ]
+                    )
+                    direct_reason = f"{closed_reason} Posiciones activas mantenidas sin cambios: {pos_desc}."
+                else:
+                    direct_reason = f"{closed_reason} Cartera al 100% en liquidez/efectivo protegido."
+
+                full_msg = self._build_notification_message(
+                    trigger_source, [], pulse, state, direct_reason=direct_reason
+                )
+                self._send_mobile_alert(full_msg)
+                self.store.append_log(
+                    f"Reporte diario emitido: {closed_reason}", "INFO"
+                )
+                return {
+                    "ok": True,
+                    "mode": cfg.get("execution_mode", "AUTO_100"),
+                    "orders_count": 0,
+                    "message": direct_reason,
+                }
+
             pulse = self.refresh_market_pulse()
             targets = self.compute_target_portfolio(simulate_motor=simulate_motor)
             exec_mode = cfg.get("execution_mode", "AUTO_100")
@@ -607,8 +754,65 @@ class LiveBotController:
             # Se envía siempre en ejecuciones programadas o cuando hay órdenes activas
             is_scheduled = "Reloj Automático" in trigger_source
             if orders or is_scheduled:
+                direct_reason = None
+                if not orders:
+                    live_scan = getattr(self, "live_scan_cache", None) or {}
+                    regime = live_scan.get("regime", "")
+                    pos = state_after.get("positions", [])
+                    acct = state_after.get("account", {})
+                    cash_pct = round(
+                        (float(acct.get("cash_usd", 0.0)) / max(1.0, float(acct.get("total_equity_usd", 1.0)))) * 100.0,
+                        1,
+                    )
+                    tactical_info = getattr(self, "tactical_status_cache", None) or {}
+                    open_tactical = tactical_info.get("open_trades") or []
+
+                    if pos:
+                        pos_desc = ", ".join(
+                            [
+                                f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
+                                for p in pos
+                            ]
+                        )
+                        if open_tactical:
+                            direct_reason = (
+                                f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                                f"Razón: Operaciones tácticas en curso siguiendo su plan de salida (stops y targets vigentes; sin nuevas señales hoy)."
+                            )
+                        elif regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
+                            direct_reason = (
+                                f"Sin rotación necesaria. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                                f"Razón: Cartera ya alineada al 100% con los pesos óptimos del régimen alcista."
+                            )
+                        else:
+                            direct_reason = (
+                                f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                                f"Razón: Asignación alineada al régimen actual ({regime}); sin rotación hoy."
+                            )
+                    else:
+                        if regime == "BEAR_DEFENSIVE":
+                            direct_reason = (
+                                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
+                                "Razón: Mercado en régimen defensivo (SPY por debajo de SMA-50) y ningún motor táctico (M1–M6) activó señal de entrada."
+                            )
+                        elif regime == "BEAR_CRISIS_BACKWARDATION":
+                            direct_reason = (
+                                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
+                                "Razón: Alerta institucional por pánico/backwardation (VIX/VIX3M >= 1.0); capital completamente preservado."
+                            )
+                        elif regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
+                            direct_reason = (
+                                "Sin operaciones. Cartera temporalmente al 100% en liquidez/efectivo "
+                                "en espera de la siguiente señal táctica o rebalanceo Core."
+                            )
+                        else:
+                            direct_reason = (
+                                "Sin operaciones. Cartera al 100% en liquidez/efectivo protegida; "
+                                "sin señales activas hoy."
+                            )
+
                 full_msg = self._build_notification_message(
-                    trigger_source, orders, pulse, state_after
+                    trigger_source, orders, pulse, state_after, direct_reason=direct_reason
                 )
                 self._send_mobile_alert(full_msg)
 
@@ -706,11 +910,21 @@ class LiveBotController:
             ok, msg = broker.close_all_positions(
                 "Boton de Panico pulsado desde el Centro de Mando Web"
             )
+            # Cancelar e invalidar cualquier propuesta de Copiloto pendiente para evitar ejecuciones obsoletas
+            state = self.store.get_state()
+            if state.get("pending_confirmations"):
+                state["pending_confirmations"] = []
+                self.store.save_state(state)
             self._send_mobile_alert(f"<b>ALERTA DE CIERRE TOTAL AEGIS-QUANT</b>\n{msg}")
             return {"ok": ok, "message": msg}
 
         if action == "RESET_ACCOUNT":
             cfg = self.store.get_config()
+            if cfg.get("environment") == "LIVE_REAL":
+                msg = "Acción bloqueada: No se puede reiniciar saldo en entorno Real (LIVE_REAL)."
+                self.store.append_log(msg, "WARN")
+                return {"ok": False, "message": msg}
+
             cap = float(cfg.get("allocated_capital_usd", 10000.0))
             fresh = self.store._default_state()
             fresh["account"]["initial_capital"] = cap
@@ -755,4 +969,5 @@ class LiveBotController:
         """Envía el mensaje formateado a través de los canales móviles activos."""
         cfg = self.store.get_config()
         notifier = MultiChannelNotifier(cfg)
-        notifier.notify(text)
+        ok, msg = notifier.notify(text)
+        self.store.append_log(f"Alerta móvil: {msg}", "INFO" if ok else "WARN")

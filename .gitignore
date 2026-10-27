@@ -45,5 +45,6 @@ data/bot_live_state_real.json
 data/ledger_*.jsonl
 data/fx_eurusd_ecb.json
 data/research_cache/
+data/cache_etf_hourly/
 data/.tmp_*.json
 .env

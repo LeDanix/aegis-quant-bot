@@ -31,8 +31,8 @@ const SECTION_LABELS = {
 let ETF_CATALOG = [];
 let ETF_DATA_CACHE = {};
 let ACTIVE_ETF_SYMBOL = 'SPY';
-let ETF_RANGE = '1Y'; // '1M' | '3M' | '6M' | '1Y' | '5Y' | 'ALL'
-let ETF_CHART_TYPE = 'line'; // 'line' | 'candle'
+let ETF_RANGE = '1Y'; // '1D' | '1S' | '1M' | '3M' | '6M' | '1Y' | '5Y' | 'ALL'
+let ETF_CHART_TYPE = 'candle'; // 'candle' por defecto | 'line'
 let etfFetchInFlight = false;
 
 // Estado de sondeo y confirmaciones de seguridad
@@ -295,6 +295,13 @@ function startLivePolling() {
   livePollTimer = setInterval(() => {
     if (!document.hidden) {
       fetchLiveStatus(false);
+      // Auto-refresco horario si la sección activa es ETFs y ha pasado 1 hora
+      if (typeof ACTIVE_SECTION !== 'undefined' && ACTIVE_SECTION === 'etfs') {
+        const lastFetch = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL]?.fetchedAt || 0;
+        if (lastFetch > 0 && (Date.now() - lastFetch > 3600 * 1000) && !etfFetchInFlight) {
+          loadEtfData(ACTIVE_ETF_SYMBOL, true);
+        }
+      }
     }
   }, 5000);
 }
@@ -522,10 +529,16 @@ async function loadEtfData(symbol, forceRefresh = false) {
     sel.value = normSym;
   }
 
-  // Pintado inmediato desde caché en memoria si ya existe la serie
-  if (!forceRefresh && ETF_DATA_CACHE[normSym]) {
+  const cachedEntry = ETF_DATA_CACHE[normSym];
+  const isExpired = !cachedEntry || (Date.now() - (cachedEntry.fetchedAt || 0)) > 3600 * 1000;
+
+  // Pintado inmediato desde caché en memoria si ya existe la serie y no ha expirado (1 hora)
+  if (!forceRefresh && !isExpired && cachedEntry) {
     renderEtfQuickCards();
-    renderEtfDetailHeader(ETF_DATA_CACHE[normSym]);
+    renderEtfDetailHeader(cachedEntry);
+    if (cachedEntry.hourly_meta) {
+      updateEtfHourlyBadge(cachedEntry.hourly_meta);
+    }
     renderEtfPriceChart(true);
     return;
   }
@@ -535,7 +548,7 @@ async function loadEtfData(symbol, forceRefresh = false) {
   etfFetchInFlight = true;
 
   try {
-    const res = await fetch(`/api/etf/history?symbol=${encodeURIComponent(normSym)}`);
+    const res = await fetch(`/api/etf/history?symbol=${encodeURIComponent(normSym)}&refresh=${forceRefresh ? 'true' : 'false'}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
     if (!payload || !payload.ok || !payload.etf) {
@@ -547,6 +560,8 @@ async function loadEtfData(symbol, forceRefresh = false) {
     }
 
     const resolvedSym = payload.selected_symbol || normSym;
+    payload.etf.fetchedAt = Date.now();
+    payload.etf.hourly_meta = payload.hourly_meta;
     ETF_DATA_CACHE[resolvedSym] = payload.etf;
     ACTIVE_ETF_SYMBOL = resolvedSym;
 
@@ -554,6 +569,7 @@ async function loadEtfData(symbol, forceRefresh = false) {
       sel.value = resolvedSym;
     }
 
+    updateEtfHourlyBadge(payload.hourly_meta);
     renderEtfQuickCards();
     renderEtfDetailHeader(payload.etf);
 
@@ -569,6 +585,18 @@ async function loadEtfData(symbol, forceRefresh = false) {
     etfFetchInFlight = false;
     if (indicator) indicator.classList.add('hidden');
   }
+}
+
+function updateEtfHourlyBadge(hourlyMeta) {
+  const updateBadge = document.getElementById('etf-last-update-text');
+  if (updateBadge && hourlyMeta) {
+    const humanTime = hourlyMeta.last_refresh_human || '--';
+    updateBadge.textContent = `Actualizado: ${humanTime} (Auto 1h)`;
+  }
+}
+
+function refreshEtfDataNow() {
+  loadEtfData(ACTIVE_ETF_SYMBOL, true);
 }
 
 function selectEtfSymbol(symbol) {
@@ -666,25 +694,75 @@ function renderEtfDetailHeader(etfData) {
   setTxt('etf-meta-class', meta.asset_class);
 }
 
-function computeEtfZoomStartPct(totalBars, rangeKey) {
-  if (!totalBars || totalBars <= 2) return 0;
-  const barsByRange = {
-    '1M': 22,
-    '3M': 65,
-    '6M': 130,
-    '1Y': 253,
-    '5Y': 1260,
-    ALL: totalBars,
-  };
-  const targetBars = barsByRange[rangeKey] || 253;
-  if (targetBars >= totalBars) return 0;
-  const pct = ((totalBars - targetBars) / totalBars) * 100;
+function computeEtfZoomStartPct(datesOrCount, rangeKey, isHourly = false) {
+  if (!datesOrCount) return 0;
+  if (rangeKey === 'ALL') return 0;
+
+  let dates = [];
+  let n = 0;
+  if (Array.isArray(datesOrCount)) {
+    dates = datesOrCount;
+    n = dates.length;
+  } else if (typeof datesOrCount === 'number') {
+    n = datesOrCount;
+  }
+  if (n <= 1) return 0;
+
+  // Cálculo por ventana temporal rodante exacta (exactamente 1 día, 1 semana, 1 mes... atrás)
+  if (dates.length > 0) {
+    const lastStr = dates[n - 1];
+    const lastD = new Date(String(lastStr).replace(' ', 'T'));
+    if (!isNaN(lastD.getTime())) {
+      const targetD = new Date(lastD.getTime());
+      if (rangeKey === '1D') {
+        // 1 día completo rodante (24 horas hacia atrás)
+        targetD.setDate(targetD.getDate() - 1);
+      } else if (rangeKey === '1S') {
+        // 1 semana completa rodante (7 días hacia atrás)
+        targetD.setDate(targetD.getDate() - 7);
+      } else if (rangeKey === '1M') {
+        // 1 mes completo rodante hacia atrás
+        targetD.setMonth(targetD.getMonth() - 1);
+      } else if (rangeKey === '3M') {
+        targetD.setMonth(targetD.getMonth() - 3);
+      } else if (rangeKey === '6M') {
+        targetD.setMonth(targetD.getMonth() - 6);
+      } else if (rangeKey === '1Y') {
+        targetD.setFullYear(targetD.getFullYear() - 1);
+      } else if (rangeKey === '5Y') {
+        targetD.setFullYear(targetD.getFullYear() - 5);
+      }
+
+      let idx = 0;
+      for (let i = 0; i < n; i++) {
+        const d = new Date(String(dates[i]).replace(' ', 'T'));
+        if (d >= targetD) {
+          idx = i;
+          break;
+        }
+      }
+
+      if (idx <= 0) return 0;
+      const pct = (idx / n) * 100;
+      return Math.max(0, Math.min(99.2, Number(pct.toFixed(2))));
+    }
+  }
+
+  // Fallback por estimación de barras
+  const fallbackBars = isHourly
+    ? (rangeKey === '1D' ? 7 : 35)
+    : (rangeKey === '1M' ? 22 : (rangeKey === '3M' ? 65 : (rangeKey === '6M' ? 130 : (rangeKey === '1Y' ? 253 : 1260))));
+  if (fallbackBars >= n) return 0;
+  const pct = ((n - fallbackBars) / n) * 100;
   return Math.max(0, Math.min(99.2, Number(pct.toFixed(2))));
 }
 
 function setEtfRange(rangeKey) {
+  const wasHourly = (ETF_RANGE === '1D' || ETF_RANGE === '1S');
+  const isHourly = (rangeKey === '1D' || rangeKey === '1S');
   ETF_RANGE = rangeKey;
-  const keys = ['1M', '3M', '6M', '1Y', '5Y', 'ALL'];
+
+  const keys = ['1D', '1S', '1M', '3M', '6M', '1Y', '5Y', 'ALL'];
   keys.forEach((k) => {
     const btn = document.getElementById(`etf-range-${k}`);
     if (!btn) return;
@@ -695,14 +773,19 @@ function setEtfRange(rangeKey) {
     }
   });
 
-  const cached = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL];
-  if (etfChart && cached?.series?.dates) {
-    const startPct = computeEtfZoomStartPct(cached.series.dates.length, rangeKey);
-    etfChart.dispatchAction({
-      type: 'dataZoom',
-      start: startPct,
-      end: 100,
-    });
+  if (wasHourly !== isHourly) {
+    renderEtfPriceChart(true);
+  } else {
+    const cached = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL];
+    const s = (isHourly && cached?.hourly_series) ? cached.hourly_series : cached?.series;
+    if (etfChart && s?.dates) {
+      const startPct = computeEtfZoomStartPct(s.dates, rangeKey, isHourly);
+      etfChart.dispatchAction({
+        type: 'dataZoom',
+        start: startPct,
+        end: 100,
+      });
+    }
   }
 }
 
@@ -730,19 +813,22 @@ function setEtfChartType(chartType) {
 function renderEtfPriceChart(resetRange = false) {
   const el = document.getElementById('etf-price-chart');
   const etfData = ETF_DATA_CACHE[ACTIVE_ETF_SYMBOL];
-  if (!el || !etfData || !etfData.series) return;
+  if (!el || !etfData) return;
+
+  const isHourly = (ETF_RANGE === '1D' || ETF_RANGE === '1S');
+  const s = (isHourly && etfData.hourly_series) ? etfData.hourly_series : etfData.series;
+  if (!s || !s.dates || s.dates.length === 0) return;
 
   if (!etfChart) {
     etfChart = echarts.init(el);
   }
 
   const th = getChartTheme();
-  const s = etfData.series;
   const n = s.dates.length;
   const isMobile = window.innerWidth < 640;
 
-  // Preservar zoom actual al alternar tema o Línea/Velas salvo cambio de ETF
-  let startPct = computeEtfZoomStartPct(n, ETF_RANGE);
+  // Preservar zoom actual al alternar tema o Línea/Velas salvo cambio de ETF o salto horario/diario
+  let startPct = computeEtfZoomStartPct(s.dates, ETF_RANGE, isHourly);
   let endPct = 100;
   if (!resetRange) {
     try {
@@ -947,7 +1033,7 @@ function renderEtfPriceChart(resetRange = false) {
         data: s.sma50,
         showSymbol: false,
         smooth: false,
-        lineStyle: { width: 1.35, color: '#d97706' },
+        lineStyle: { width: 1.4, type: 'dashed', color: '#d97706' },
         itemStyle: { color: '#d97706' },
       },
       {
@@ -3473,10 +3559,13 @@ function renderTacticalEnginesCard(data, cfg) {
   }
 
   if (signalsToday.length > 0) {
+    const sigDate = signalsToday[0]?.date || '';
+    const headerTitle = sigDate ? `Señales Disparadas (${sigDate})` : `Señales Disparadas (${signalsToday.length})`;
     sectionsHtml += `
       <div class="space-y-2">
-        <div class="text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
-          Señales Disparadas Hoy (${signalsToday.length})
+        <div class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+          <span>${headerTitle}</span>
+          <span class="text-[10px] font-mono font-normal text-slate-500">${signalsToday.length} ${signalsToday.length === 1 ? 'señal' : 'señales'}</span>
         </div>
         <div class="space-y-2">
           ${signalsToday
@@ -3491,6 +3580,7 @@ function renderTacticalEnginesCard(data, cfg) {
                     <div class="flex items-center gap-1.5">
                       <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${meta.pillCls}">${escHtml(meta.badge)}</span>
                       <span class="font-mono font-bold text-slate-900 dark:text-slate-100">${escHtml(s.direction || 'LONG')} ${escHtml(s.symbol)}</span>
+                      ${s.date ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">${escHtml(s.date)}</span>` : ''}
                     </div>
                     ${confTxt ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-700 text-white tabular-nums">${confTxt}</span>` : ''}
                   </div>

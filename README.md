@@ -2,7 +2,7 @@
 
 **Aegis-Quant** is an institutional-grade, white-box quantitative portfolio engine built with strict Object-Oriented Programming (OOP) design patterns. It integrates mean-reversion and cross-asset momentum principles with apex quantitative techniques: **Volatility Term Structure (VTS VIX/VIX3M) regime filtering**, **Target Volatility sizing**, **Cross-Asset Dual Momentum**, and **Meta-Labeling with Fractional Kelly risk management**.
 
-The flagship configuration is **Mode 3 Élite**, an ensemble of 5 complementary tactical engines hedging equity drawdowns while maximizing risk-adjusted compound annual growth (CAGR 18.23% vs S&P 500 9.24%, Max DD -15.02% vs -56.03%, audited 2007–2026).
+The flagship configuration is **Mode 3 Élite**, an ensemble of 6 complementary tactical engines (`M1`–`M6`) hedging equity drawdowns while maximizing risk-adjusted compound annual growth (audited 2007–2026: CAGR 19.54% vs S&P 500 9.24%, Max DD -14.86% vs -56.03%, Sharpe 1.61, Calmar 1.31).
 
 ---
 
@@ -91,6 +91,7 @@ Navigate to:
 3. **M3 Bear Crisis Short**: Hedging engine taking tactical short exposure when the market enters high-volatility backwardation ($VIX/VIX3M > 1.0$).
 4. **M4 CTA Trend Follower**: Cross-asset trend rider investing in top-momentum defensive assets (GLD, TLT, commodities) during equities distress.
 5. **M5 Volatility Crush**: Rapid mean-reversion engine capitalizing on acute implied volatility collapse following systemic panic events.
+6. **M6 TOTM Flow (Turn-of-the-Month)**: Institutional liquidity harvester capturing end-of-month and beginning-of-month pension/payroll rebalancing flows under Contango regime.
 
 ---
 
@@ -99,10 +100,16 @@ Navigate to:
 - **Local Paper Trading (`LocalPaperBrokerAdapter`)**: Runs real-time paper execution without requiring third-party credentials. Simulates order execution, slippage, and portfolio valuation.
 - **Signal Mobile Alerts**: Native integration with CallMeBot Signal Gateway or self-hosted Signal CLI REST API. Delivers daily regime states, entry/exit orders, and emergency drawdown notifications directly to your phone.
 - **Interactive Web Interface**: Minimalist institutional design displaying active portfolio allocations, pending signals, interactive equity curves with trade markers, and stress-test diagnostics.
+- **Automated Spanish Tax Engine (AEAT / IRPF)**: Built-in FIFO lot tracking, official daily ECB EUR/USD exchange rates, 2-month wash sale rule detection (Art. 33.5.f LIRPF), 4-year loss carryforward, and direct Renta WEB Box 0326–0335 CSV export.
 
 ---
 
-## Technical & Operational Documentation
+## Technical & Operational Documentation (`docs/`)
 
-- **[OPERATIONAL_FAQ_AND_DECISIONS.md](OPERATIONAL_FAQ_AND_DECISIONS.md)**: Guía operativa viva, fiscalidad en España (IRPF Base del Ahorro), selección de ETFs UCITS europeos (`CSPX`, `EQQQ`, `SGLD`), comisiones de bróker y análisis cuantitativo de apalancamiento x3.
-- **[ROADMAP_AND_HANDOVER.md](ROADMAP_AND_HANDOVER.md)**: Manual de traspaso institucional, arquitectura matemática, auditoría 2007–2026 y hoja de ruta para paso a dinero real en Interactive Brokers.
+All exhaustive architectural, operational, and regulatory documentation is centralized in [`docs/`](docs/):
+
+- **[MANUAL_DE_USO.md](docs/MANUAL_DE_USO.md)**: Manual oficial exhaustivo de la plataforma web/móvil (Inicio, Cartera, ETFs, Análisis, Sistema y Configuración), rutina diaria de las 21:55 CET, operativa en Euros en Tradegate y auditoría fiscal.
+- **[REQUISITOS_Y_TESTS_FIABILIDAD.md](docs/REQUISITOS_Y_TESTS_FIABILIDAD.md)**: Especificación formal de los 12 requisitos de fiabilidad operativa y UX (hot-swapping de motores, botón de pánico, persistencia atómica, cortafuegos de drawdown -8%, modo copiloto y resiliencia), verificados por 71 tests automatizados.
+- **[OPERATIONAL_FAQ_AND_DECISIONS.md](docs/OPERATIONAL_FAQ_AND_DECISIONS.md)**: Registro histórico y vivo de decisiones cuantitativas, operativa en Tradegate en EUR con órdenes Limit, selección de ETFs UCITS (`SPYL`, `EQQQ`, `4GLD`, etc.) y descarte de productos apalancados x3.
+- **[AUDIT_AND_PROPOSALS.md](docs/AUDIT_AND_PROPOSALS.md)**: Auditoría cuantitativa independiente 2007–2026, pruebas de ablación (*leave-one-out*), evaluación empírica de candidatos M6–M9 y dictamen de robustez.
+- **[ROADMAP_AND_HANDOVER.md](docs/ROADMAP_AND_HANDOVER.md)**: Manual de traspaso técnico, fórmulas matemáticas, gestión de liquidez y protocolo de paso a dinero real.

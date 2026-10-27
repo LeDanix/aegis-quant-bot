@@ -15,6 +15,7 @@ import os
 import sys
 import gzip
 import json
+import time
 import threading
 import urllib.parse
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -115,13 +116,24 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/etf/history":
             qs = urllib.parse.parse_qs(parsed.query)
             symbol = (qs.get("symbol", ["SPY"])[0] or "SPY").upper()
+            timeframe = (qs.get("timeframe", ["1d"])[0] or "1d").lower()
+            force_refresh = (
+                qs.get("refresh", ["false"])[0].lower() in ("true", "1", "yes")
+            )
             live_prices = (
                 dict(self.bot_controller.latest_prices)
                 if self.bot_controller is not None
                 else None
             )
             svc = EtfChartService(self.base_dir)
-            self._send_json(svc.get_etf_payload(symbol=symbol, live_prices=live_prices))
+            self._send_json(
+                svc.get_etf_payload(
+                    symbol=symbol,
+                    live_prices=live_prices,
+                    timeframe=timeframe,
+                    force_refresh=force_refresh,
+                )
+            )
             return
 
         if parsed.path == "/api/tax/live-audit":
@@ -241,9 +253,27 @@ def _get_tailscale_ip() -> str:
     return ""
 
 
+def _start_etf_hourly_updater(base_dir: str):
+    """Hilo demonio en segundo plano que mantiene templada la caché horaria de ETFs cada 60 minutos."""
+    def _loop():
+        time.sleep(10)  # Espera inicial para dar prioridad al arranque del servidor
+        svc = EtfChartService(base_dir)
+        while True:
+            try:
+                svc.refresh_all_hourly(force=False)
+            except Exception:
+                pass
+            time.sleep(300)
+
+    t = threading.Thread(target=_loop, daemon=True, name="EtfHourlyUpdaterThread")
+    t.start()
+
+
 def run_server(port: int = 8085):
     # Inicializar el controlador en vivo al arrancar el servidor
     AegisRequestHandler.get_controller()
+    # Iniciar actualizador horario en segundo plano para las gráficas de ETFs
+    _start_etf_hourly_updater(BASE_DIR)
     # Escuchar en 0.0.0.0 para permitir acceso desde localhost y desde Tailscale VPN en el móvil.
     # ThreadingHTTPServer atiende cada petición en su propio hilo: una consulta lenta a Yahoo
     # Finance (escaneo) ya no congela la web ni deja en cola el botón de pánico.

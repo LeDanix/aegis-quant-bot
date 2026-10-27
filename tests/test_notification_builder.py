@@ -78,9 +78,71 @@ class TestNotificationBuilder(unittest.TestCase):
         # 3. Orders execution check
         self.assertIn("BUY SPY</b>: $1,200.00 (CORE_BULL)", msg)
 
-        # 4. Check when no orders are executed
+        # 4. Check when no orders are executed (default fallback)
         msg_no_orders = ctrl._build_notification_message("Reloj Automático", [], pulse, state_after)
         self.assertIn("Sin rotación necesaria. Cartera alineada al régimen.", msg_no_orders)
+
+        # 5. Check direct reason for closed market or defensive regime
+        msg_closed = ctrl._build_notification_message(
+            "Reloj Automático",
+            [],
+            pulse,
+            state_after,
+            direct_reason="Mercado cerrado: Fin de semana (Sábado). Wall Street inactivo. Cartera protegida.",
+        )
+        self.assertIn("Mercado cerrado: Fin de semana (Sábado)", msg_closed)
+        self.assertIn("Cartera protegida.", msg_closed)
+
+        # 6. Check differentiation between 100% cash and active positions maintained
+        state_cash = {"account": {"total_equity_usd": 10000.0, "cash_usd": 10000.0, "total_return_pct": 0.0, "current_dd_pct": 0.0}, "positions": []}
+        msg_100_cash = ctrl._build_notification_message(
+            "Reloj Automático",
+            [],
+            pulse,
+            state_cash,
+            direct_reason="Sin operaciones. Cartera al 100% en liquidez/efectivo. Razón: Mercado en régimen defensivo (SPY por debajo de SMA-50) y ningún motor táctico (M1–M6) activó señal de entrada.",
+        )
+        self.assertIn("Cartera al 100% en liquidez/efectivo", msg_100_cash)
+        self.assertIn("100% en Efectivo / Sin posiciones abiertas.", msg_100_cash)
+
+        msg_active_pos = ctrl._build_notification_message(
+            "Reloj Automático",
+            [],
+            pulse,
+            state_after,
+            direct_reason="Sin rotación necesaria. Posiciones activas mantenidas: SPY (85.0%), QQQ (15.0%) (Efectivo: 0.5%). Razón: Cartera ya alineada al 100% con los pesos óptimos del régimen alcista.",
+        )
+        self.assertIn("Posiciones activas mantenidas: SPY (85.0%), QQQ (15.0%)", msg_active_pos)
+        self.assertIn("SPY (85.0%): $8,700.00", msg_active_pos)
+
+    def test_market_session_status(self):
+        """Verifies weekend and holiday detection for Wall Street calendar."""
+        import datetime
+        from zoneinfo import ZoneInfo
+
+        # Saturday
+        sat = datetime.datetime(2026, 10, 24, 15, 55, tzinfo=ZoneInfo("America/New_York"))
+        closed, reason = LiveBotController.get_market_session_status(sat)
+        self.assertTrue(closed)
+        self.assertIn("Sábado", reason)
+
+        # Sunday
+        sun = datetime.datetime(2026, 10, 25, 15, 55, tzinfo=ZoneInfo("America/New_York"))
+        closed, reason = LiveBotController.get_market_session_status(sun)
+        self.assertTrue(closed)
+        self.assertIn("Domingo", reason)
+
+        # Christmas Day 2026 (Friday Dec 25)
+        xmas = datetime.datetime(2026, 12, 25, 15, 55, tzinfo=ZoneInfo("America/New_York"))
+        closed, reason = LiveBotController.get_market_session_status(xmas)
+        self.assertTrue(closed)
+        self.assertIn("Navidad", reason)
+
+        # Regular trading day (e.g. Wednesday Oct 21, 2026)
+        wed = datetime.datetime(2026, 10, 21, 15, 55, tzinfo=ZoneInfo("America/New_York"))
+        closed, reason = LiveBotController.get_market_session_status(wed)
+        self.assertFalse(closed)
+        self.assertIn("Sesión de negociación activa", reason)
 
 
 if __name__ == "__main__":
