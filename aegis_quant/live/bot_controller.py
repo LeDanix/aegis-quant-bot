@@ -149,6 +149,8 @@ class LiveBotController:
         self.market_pulse_cache: Dict[str, Any] = {}
         self.live_scan_cache: Dict[str, Any] = dict(summary_data.get("live_scan", {}))
         self.tactical_status_cache: Dict[str, Any] = {}
+        self._last_pulse_time: float = time.time() if enable_network_init else 0.0
+        self._pulse_lock = threading.Lock()
 
         for asset in self.live_scan_cache.get("assets", []):
             self.latest_prices[asset["symbol"]] = float(asset["close"])
@@ -851,8 +853,20 @@ class LiveBotController:
         self.store.append_log(msg, "WARN")
         return {"ok": True, "message": msg}
 
-    def get_full_status(self) -> Dict[str, Any]:
+    def get_full_status(self, force_pulse: bool = False) -> Dict[str, Any]:
         """Devuelve el estado consolidado para pintar el Centro de Mando Web y Móvil."""
+        now_ts = time.time()
+        # Refrescar cotizaciones reales de Yahoo Finance si expiró el TTL de 60s o se fuerza explícitamente
+        if force_pulse or (now_ts - self._last_pulse_time > 60.0):
+            if self._pulse_lock.acquire(blocking=False):
+                try:
+                    self.refresh_market_pulse()
+                    self._last_pulse_time = time.time()
+                except Exception:
+                    pass
+                finally:
+                    self._pulse_lock.release()
+
         cfg = self.store.get_config()
         broker = self._get_broker()
         conn_ok, conn_msg = broker.test_connection()

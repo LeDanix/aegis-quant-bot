@@ -110,7 +110,9 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
 
         if parsed.path == "/api/live/status":
             ctrl = self.get_controller()
-            self._send_json(ctrl.get_full_status())
+            qs = urllib.parse.parse_qs(parsed.query)
+            force_refresh = qs.get("refresh", ["false"])[0].lower() in ("true", "1", "yes")
+            self._send_json(ctrl.get_full_status(force_pulse=force_refresh))
             return
 
         if parsed.path == "/api/etf/history":

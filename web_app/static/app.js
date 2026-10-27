@@ -3604,11 +3604,12 @@ function renderTacticalEnginesCard(data, cfg) {
 // ============================================================================
 // CENTRO DE CONTROL EN VIVO (CARTERA, ÓRDENES, LOGS Y PARÁMETROS)
 // ============================================================================
-async function fetchLiveStatus(initForm = false) {
-  if (liveFetchInFlight && !initForm) return;
+async function fetchLiveStatus(initForm = false, forceRefresh = false) {
+  if (liveFetchInFlight && !initForm && !forceRefresh) return;
   liveFetchInFlight = true;
   try {
-    const res = await fetch('/api/live/status');
+    const url = forceRefresh ? '/api/live/status?refresh=1' : '/api/live/status';
+    const res = await fetch(url);
     const data = await res.json();
     LAST_LIVE_STATUS = data;
     renderLiveControlCenter(data, initForm || !LIVE_CONFIG_INITIALIZED);
