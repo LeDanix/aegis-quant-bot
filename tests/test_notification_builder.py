@@ -65,18 +65,23 @@ class TestNotificationBuilder(unittest.TestCase):
 
         # 1. Market pulse check
         self.assertIn("PULSO DEL MERCADO HOY", msg)
-        self.assertIn("<b>SPY</b>: $580.50 (+0.45%)", msg)
-        self.assertIn("<b>QQQ</b>: $490.20 (-0.32%)", msg)
+        self.assertIn("<b>SPY</b>: 580.50 $ (+0.45%)", msg)
+        self.assertIn("<b>QQQ</b>: 490.20 $ (-0.32%)", msg)
         self.assertIn("<b>VIX</b>: 16.50", msg)
         self.assertIn("Ratio: 0.892 (Contango (Alcista))", msg)
 
-        # 2. Portfolio equity and positions
-        self.assertIn("Capital Total: <b>$10,250.00</b>", msg)
-        self.assertIn("SPY (85.0%): $8,700.00 (P&L: +$180.00)", msg)
-        self.assertIn("QQQ (15.0%): $1,500.00 (P&L: +$70.00)", msg)
+        # 2. Portfolio equity and positions (Separador miles con espacio, decimales con punto, sin prefijo $)
+        self.assertIn("Capital Total: <b>10 250.00 $</b>", msg)
+        self.assertIn("SPY (85.0%): 8 700.00 $ (P&L: +180.00 $)", msg)
+        self.assertIn("QQQ (15.0%): 1 500.00 $ (P&L: +70.00 $)", msg)
 
         # 3. Orders execution check
-        self.assertIn("BUY SPY</b>: $1,200.00 (CORE_BULL)", msg)
+        self.assertIn("BUY SPY</b>: 1 200.00 $ (CORE_BULL)", msg)
+
+        # 4. Anti-shell-expansion check (nunca debe haber $ prefijando números para evitar borrado en CallMeBot)
+        self.assertNotIn("$10", msg)
+        self.assertNotIn("$8", msg)
+        self.assertNotIn("$1", msg)
 
         # 4. Check when no orders are executed (default fallback)
         msg_no_orders = ctrl._build_notification_message("Reloj Automático", [], pulse, state_after)
@@ -113,7 +118,7 @@ class TestNotificationBuilder(unittest.TestCase):
             direct_reason="Sin rotación necesaria. Posiciones activas mantenidas: SPY (85.0%), QQQ (15.0%) (Efectivo: 0.5%). Razón: Cartera ya alineada al 100% con los pesos óptimos del régimen alcista.",
         )
         self.assertIn("Posiciones activas mantenidas: SPY (85.0%), QQQ (15.0%)", msg_active_pos)
-        self.assertIn("SPY (85.0%): $8,700.00", msg_active_pos)
+        self.assertIn("SPY (85.0%): 8 700.00 $", msg_active_pos)
 
     def test_market_session_status(self):
         """Verifies weekend and holiday detection for Wall Street calendar."""

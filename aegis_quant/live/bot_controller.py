@@ -56,6 +56,23 @@ def _calc_easter(year: int) -> date:
     return date(year, month, day)
 
 
+def _format_currency_signal(amount: float, is_pnl: bool = False, currency: str = "$") -> str:
+    """
+    Formatea importes monetarios para notificaciones de Signal y pasarelas móviles:
+      - Separador de miles: espacio ' ' para cifras mayores que mil (ej: '8 495.12').
+      - Separador decimal: punto '.' estricto con 2 decimales.
+      - Símbolo de moneda: ubicado al final con espacio ('8 495.12 $').
+        Evita que pasarelas como CallMeBot/signal-cli evalúen '$8' o '$1' como
+        variables de entorno de shell y borren el dígito del millar antes de la coma.
+    """
+    formatted = f"{abs(amount):,.2f}".replace(",", " ")
+    if is_pnl:
+        sign = "+" if amount > 0 else ("-" if amount < 0 else "")
+        return f"{sign}{formatted} {currency}".strip()
+    sign = "-" if amount < 0 else ""
+    return f"{sign}{formatted} {currency}".strip()
+
+
 def get_nyse_holidays(year: int) -> Dict[date, str]:
     """Calcula los festivos oficiales de la Bolsa de Nueva York (NYSE/Nasdaq) para un año dado."""
     import datetime as _dt
@@ -609,7 +626,7 @@ class LiveBotController:
                 p = pulse[sym]
                 chg = p.get("change_pct", 0.0)
                 sign = "+" if chg >= 0 else ""
-                lines.append(f"• <b>{sym}</b>: ${p['price']:,.2f} ({sign}{chg:.2f}%)")
+                lines.append(f"• <b>{sym}</b>: {_format_currency_signal(float(p['price']))} ({sign}{chg:.2f}%)")
 
         # Estructura Temporal de Volatilidad
         vix = pulse.get("VIX", {}).get("price")
@@ -631,8 +648,8 @@ class LiveBotController:
         lines.extend([
             "",
             "💼 <b>ESTADO DE CARTERA:</b>",
-            f"• Capital Total: <b>${eq:,.2f}</b> (Retorno: {tot_ret:+.2f}%)",
-            f"• Efectivo (Cash): ${cash:,.2f} | Max Drawdown: {dd:.2f}%",
+            f"• Capital Total: <b>{_format_currency_signal(eq)}</b> (Retorno: {tot_ret:+.2f}%)",
+            f"• Efectivo (Cash): {_format_currency_signal(cash)} | Max Drawdown: {dd:.2f}%",
             "",
             "🎯 <b>POSICIONES ACTIVAS:</b>",
         ])
@@ -644,8 +661,7 @@ class LiveBotController:
                 w = float(pos.get("weight_pct", 0.0))
                 mkt_val = float(pos.get("market_value_usd", 0.0))
                 pnl = float(pos.get("unrealized_pnl_usd", 0.0))
-                sign = "+" if pnl >= 0 else ""
-                lines.append(f"• {sym} ({w:.1f}%): ${mkt_val:,.2f} (P&L: {sign}${pnl:,.2f})")
+                lines.append(f"• {sym} ({w:.1f}%): {_format_currency_signal(mkt_val)} (P&L: {_format_currency_signal(pnl, is_pnl=True)})")
         else:
             lines.append("• 100% en Efectivo / Sin posiciones abiertas.")
 
@@ -664,7 +680,7 @@ class LiveBotController:
             lines.append(f"⚡ <b>ÓRDENES EJECUTADAS HOY ({len(orders)}):</b>")
             for o in orders:
                 notional = float(o.get("notional_usd", 0.0))
-                lines.append(f"- <b>{o['side']} {o['symbol']}</b>: ${notional:,.2f} ({o.get('motor', 'CORE')})")
+                lines.append(f"- <b>{o['side']} {o['symbol']}</b>: {_format_currency_signal(notional)} ({o.get('motor', 'CORE')})")
         else:
             reason_txt = direct_reason or "Sin rotación necesaria. Cartera alineada al régimen."
             lines.append(f"⚡ <b>OPERATIVA HOY:</b> {reason_txt}")
