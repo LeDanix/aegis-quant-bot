@@ -59,13 +59,13 @@ def _calc_easter(year: int) -> date:
 def _format_currency_signal(amount: float, is_pnl: bool = False, currency: str = "$") -> str:
     """
     Formatea importes monetarios para notificaciones de Signal y pasarelas móviles:
-      - Separador de miles: espacio ' ' para cifras mayores que mil (ej: '8 495.12').
+      - Sin separador de miles (cifra continua sin espacios ni comas, ej: '8495.12').
       - Separador decimal: punto '.' estricto con 2 decimales.
-      - Símbolo de moneda: ubicado al final con espacio ('8 495.12 $').
+      - Símbolo de moneda: ubicado al final con espacio ('8495.12 $').
         Evita que pasarelas como CallMeBot/signal-cli evalúen '$8' o '$1' como
         variables de entorno de shell y borren el dígito del millar antes de la coma.
     """
-    formatted = f"{abs(amount):,.2f}".replace(",", " ")
+    formatted = f"{abs(amount):.2f}"
     if is_pnl:
         sign = "+" if amount > 0 else ("-" if amount < 0 else "")
         return f"{sign}{formatted} {currency}".strip()
