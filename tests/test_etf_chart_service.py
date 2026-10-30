@@ -1,8 +1,7 @@
 import os
 import unittest
 
-from aegis_quant.data.etf_chart_service import EtfChartService, ORDERED_ETF_SYMBOLS
-
+from aegis_quant.data.etf_chart_service import ORDERED_ETF_SYMBOLS, EtfChartService
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -93,7 +92,6 @@ class TestEtfChartService(unittest.TestCase):
             mtime_after,
             "CRITICAL: data/SPY_daily.json was modified by EtfChartService! It must remain read-only.",
         )
-
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # Aegis-Quant: Comprehensive Architecture, Handover & Operational Roadmap
 
-> **CONFIDENTIAL & PROPRIETARY — FOR QUANTITATIVE SYSTEM OPERATORS**  
-> *Target Audience: Future System Maintainer & Quantitative Developer*  
+> **CONFIDENTIAL & PROPRIETARY — FOR QUANTITATIVE SYSTEM OPERATORS**
+> *Target Audience: Future System Maintainer & Quantitative Developer*
 > *Last Updated: October 23, 2026*
 
 ---
@@ -210,8 +210,9 @@ Implement the IBKR connection in [`broker_adapter.py`](file:///C:/personal/Git_R
 ```python
 from ib_insync import IB, Stock, Order
 
+
 class IBKRBrokerAdapter(BaseBrokerAdapter):
-    def __init__(self, store: BotConfigStore, host='127.0.0.1', port=4002, client_id=1):
+    def __init__(self, store: BotConfigStore, host="127.0.0.1", port=4002, client_id=1):
         self.ib = IB()
         self.host = host
         self.port = port
@@ -246,8 +247,8 @@ class IBKRBrokerAdapter(BaseBrokerAdapter):
 ## 7. Próximo Paso Crítico: Operabilidad de ETFs en España (Regulación PRIIPs / KID vs Alternativas UCITS en IBKR)
 
 > [!IMPORTANT]
-> **Recordatorio Operativo para la Próxima Sesión:**  
-> Actualmente, en modo Paper Trading se operan los tickers estadounidenses de referencia (`SPY`, `QQQ`, `GLD`, `TLT`, `USO`, `ZS/SOYB`).  
+> **Recordatorio Operativo para la Próxima Sesión:**
+> Actualmente, en modo Paper Trading se operan los tickers estadounidenses de referencia (`SPY`, `QQQ`, `GLD`, `TLT`, `USO`, `ZS/SOYB`).
 > Sin embargo, para un inversor particular residente en España / Unión Europea, la normativa **PRIIPs / MiFID II** exige que cualquier fondo o ETF cuente con un documento **KID (Key Information Document)** en el idioma local. Los ETFs domiciliados en EE.UU. no lo emiten, por lo que brókers como Interactive Brokers (IBKR España/Irlanda) restringen su compra directa al contado para clientes minoristas.
 
 ### Alternativas de Implementación para Paso a Real desde España:

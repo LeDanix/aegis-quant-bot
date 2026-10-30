@@ -6,13 +6,13 @@ Implementa el Patrón Strategy/Adapter:
   3. IBKRPaperBrokerAdapter  : Adaptador preparado para Interactive Brokers (IB Gateway) para futuro paso a real en Europa.
 """
 
-import time
 import json
-import urllib.request
+import time
 import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Any
 
 from aegis_quant.live.config_store import BotConfigStore
 from aegis_quant.tax.spanish_tax_engine import ECBExchangeRateProvider, map_to_ucits_metadata
@@ -21,11 +21,11 @@ from aegis_quant.tax.spanish_tax_engine import ECBExchangeRateProvider, map_to_u
 class BaseBrokerAdapter(ABC):
     """Interfaz común para cualquier bróker de ejecución (Paper o Real)."""
 
-    def __init__(self, store: BotConfigStore, latest_prices: Dict[str, float]):
+    def __init__(self, store: BotConfigStore, latest_prices: dict[str, float]):
         self.store = store
         self.latest_prices = latest_prices
 
-    def map_symbol(self, internal_symbol: str, config: Dict[str, Any]) -> str:
+    def map_symbol(self, internal_symbol: str, config: dict[str, Any]) -> str:
         """Convierte 'ZS' (Futuro Soja) en 'SOYB' (ETF Teucrium Soybean en Alpaca) si está activo."""
         if internal_symbol == "ZS" and config.get("use_soyb_etf_for_zs", True):
             return "SOYB"
@@ -40,17 +40,17 @@ class BaseBrokerAdapter(ABC):
         return round(float(self.latest_prices.get(symbol, 100.0)), 2)
 
     @abstractmethod
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         pass
 
     @abstractmethod
-    def get_portfolio_snapshot(self) -> Dict[str, Any]:
+    def get_portfolio_snapshot(self) -> dict[str, Any]:
         pass
 
     @abstractmethod
     def execute_target_weights(
-        self, target_weights: Dict[str, Dict[str, Any]], reason_summary: str
-    ) -> Tuple[bool, List[Dict[str, Any]], str]:
+        self, target_weights: dict[str, dict[str, Any]], reason_summary: str
+    ) -> tuple[bool, list[dict[str, Any]], str]:
         """
         Ajusta la cartera hacia los pesos objetivo:
         target_weights = {
@@ -61,7 +61,7 @@ class BaseBrokerAdapter(ABC):
         pass
 
     @abstractmethod
-    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> Tuple[bool, str]:
+    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> tuple[bool, str]:
         pass
 
 
@@ -73,10 +73,10 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
     a crear claves externas.
     """
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         return True, "Conectado al Motor Paper Trading Local en Vivo (Persistencia SQLite/JSON activa)."
 
-    def get_portfolio_snapshot(self) -> Dict[str, Any]:
+    def get_portfolio_snapshot(self) -> dict[str, Any]:
         cfg = self.store.get_config()
         state = self.store.get_state()
         acct = state.get("account", {})
@@ -132,8 +132,8 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         return state
 
     def execute_target_weights(
-        self, target_weights: Dict[str, Dict[str, Any]], reason_summary: str
-    ) -> Tuple[bool, List[Dict[str, Any]], str]:
+        self, target_weights: dict[str, dict[str, Any]], reason_summary: str
+    ) -> tuple[bool, list[dict[str, Any]], str]:
         cfg = self.store.get_config()
         state = self.get_portfolio_snapshot()
         acct = state["account"]
@@ -177,9 +177,7 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         # 2. Abrir o ajustar posiciones objetivo
         used_cash = 0.0
         active_targets = [
-            (int_sym, info)
-            for int_sym, info in target_weights.items()
-            if float(info.get("weight", 0.0)) > 0.001
+            (int_sym, info) for int_sym, info in target_weights.items() if float(info.get("weight", 0.0)) > 0.001
         ]
         total_weight = sum(float(info.get("weight", 0.0)) for _, info in active_targets)
 
@@ -250,30 +248,32 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
         for o in executed_orders:
             ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
-            self.store.append_trade_ledger({
-                "timestamp": now_str,
-                "environment": self.store.get_config().get("environment", "PAPER"),
-                "order_id": f"ORD-{int(time.time() * 1000)}",
-                "symbol": o.get("symbol"),
-                "ucits_ticker": ucits_meta["primary_ucits"],
-                "isin": ucits_meta["isin"],
-                "side": o.get("side"),
-                "qty": o.get("qty"),
-                "price_usd": o.get("price"),
-                "notional_usd": o.get("notional_usd"),
-                "currency": "USD",
-                "fx_eur_usd": fx_rate,
-                "commission_usd": 0.0,
-                "motor": o.get("motor"),
-                "reason": o.get("reason"),
-                "status": "FILLED",
-            })
+            self.store.append_trade_ledger(
+                {
+                    "timestamp": now_str,
+                    "environment": self.store.get_config().get("environment", "PAPER"),
+                    "order_id": f"ORD-{int(time.time() * 1000)}",
+                    "symbol": o.get("symbol"),
+                    "ucits_ticker": ucits_meta["primary_ucits"],
+                    "isin": ucits_meta["isin"],
+                    "side": o.get("side"),
+                    "qty": o.get("qty"),
+                    "price_usd": o.get("price"),
+                    "notional_usd": o.get("notional_usd"),
+                    "currency": "USD",
+                    "fx_eur_usd": fx_rate,
+                    "commission_usd": 0.0,
+                    "motor": o.get("motor"),
+                    "reason": o.get("reason"),
+                    "status": "FILLED",
+                }
+            )
 
         msg = f"Sincronización Paper completada: {len(executed_orders)} órdenes ejecutadas | {len(new_positions)} posiciones activas."
         self.store.append_log(msg, "SUCCESS")
         return True, executed_orders, msg
 
-    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> Tuple[bool, str]:
+    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> tuple[bool, str]:
         state = self.get_portfolio_snapshot()
         positions = state.get("positions", [])
         if not positions:
@@ -314,24 +314,26 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
         for o in orders:
             ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
-            self.store.append_trade_ledger({
-                "timestamp": now_str,
-                "environment": self.store.get_config().get("environment", "PAPER"),
-                "order_id": f"ORD-KILL-{int(time.time() * 1000)}",
-                "symbol": o.get("symbol"),
-                "ucits_ticker": ucits_meta["primary_ucits"],
-                "isin": ucits_meta["isin"],
-                "side": o.get("side"),
-                "qty": o.get("qty"),
-                "price_usd": o.get("price"),
-                "notional_usd": o.get("notional_usd"),
-                "currency": "USD",
-                "fx_eur_usd": fx_rate,
-                "commission_usd": 0.0,
-                "motor": o.get("motor"),
-                "reason": o.get("reason"),
-                "status": "FILLED",
-            })
+            self.store.append_trade_ledger(
+                {
+                    "timestamp": now_str,
+                    "environment": self.store.get_config().get("environment", "PAPER"),
+                    "order_id": f"ORD-KILL-{int(time.time() * 1000)}",
+                    "symbol": o.get("symbol"),
+                    "ucits_ticker": ucits_meta["primary_ucits"],
+                    "isin": ucits_meta["isin"],
+                    "side": o.get("side"),
+                    "qty": o.get("qty"),
+                    "price_usd": o.get("price"),
+                    "notional_usd": o.get("notional_usd"),
+                    "currency": "USD",
+                    "fx_eur_usd": fx_rate,
+                    "commission_usd": 0.0,
+                    "motor": o.get("motor"),
+                    "reason": o.get("reason"),
+                    "status": "FILLED",
+                }
+            )
 
         msg = f"Cierre de emergencia ejecutado: {len(orders)} posiciones liquidadas a efectivo (${total_eq:,.2f} en caja)."
         self.store.append_log(msg, "WARN")
@@ -345,17 +347,17 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
     Soporta órdenes fraccionadas (`notional` en USD) con $0 de comisión y convierte `ZS` -> `SOYB`.
     """
 
-    def _headers(self, cfg: Dict[str, Any]) -> Dict[str, str]:
+    def _headers(self, cfg: dict[str, Any]) -> dict[str, str]:
         return {
             "APCA-API-KEY-ID": cfg.get("alpaca_api_key", "").strip(),
             "APCA-API-SECRET-KEY": cfg.get("alpaca_secret_key", "").strip(),
             "Content-Type": "application/json",
         }
 
-    def _base_url(self, cfg: Dict[str, Any]) -> str:
+    def _base_url(self, cfg: dict[str, Any]) -> str:
         return cfg.get("alpaca_endpoint", "https://paper-api.alpaca.markets").rstrip("/")
 
-    def test_connection(self) -> Tuple[bool, str]:
+    def test_connection(self) -> tuple[bool, str]:
         cfg = self.store.get_config()
         if not cfg.get("alpaca_api_key") or not cfg.get("alpaca_secret_key"):
             return (
@@ -378,7 +380,7 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
         except Exception as exc:
             return False, f"Error de red al conectar con Alpaca: {exc}"
 
-    def get_portfolio_snapshot(self) -> Dict[str, Any]:
+    def get_portfolio_snapshot(self) -> dict[str, Any]:
         cfg = self.store.get_config()
         ok, _ = self.test_connection()
         if not ok:
@@ -443,8 +445,8 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
         return state
 
     def execute_target_weights(
-        self, target_weights: Dict[str, Dict[str, Any]], reason_summary: str
-    ) -> Tuple[bool, List[Dict[str, Any]], str]:
+        self, target_weights: dict[str, dict[str, Any]], reason_summary: str
+    ) -> tuple[bool, list[dict[str, Any]], str]:
         cfg = self.store.get_config()
         ok, conn_msg = self.test_connection()
         if not ok:
@@ -514,7 +516,7 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
         self.store.append_log(msg, "SUCCESS")
         return True, executed_orders, msg
 
-    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> Tuple[bool, str]:
+    def close_all_positions(self, reason: str = "Botón de Pánico / Cierre Total desde Web") -> tuple[bool, str]:
         cfg = self.store.get_config()
         ok, _ = self.test_connection()
         if not ok:

@@ -21,7 +21,6 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
 
 from aegis_quant.live.bot_controller import LiveBotController
 from aegis_quant.live.broker_adapter import LocalPaperBrokerAdapter
@@ -85,16 +84,18 @@ class TestSystemIntegrationAndUX(unittest.TestCase):
         self.assertIn("M1_PULLBACK", res_active["targets"]["QQQ"]["motor"])
 
         # 2. Desactivar M1 en caliente en la configuración
-        self.store.update_config({
-            "enabled_motors": {
-                "M1_PULLBACK": False,
-                "M2_VIX_DIV": True,
-                "M3_BEAR_SHORT": True,
-                "M4_CTA_TREND": True,
-                "M5_VOL_CRUSH": True,
-                "M6_TOTM": True,
+        self.store.update_config(
+            {
+                "enabled_motors": {
+                    "M1_PULLBACK": False,
+                    "M2_VIX_DIV": True,
+                    "M3_BEAR_SHORT": True,
+                    "M4_CTA_TREND": True,
+                    "M5_VOL_CRUSH": True,
+                    "M6_TOTM": True,
+                }
             }
-        })
+        )
         cfg = self.store.get_config()
         self.assertFalse(cfg["enabled_motors"]["M1_PULLBACK"])
 
@@ -194,7 +195,7 @@ class TestSystemIntegrationAndUX(unittest.TestCase):
         # 2. Leer directamente desde disco asegurando que no hay fichero .tmp_ residual
         raw_cfg_path = os.path.join(self.tmpdir, "data", "bot_live_config.json")
         self.assertTrue(os.path.exists(raw_cfg_path))
-        with open(raw_cfg_path, "r", encoding="utf-8") as f:
+        with open(raw_cfg_path, encoding="utf-8") as f:
             disk_cfg = json.load(f)
         self.assertEqual(disk_cfg["allocated_capital_usd"], 25000.0)
         self.assertEqual(disk_cfg["risk_per_trade_pct"], 3.0)
@@ -208,44 +209,48 @@ class TestSystemIntegrationAndUX(unittest.TestCase):
     def test_req04_tax_audit_computes_cleanly_after_panic_liquidation(self):
         """Verifica que la auditoría fiscal (FIFO, BCE, Regla 2 Meses) computa fielmente sobre el libro contable."""
         # 1. Registrar compra inicial en el libro contable de Paper
-        self.store.append_trade_ledger({
-            "timestamp": "2026-10-15 15:30:00",
-            "environment": "PAPER",
-            "order_id": "ORD-INIT-BUY",
-            "symbol": "SPY",
-            "ucits_ticker": "SPYL",
-            "isin": "IE000XZSV718",
-            "side": "BUY",
-            "qty": 10.0,
-            "price_usd": 570.0,
-            "notional_usd": 5700.0,
-            "currency": "USD",
-            "fx_eur_usd": 1.08,
-            "commission_usd": 1.5,
-            "motor": "M1_PULLBACK",
-            "reason": "Entrada Rebote",
-            "status": "FILLED",
-        })
+        self.store.append_trade_ledger(
+            {
+                "timestamp": "2026-10-15 15:30:00",
+                "environment": "PAPER",
+                "order_id": "ORD-INIT-BUY",
+                "symbol": "SPY",
+                "ucits_ticker": "SPYL",
+                "isin": "IE000XZSV718",
+                "side": "BUY",
+                "qty": 10.0,
+                "price_usd": 570.0,
+                "notional_usd": 5700.0,
+                "currency": "USD",
+                "fx_eur_usd": 1.08,
+                "commission_usd": 1.5,
+                "motor": "M1_PULLBACK",
+                "reason": "Entrada Rebote",
+                "status": "FILLED",
+            }
+        )
 
         # 2. Registrar venta por liquidación total (pánico) con ganancia
-        self.store.append_trade_ledger({
-            "timestamp": "2026-10-25 16:00:00",
-            "environment": "PAPER",
-            "order_id": "ORD-KILL-PANIC",
-            "symbol": "SPY",
-            "ucits_ticker": "SPYL",
-            "isin": "IE000XZSV718",
-            "side": "LIQUIDATE_ALL",
-            "qty": 10.0,
-            "price_usd": 585.0,
-            "notional_usd": 5850.0,
-            "currency": "USD",
-            "fx_eur_usd": 1.08,
-            "commission_usd": 0.0,
-            "motor": "KILL_SWITCH",
-            "reason": "Panico Web",
-            "status": "FILLED",
-        })
+        self.store.append_trade_ledger(
+            {
+                "timestamp": "2026-10-25 16:00:00",
+                "environment": "PAPER",
+                "order_id": "ORD-KILL-PANIC",
+                "symbol": "SPY",
+                "ucits_ticker": "SPYL",
+                "isin": "IE000XZSV718",
+                "side": "LIQUIDATE_ALL",
+                "qty": 10.0,
+                "price_usd": 585.0,
+                "notional_usd": 5850.0,
+                "currency": "USD",
+                "fx_eur_usd": 1.08,
+                "commission_usd": 0.0,
+                "motor": "KILL_SWITCH",
+                "reason": "Panico Web",
+                "status": "FILLED",
+            }
+        )
 
         # 3. Auditar fiscalmente con SpanishTaxAuditor
         auditor = SpanishTaxAuditor(self.tmpdir)
@@ -320,16 +325,18 @@ class TestSystemIntegrationAndUX(unittest.TestCase):
         st["account"]["peak_equity_usd"] = 10000.0
         st["account"]["cash_usd"] = 8420.0
         st["account"]["total_equity_usd"] = 9000.0
-        st["positions"] = [{
-            "broker_symbol": "SPY",
-            "internal_symbol": "SPY",
-            "qty": 1.0,
-            "avg_entry_price": 580.0,
-            "current_price": 580.0,
-            "market_value_usd": 580.0,
-            "unrealized_pnl_usd": 0.0,
-            "direction": "LONG",
-        }]
+        st["positions"] = [
+            {
+                "broker_symbol": "SPY",
+                "internal_symbol": "SPY",
+                "qty": 1.0,
+                "avg_entry_price": 580.0,
+                "current_price": 580.0,
+                "market_value_usd": 580.0,
+                "unrealized_pnl_usd": 0.0,
+                "direction": "LONG",
+            }
+        ]
         self.store.save_state(st)
 
         # Drawdown actual = (9000 - 10000) / 10000 = -10.0%, que supera el límite de -8.0%
@@ -449,39 +456,43 @@ class TestSystemIntegrationAndUX(unittest.TestCase):
     def test_req10_spanish_tax_carryforward_and_2m_rule_isolation(self):
         """Verifica la compensación de pérdidas de ejercicios previos y el aislamiento de la regla de los 2 meses."""
         # Compra inicial de 10 títulos a 500 €
-        self.store.append_trade_ledger({
-            "timestamp": "2026-03-01 10:00:00",
-            "environment": "PAPER",
-            "order_id": "ORD-B1",
-            "symbol": "SPY",
-            "ucits_ticker": "SPYL",
-            "isin": "IE000XZSV718",
-            "side": "BUY",
-            "qty": 10.0,
-            "price_usd": 500.0,
-            "notional_usd": 5000.0,
-            "currency": "USD",
-            "fx_eur_usd": 1.0,
-            "commission_usd": 0.0,
-            "status": "FILLED",
-        })
+        self.store.append_trade_ledger(
+            {
+                "timestamp": "2026-03-01 10:00:00",
+                "environment": "PAPER",
+                "order_id": "ORD-B1",
+                "symbol": "SPY",
+                "ucits_ticker": "SPYL",
+                "isin": "IE000XZSV718",
+                "side": "BUY",
+                "qty": 10.0,
+                "price_usd": 500.0,
+                "notional_usd": 5000.0,
+                "currency": "USD",
+                "fx_eur_usd": 1.0,
+                "commission_usd": 0.0,
+                "status": "FILLED",
+            }
+        )
         # Venta a 550 € (+500 € de ganancia bruta)
-        self.store.append_trade_ledger({
-            "timestamp": "2026-05-01 10:00:00",
-            "environment": "PAPER",
-            "order_id": "ORD-S1",
-            "symbol": "SPY",
-            "ucits_ticker": "SPYL",
-            "isin": "IE000XZSV718",
-            "side": "SELL",
-            "qty": 10.0,
-            "price_usd": 550.0,
-            "notional_usd": 5500.0,
-            "currency": "USD",
-            "fx_eur_usd": 1.0,
-            "commission_usd": 0.0,
-            "status": "FILLED",
-        })
+        self.store.append_trade_ledger(
+            {
+                "timestamp": "2026-05-01 10:00:00",
+                "environment": "PAPER",
+                "order_id": "ORD-S1",
+                "symbol": "SPY",
+                "ucits_ticker": "SPYL",
+                "isin": "IE000XZSV718",
+                "side": "SELL",
+                "qty": 10.0,
+                "price_usd": 550.0,
+                "notional_usd": 5500.0,
+                "currency": "USD",
+                "fx_eur_usd": 1.0,
+                "commission_usd": 0.0,
+                "status": "FILLED",
+            }
+        )
 
         auditor = SpanishTaxAuditor(self.tmpdir)
         # Aplicar 200 € de pérdidas pendientes de compensar de los 4 años anteriores

@@ -8,8 +8,9 @@ Compara:
     Rotación Defensiva en Crisis, Estructura Temporal VIX/VIX3M (Motor 5) y Meta-Labeling Kelly.
 """
 
-import os
 import json
+import os
+
 from aegis_quant.data.market_repository import MarketDataRepository
 from aegis_quant.indicators.quant_feature_engine import QuantFeatureEngine
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
@@ -136,7 +137,7 @@ def run_aegis_backtest() -> dict:
     print("\n" + "-" * 88)
     print("DESGLOSE POR MOTOR EN MODO 3 ELITE (5 MOTORES CUANTITATIVOS):")
     print("-" * 88)
-    for eng_id, st in mode_3_elite["engine_breakdown"].items():
+    for _eng_id, st in mode_3_elite["engine_breakdown"].items():
         print(
             f"  * {st['name']:50s} | Trades: {st['trades']:3d} | "
             f"WinRate: {st['win_rate']:5.1f}% | PF: {st['profit_factor']:4.2f}"

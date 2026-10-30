@@ -8,10 +8,10 @@ Verifies Audit Fix #2:
 
 import gzip
 import json
-import time
 import threading
-import urllib.request
+import time
 import unittest
+import urllib.request
 from http.server import ThreadingHTTPServer
 
 from web_app.server import AegisRequestHandler

@@ -7,6 +7,7 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.strategies.m2_vix_divergence import SchermanVixDivergenceStrategy
 from tests.helpers import create_mock_bar
 

@@ -15,26 +15,26 @@ Funcionalidades Principales:
    - Ejecución directa en bróker o creación de propuestas de confirmación.
 """
 
-import os
-import time
 import json
-import urllib.request
+import os
 import threading
-from datetime import datetime, date
+import time
+import urllib.request
+from datetime import date, datetime
+from typing import Any
 from zoneinfo import ZoneInfo
-from typing import Dict, Any, List, Optional, Tuple
 
 from aegis_quant.data.market_repository import MarketDataRepository
 from aegis_quant.indicators.quant_feature_engine import QuantFeatureEngine
-from aegis_quant.models.market_models import MarketBar
-from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
-from aegis_quant.live.config_store import BotConfigStore
 from aegis_quant.live.broker_adapter import (
+    AlpacaPaperBrokerAdapter,
     BaseBrokerAdapter,
     LocalPaperBrokerAdapter,
-    AlpacaPaperBrokerAdapter,
 )
+from aegis_quant.live.config_store import BotConfigStore
 from aegis_quant.live.notifier_service import MultiChannelNotifier
+from aegis_quant.models.market_models import MarketBar
+from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 
 
 def _calc_easter(year: int) -> date:
@@ -73,10 +73,11 @@ def _format_currency_signal(amount: float, is_pnl: bool = False, currency: str =
     return f"{sign}{formatted} {currency}".strip()
 
 
-def get_nyse_holidays(year: int) -> Dict[date, str]:
+def get_nyse_holidays(year: int) -> dict[date, str]:
     """Calcula los festivos oficiales de la Bolsa de Nueva York (NYSE/Nasdaq) para un año dado."""
     import datetime as _dt
-    holidays: Dict[date, str] = {}
+
+    holidays: dict[date, str] = {}
 
     def add_observed(d: date, name: str) -> None:
         if d.weekday() == 5:
@@ -142,7 +143,7 @@ class LiveBotController:
     def __init__(
         self,
         base_dir: str,
-        summary_data: Dict[str, Any],
+        summary_data: dict[str, Any],
         start_scheduler: bool = True,
         enable_network_init: bool = True,
     ):
@@ -162,10 +163,10 @@ class LiveBotController:
         self._last_auto_run_date = ""
 
         # Precios de mercado actuales y estado dinámico de motores tácticos M1-M5
-        self.latest_prices: Dict[str, float] = {}
-        self.market_pulse_cache: Dict[str, Any] = {}
-        self.live_scan_cache: Dict[str, Any] = dict(summary_data.get("live_scan", {}))
-        self.tactical_status_cache: Dict[str, Any] = {}
+        self.latest_prices: dict[str, float] = {}
+        self.market_pulse_cache: dict[str, Any] = {}
+        self.live_scan_cache: dict[str, Any] = dict(summary_data.get("live_scan", {}))
+        self.tactical_status_cache: dict[str, Any] = {}
         self._last_pulse_time: float = time.time() if enable_network_init else 0.0
         self._pulse_lock = threading.Lock()
 
@@ -187,11 +188,7 @@ class LiveBotController:
 
         # Si la cuenta Paper está recién creada y el bot viene en AUTO_100, sincronizar cartera inicial
         state = self.store.get_state()
-        if (
-            enable_network_init
-            and not state.get("positions")
-            and state.get("last_scan_time", "").startswith("Nunca")
-        ):
+        if enable_network_init and not state.get("positions") and state.get("last_scan_time", "").startswith("Nunca"):
             self.run_scan_and_sync(trigger_source="Arranque Inicial Automático")
 
     # -------------------------------------------------------------------------
@@ -199,7 +196,7 @@ class LiveBotController:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def get_time_info(target_ny_time: str = "15:55") -> Dict[str, Any]:
+    def get_time_info(target_ny_time: str = "15:55") -> dict[str, Any]:
         """
         Calcula metadatos horarios sincronizados entre Wall Street (New York) y España (Madrid).
         Detecta y solventa automáticamente los desfases estacionales de cambio de hora (DST).
@@ -231,9 +228,7 @@ class LiveBotController:
 
         # Cálculo de diferencia de husos horarios
         offset_ny = now_ny.utcoffset().total_seconds() / 3600.0 if now_ny.utcoffset() else -5.0
-        offset_madrid = (
-            now_madrid.utcoffset().total_seconds() / 3600.0 if now_madrid.utcoffset() else 1.0
-        )
+        offset_madrid = now_madrid.utcoffset().total_seconds() / 3600.0 if now_madrid.utcoffset() else 1.0
         diff_hours = int(round(offset_madrid - offset_ny))
         is_dst_mismatch = diff_hours != 6
 
@@ -257,7 +252,7 @@ class LiveBotController:
         }
 
     @staticmethod
-    def is_market_open_now(now_ny: Optional[datetime] = None) -> Tuple[bool, str]:
+    def is_market_open_now(now_ny: datetime | None = None) -> tuple[bool, str]:
         """
         Determina con precisión al minuto si la sesión regular de Wall Street (NYSE/Nasdaq)
         está actualmente abierta:
@@ -285,8 +280,8 @@ class LiveBotController:
 
         if isinstance(now_ny, datetime):
             hhmm = now_ny.hour * 60 + now_ny.minute
-            open_mm = 9 * 60 + 30    # 09:30 ET
-            close_mm = 16 * 60       # 16:00 ET
+            open_mm = 9 * 60 + 30  # 09:30 ET
+            close_mm = 16 * 60  # 16:00 ET
             if hhmm < open_mm:
                 return False, "Mercado cerrado: Pre-apertura (abre a las 09:30 NY)."
             if hhmm >= close_mm:
@@ -295,7 +290,7 @@ class LiveBotController:
         return True, "Mercado abierto: Sesión regular activa en Wall Street."
 
     @staticmethod
-    def get_market_session_status(now_ny: Optional[datetime] = None) -> Tuple[bool, str]:
+    def get_market_session_status(now_ny: datetime | None = None) -> tuple[bool, str]:
         """
         Devuelve (is_closed: bool, reason: str).
         Determina si el mercado estadounidense (NYSE/Nasdaq) está cerrado hoy
@@ -341,18 +336,11 @@ class LiveBotController:
                     target_ny = cfg.get("schedule_time_ny", "15:55")
 
                     # Disparo diario los 7 días de la semana a la hora fijada de Wall Street (15:55 NY)
-                    if (
-                        hhmm_ny == target_ny
-                        and self._last_auto_run_date != today_ny_str
-                    ):
+                    if hhmm_ny == target_ny and self._last_auto_run_date != today_ny_str:
                         self._last_auto_run_date = today_ny_str
                         t_info = self.get_time_info(target_ny)
-                        trigger_desc = (
-                            f"Reloj Automático ({target_ny} NY / {t_info['schedule_time_madrid']})"
-                        )
-                        self.store.append_log(
-                            f"Disparando ciclo diario programado: {trigger_desc}", "INFO"
-                        )
+                        trigger_desc = f"Reloj Automático ({target_ny} NY / {t_info['schedule_time_madrid']})"
+                        self.store.append_log(f"Disparando ciclo diario programado: {trigger_desc}", "INFO")
                         self.run_scan_and_sync(trigger_source=trigger_desc)
             except Exception as exc:
                 self.store.append_log(f"Error en bucle horario: {exc}", "ERROR")
@@ -362,7 +350,7 @@ class LiveBotController:
     # MONITOR DE PULSO DE MERCADO EN VIVO (MARKET PULSE)
     # -------------------------------------------------------------------------
 
-    def refresh_market_pulse(self) -> Dict[str, Any]:
+    def refresh_market_pulse(self) -> dict[str, Any]:
         """
         Consulta concurrentemente cotizaciones reales en vivo y variaciones del día (% de cambio)
         para el universo de activos (SPY, QQQ, VIX, VIX3M, GLD, TLT, USO, ZS).
@@ -382,7 +370,7 @@ class LiveBotController:
             "BTC": "BTC-USD",
         }
 
-        def _fetch_one(item: Tuple[str, str]) -> Tuple[str, Dict[str, Any], Optional[float]]:
+        def _fetch_one(item: tuple[str, str]) -> tuple[str, dict[str, Any], float | None]:
             sym, y_sym = item
             try:
                 # Usar range=1d para que chartPreviousClose corresponda a la sesión anterior exacta (ayer)
@@ -421,7 +409,7 @@ class LiveBotController:
                 None,
             )
 
-        pulse: Dict[str, Any] = {}
+        pulse: dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=4) as pool:
             for sym, entry, px_val in pool.map(_fetch_one, list(symbols_map.items())):
                 if px_val is not None:
@@ -443,7 +431,7 @@ class LiveBotController:
     # CÁLCULO DE ASIGNACIÓN OBJETIVO (CARTERA TARGET DINÁMICA M1-M5 + CORE)
     # -------------------------------------------------------------------------
 
-    def _evaluate_live_engine(self, refresh_remote: bool = True) -> Dict[str, Dict[str, Any]]:
+    def _evaluate_live_engine(self, refresh_remote: bool = True) -> dict[str, dict[str, Any]]:
         """
         Evalúa en vivo sobre barras diarias reales (caché + actualización Yahoo Finance)
         tanto los 5 motores tácticos (M1..M5, incluyendo trades multisesión aún abiertos
@@ -466,21 +454,14 @@ class LiveBotController:
                 fallback_prices=self.latest_prices,
             )
         else:
-            raw_universe = {
-                sym: self.repo._read_cache(sym)
-                for sym in MarketDataRepository.UNIVERSE_CONFIG.keys()
-            }
-            raw_universe = {
-                sym: [MarketBar(**item) for item in rows]
-                for sym, rows in raw_universe.items()
-                if rows
-            }
+            raw_universe = {sym: self.repo._read_cache(sym) for sym in MarketDataRepository.UNIVERSE_CONFIG.keys()}
+            raw_universe = {sym: [MarketBar(**item) for item in rows] for sym, rows in raw_universe.items() if rows}
 
         # Fallback seguro si aún no existen series históricas en disco (p.ej. tests aislados)
         if "SPY" not in raw_universe or len(raw_universe.get("SPY", [])) < 210:
             live_scan = self.live_scan_cache or self.summary_data.get("live_scan", {})
             core_alloc = live_scan.get("core_allocation", {"SPY": 85.0, "QQQ": 15.0})
-            targets: Dict[str, Dict[str, Any]] = {}
+            targets: dict[str, dict[str, Any]] = {}
             for sym, pct in core_alloc.items():
                 if pct > 0:
                     targets[sym] = {
@@ -504,7 +485,7 @@ class LiveBotController:
             vix_bars=vix_slice,
             vix3m_bars=vix3m_slice,
         )
-        enriched_universe: Dict[str, Any] = {}
+        enriched_universe: dict[str, Any] = {}
         live_start_date = "2007-01-01"
         for sym, bars in raw_universe.items():
             if sym in ("VIX", "VIX3M"):
@@ -530,8 +511,8 @@ class LiveBotController:
         return live_res["targets"]
 
     def compute_target_portfolio(
-        self, simulate_motor: Optional[str] = None, refresh_remote: bool = True
-    ) -> Dict[str, Dict[str, Any]]:
+        self, simulate_motor: str | None = None, refresh_remote: bool = True
+    ) -> dict[str, dict[str, Any]]:
         """
         Calcula las ponderaciones objetivo de la cartera:
           - Modo simulación de motor táctico (para comprobación rápida).
@@ -542,7 +523,7 @@ class LiveBotController:
         max_fast = float(cfg.get("max_fast_slot_pct", 55.0)) / 100.0
         max_cta = float(cfg.get("max_cta_slot_pct", 40.0)) / 100.0
 
-        targets: Dict[str, Dict[str, Any]] = {}
+        targets: dict[str, dict[str, Any]] = {}
 
         # Simulación táctica de motores a petición del usuario
         if simulate_motor == "M1_PULLBACK" and enabled.get("M1_PULLBACK", True):
@@ -651,10 +632,10 @@ class LiveBotController:
     def _build_notification_message(
         self,
         trigger_source: str,
-        orders: List[Dict[str, Any]],
-        pulse: Dict[str, Any],
-        state_after: Dict[str, Any],
-        direct_reason: Optional[str] = None,
+        orders: list[dict[str, Any]],
+        pulse: dict[str, Any],
+        state_after: dict[str, Any],
+        direct_reason: str | None = None,
     ) -> str:
         """
         Construye un mensaje informativo e institucional para Signal y Telegram.
@@ -685,9 +666,7 @@ class LiveBotController:
         vix3m = pulse.get("VIX3M", {}).get("price")
         if vix and vix3m:
             vts_ratio = round(vix / vix3m, 3)
-            vts_state = (
-                "Contango (Alcista)" if vts_ratio < 1.0 else "Backwardation (Pánico/Cobertura)"
-            )
+            vts_state = "Contango (Alcista)" if vts_ratio < 1.0 else "Backwardation (Pánico/Cobertura)"
             lines.append(f"• <b>VIX</b>: {vix:.2f} | <b>VIX3M</b>: {vix3m:.2f} | Ratio: {vts_ratio:.3f} ({vts_state})")
 
         # Rendimiento de la cartera
@@ -697,14 +676,16 @@ class LiveBotController:
         dd = float(acct.get("current_dd_pct", 0.0))
         cash = float(acct.get("cash_usd", 0.0))
 
-        lines.extend([
-            "",
-            "💼 <b>ESTADO DE CARTERA:</b>",
-            f"• Capital Total: <b>{_format_currency_signal(eq)}</b> (Retorno: {tot_ret:+.2f}%)",
-            f"• Efectivo (Cash): {_format_currency_signal(cash)} | Max Drawdown: {dd:.2f}%",
-            "",
-            "🎯 <b>POSICIONES ACTIVAS:</b>",
-        ])
+        lines.extend(
+            [
+                "",
+                "💼 <b>ESTADO DE CARTERA:</b>",
+                f"• Capital Total: <b>{_format_currency_signal(eq)}</b> (Retorno: {tot_ret:+.2f}%)",
+                f"• Efectivo (Cash): {_format_currency_signal(cash)} | Max Drawdown: {dd:.2f}%",
+                "",
+                "🎯 <b>POSICIONES ACTIVAS:</b>",
+            ]
+        )
 
         positions = state_after.get("positions", [])
         if positions:
@@ -713,7 +694,9 @@ class LiveBotController:
                 w = float(pos.get("weight_pct", 0.0))
                 mkt_val = float(pos.get("market_value_usd", 0.0))
                 pnl = float(pos.get("unrealized_pnl_usd", 0.0))
-                lines.append(f"• {sym} ({w:.1f}%): {_format_currency_signal(mkt_val)} (P&L: {_format_currency_signal(pnl, is_pnl=True)})")
+                lines.append(
+                    f"• {sym} ({w:.1f}%): {_format_currency_signal(mkt_val)} (P&L: {_format_currency_signal(pnl, is_pnl=True)})"
+                )
         else:
             lines.append("• 100% en Efectivo / Sin posiciones abiertas.")
 
@@ -732,7 +715,9 @@ class LiveBotController:
             lines.append(f"⚡ <b>ÓRDENES EJECUTADAS HOY ({len(orders)}):</b>")
             for o in orders:
                 notional = float(o.get("notional_usd", 0.0))
-                lines.append(f"- <b>{o['side']} {o['symbol']}</b>: {_format_currency_signal(notional)} ({o.get('motor', 'CORE')})")
+                lines.append(
+                    f"- <b>{o['side']} {o['symbol']}</b>: {_format_currency_signal(notional)} ({o.get('motor', 'CORE')})"
+                )
         else:
             reason_txt = direct_reason or "Sin rotación necesaria. Cartera alineada al régimen."
             lines.append(f"⚡ <b>OPERATIVA HOY:</b> {reason_txt}")
@@ -744,8 +729,8 @@ class LiveBotController:
     # -------------------------------------------------------------------------
 
     def run_scan_and_sync(
-        self, trigger_source: str = "Manual desde Web", simulate_motor: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, trigger_source: str = "Manual desde Web", simulate_motor: str | None = None
+    ) -> dict[str, Any]:
         """
         Ejecuta el ciclo de escaneo de mercado (protegido por lock reentrante):
           1. Verifica si el mercado está abierto o cerrado (fin de semana o festivo en Wall Street).
@@ -782,9 +767,7 @@ class LiveBotController:
                     trigger_source, [], pulse, state, direct_reason=direct_reason
                 )
                 self._send_mobile_alert(full_msg)
-                self.store.append_log(
-                    f"Reporte diario emitido: {closed_reason}", "INFO"
-                )
+                self.store.append_log(f"Reporte diario emitido: {closed_reason}", "INFO")
                 return {
                     "ok": True,
                     "mode": cfg.get("execution_mode", "AUTO_100"),
@@ -888,7 +871,7 @@ class LiveBotController:
 
             return {"ok": ok, "mode": "AUTO_100", "orders_count": len(orders), "message": msg}
 
-    def approve_pending(self) -> Dict[str, Any]:
+    def approve_pending(self) -> dict[str, Any]:
         """Aprueba y ejecuta una propuesta pendiente en modo Copiloto."""
         state = self.store.get_state()
         pending = state.get("pending_confirmations", [])
@@ -912,7 +895,7 @@ class LiveBotController:
 
         return {"ok": ok, "orders_count": len(orders), "message": msg}
 
-    def reject_pending(self) -> Dict[str, Any]:
+    def reject_pending(self) -> dict[str, Any]:
         """Descarta la propuesta de órdenes en modo Copiloto."""
         state = self.store.get_state()
         state["pending_confirmations"] = []
@@ -921,7 +904,7 @@ class LiveBotController:
         self.store.append_log(msg, "WARN")
         return {"ok": True, "message": msg}
 
-    def get_full_status(self, force_pulse: bool = False) -> Dict[str, Any]:
+    def get_full_status(self, force_pulse: bool = False) -> dict[str, Any]:
         """Devuelve el estado consolidado para pintar el Centro de Mando Web y Móvil."""
         now_ts = time.time()
         # Refrescar cotizaciones reales de Yahoo Finance si expiró el TTL de 60s o se fuerza explícitamente
@@ -957,7 +940,7 @@ class LiveBotController:
             "tactical": self.tactical_status_cache,
         }
 
-    def handle_action(self, action_payload: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_action(self, action_payload: dict[str, Any]) -> dict[str, Any]:
         """Procesa cualquier acción interactiva enviada desde la Web o Móvil."""
         action = action_payload.get("action", "")
 
@@ -965,11 +948,7 @@ class LiveBotController:
             cfg = self.store.get_config()
             new_running = not cfg.get("bot_running", True)
             self.store.update_config({"bot_running": new_running})
-            status_txt = (
-                "BOT INICIADO (Vigilancia horaria activa)"
-                if new_running
-                else "BOT PAUSADO por el usuario"
-            )
+            status_txt = "BOT INICIADO (Vigilancia horaria activa)" if new_running else "BOT PAUSADO por el usuario"
             self.store.append_log(status_txt, "INFO" if new_running else "WARN")
             self._send_mobile_alert(f"<b>Aegis-Quant:</b> {status_txt}")
             return {"ok": True, "message": status_txt}
@@ -977,9 +956,7 @@ class LiveBotController:
         if action == "SCAN_NOW":
             sim_motor = action_payload.get("simulate_motor")
             return self.run_scan_and_sync(
-                trigger_source=(
-                    "Escaneo Manual desde Web" if not sim_motor else f"Simulacion Motor {sim_motor}"
-                ),
+                trigger_source=("Escaneo Manual desde Web" if not sim_motor else f"Simulacion Motor {sim_motor}"),
                 simulate_motor=sim_motor,
             )
 
@@ -991,9 +968,7 @@ class LiveBotController:
 
         if action == "PANIC_CLOSE_ALL":
             broker = self._get_broker()
-            ok, msg = broker.close_all_positions(
-                "Boton de Panico pulsado desde el Centro de Mando Web"
-            )
+            ok, msg = broker.close_all_positions("Boton de Panico pulsado desde el Centro de Mando Web")
             # Cancelar e invalidar cualquier propuesta de Copiloto pendiente para evitar ejecuciones obsoletas
             state = self.store.get_state()
             if state.get("pending_confirmations"):
@@ -1040,9 +1015,7 @@ class LiveBotController:
             notifier = MultiChannelNotifier(cfg)
             pulse = self.refresh_market_pulse()
             state = self.store.get_state()
-            sample_msg = self._build_notification_message(
-                "Prueba de Notificación Móvil", [], pulse, state
-            )
+            sample_msg = self._build_notification_message("Prueba de Notificación Móvil", [], pulse, state)
             ok, msg = notifier.notify(sample_msg)
             self.store.append_log(f"Mobile notification test: {msg}", "INFO" if ok else "WARN")
             return {"ok": ok, "message": msg}

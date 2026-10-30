@@ -4,8 +4,7 @@ Representan de forma inmutable y tipada las barras de mercado, estados de régim
 señales operativas, operaciones cerradas y métricas de cartera.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -33,7 +32,7 @@ class EnrichedBar(MarketBar):
     rsi2: float = 50.0
     atr14: float = 0.0
     realized_vol20: float = 15.0  # Volatilidad anualizada de 20 días (%)
-    mom60_vol_adj: float = 0.0    # Momentum de 60 días ajustado por volatilidad (Sharpe 3m)
+    mom60_vol_adj: float = 0.0  # Momentum de 60 días ajustado por volatilidad (Sharpe 3m)
     down_streak: int = 0
     up_streak: int = 0
     prev_high_20: float = 0.0
@@ -43,7 +42,7 @@ class EnrichedBar(MarketBar):
     # Datos intermercado de volatilidad implícita (Cúspide de la pirámide)
     vix_close: float = 18.0
     vix3m_close: float = 20.0
-    vts_ratio: float = 0.90       # Ratio Estructura Temporal = VIX / VIX3M (<1 Contango, >1 Backwardation)
+    vts_ratio: float = 0.90  # Ratio Estructura Temporal = VIX / VIX3M (<1 Contango, >1 Backwardation)
     vts_prev: float = 0.90
 
 
@@ -52,7 +51,7 @@ class TradeSignal:
     engine_id: str
     engine_name: str
     symbol: str
-    direction: str          # 'LONG' | 'SHORT'
+    direction: str  # 'LONG' | 'SHORT'
     date: str
     entry_price: float
     stop_price: float
@@ -84,7 +83,7 @@ class ClosedTrade:
     portfolio_ret_pct: float = 0.0
     portfolio_mae_pct: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "engine_id": self.engine_id,
             "engine_name": self.engine_name,

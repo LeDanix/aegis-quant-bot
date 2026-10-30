@@ -9,6 +9,7 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.strategies.base import BaseStrategy
 from tests.helpers import create_mock_bar
 

@@ -1,0 +1,32 @@
+# Pre-commit configuration for Aegis-Quant Studio
+# See https://pre-commit.com for more information
+
+default_language_version:
+  python: python3.12
+
+repos:
+  # 1. Standard Git & Security Hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^data/
+      - id: end-of-file-fixer
+        exclude: ^data/
+      - id: check-yaml
+      - id: check-json
+        exclude: ^data/
+      - id: check-added-large-files
+        args: ['--maxkb=2000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # 2. Ruff: Ultra-fast Linter & Formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix]
+      # Run the formatter
+      - id: ruff-format

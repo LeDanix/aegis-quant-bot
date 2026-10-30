@@ -8,17 +8,17 @@ avanzados (Cúspide de la Pirámide):
 """
 
 import math
-from typing import Dict, List
-from aegis_quant.models.market_models import MarketBar, EnrichedBar
+
+from aegis_quant.models.market_models import EnrichedBar, MarketBar
 
 
 class QuantFeatureEngine:
-    def __init__(self, vix_bars: List[MarketBar] = None, vix3m_bars: List[MarketBar] = None):
-        self.vix_map: Dict[str, MarketBar] = {b.date: b for b in (vix_bars or [])}
-        self.vix3m_map: Dict[str, MarketBar] = {b.date: b for b in (vix3m_bars or [])}
+    def __init__(self, vix_bars: list[MarketBar] = None, vix3m_bars: list[MarketBar] = None):
+        self.vix_map: dict[str, MarketBar] = {b.date: b for b in (vix_bars or [])}
+        self.vix3m_map: dict[str, MarketBar] = {b.date: b for b in (vix3m_bars or [])}
 
-    def enrich_series(self, bars: List[MarketBar]) -> List[EnrichedBar]:
-        enriched: List[EnrichedBar] = []
+    def enrich_series(self, bars: list[MarketBar]) -> list[EnrichedBar]:
+        enriched: list[EnrichedBar] = []
         closes = [b.close for b in bars]
         highs = [b.high for b in bars]
         lows = [b.low for b in bars]
@@ -28,7 +28,7 @@ class QuantFeatureEngine:
         atr14 = 0.0
         down_streak = 0
         up_streak = 0
-        daily_rets: List[float] = [0.0]
+        daily_rets: list[float] = [0.0]
 
         for i, b in enumerate(bars):
             c = closes[i]
@@ -50,11 +50,11 @@ class QuantFeatureEngine:
                     up_streak = 0
 
             # Medias móviles
-            w5 = closes[max(0, i - 4): i + 1]
-            w20 = closes[max(0, i - 19): i + 1]
-            w30 = closes[max(0, i - 29): i + 1]
-            w50 = closes[max(0, i - 49): i + 1]
-            w200 = closes[max(0, i - 199): i + 1]
+            w5 = closes[max(0, i - 4) : i + 1]
+            w20 = closes[max(0, i - 19) : i + 1]
+            w30 = closes[max(0, i - 29) : i + 1]
+            w50 = closes[max(0, i - 49) : i + 1]
+            w200 = closes[max(0, i - 199) : i + 1]
 
             sma5 = sum(w5) / len(w5)
             sma20 = sum(w20) / len(w20)
@@ -69,7 +69,7 @@ class QuantFeatureEngine:
 
             # Volatilidad realizada anualizada (20 sesiones) para Volatility Targeting
             if i >= 20:
-                ret_w20 = daily_rets[i - 19: i + 1]
+                ret_w20 = daily_rets[i - 19 : i + 1]
                 mean_r = sum(ret_w20) / len(ret_w20)
                 var_r = sum((r - mean_r) ** 2 for r in ret_w20) / len(ret_w20)
                 realized_vol20 = max(6.0, math.sqrt(var_r) * math.sqrt(252.0) * 100.0)
@@ -116,21 +116,25 @@ class QuantFeatureEngine:
 
             # Canales de Donchian previos
             if i >= 20:
-                prev_high_20 = max(highs[i - 20: i])
-                prev_low_10 = min(lows[i - 10: i])
-                prev_low_20 = min(lows[i - 20: i])
+                prev_high_20 = max(highs[i - 20 : i])
+                prev_low_10 = min(lows[i - 10 : i])
+                prev_low_20 = min(lows[i - 20 : i])
             else:
                 prev_high_20 = h
                 prev_low_10 = l
                 prev_low_20 = l
 
-            prev_high_50 = max(highs[i - 50: i]) if i >= 50 else prev_high_20
+            prev_high_50 = max(highs[i - 50 : i]) if i >= 50 else prev_high_20
             prev_sma200 = enriched[i - 1].sma200 if i > 0 else sma200
             sma200_rising = sma200 > prev_sma200
 
             # Estructura Temporal de Volatilidad (VIX / VIX3M)
             vix_c = self.vix_map[d].close if d in self.vix_map else (enriched[i - 1].vix_close if i > 0 else 18.0)
-            vix3m_c = self.vix3m_map[d].close if d in self.vix3m_map else (enriched[i - 1].vix3m_close if i > 0 else max(19.0, vix_c * 1.08))
+            vix3m_c = (
+                self.vix3m_map[d].close
+                if d in self.vix3m_map
+                else (enriched[i - 1].vix3m_close if i > 0 else max(19.0, vix_c * 1.08))
+            )
             vts_ratio = vix_c / max(8.0, vix3m_c)
             vts_prev = enriched[i - 1].vts_ratio if i > 0 else vts_ratio
 

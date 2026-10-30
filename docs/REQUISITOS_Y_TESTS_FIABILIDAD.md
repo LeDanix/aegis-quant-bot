@@ -1,6 +1,6 @@
 # Especificación de Requisitos de Fiabilidad de Sistema, UX y Resiliencia Operativa
-**Proyecto:** Aegis-Quant Trading Bot & Web Studio  
-**Entorno:** Ubuntu Server 24.04 · Python 3.12 · Interactive Brokers / Tradegate / Paper Trading  
+**Proyecto:** Aegis-Quant Trading Bot & Web Studio
+**Entorno:** Ubuntu Server 24.04 · Python 3.12 · Interactive Brokers / Tradegate / Paper Trading
 **Última actualización:** 27 de Octubre de 2026
 
 ---

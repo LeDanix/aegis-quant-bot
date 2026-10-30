@@ -20,8 +20,7 @@ Execution Parameters:
 - Max Holding Time: 12 trading sessions
 """
 
-from typing import List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
 
 
@@ -38,10 +37,10 @@ class BearMarketShortStrategy(BaseStrategy):
             category="crisis_short",
         )
 
-    def _check_entry(self, b: EnrichedBar) -> Tuple[bool, str, str]:
+    def _check_entry(self, b: EnrichedBar) -> tuple[bool, str, str]:
         """
         Evaluates bear market conditions and determines entry mode.
-        
+
         Returns:
             (is_entry, mode_type ['BOUNCE'|'BREAKDOWN'], entry_reason)
         """
@@ -49,11 +48,7 @@ class BearMarketShortStrategy(BaseStrategy):
         if not is_bear or b.atr14 <= 0:
             return False, "", ""
 
-        cond_bounce = (
-            (b.rsi2 > 85.0 or b.up_streak >= 3)
-            and b.close < b.sma200 * 0.99
-            and b.vix_close > 18.0
-        )
+        cond_bounce = (b.rsi2 > 85.0 or b.up_streak >= 3) and b.close < b.sma200 * 0.99 and b.vix_close > 18.0
         cond_panic = b.close < b.prev_low_20 and b.vix_close > 22.0 and b.rsi2 > 15.0
 
         if cond_bounce:
@@ -70,18 +65,16 @@ class BearMarketShortStrategy(BaseStrategy):
             )
         return False, "", ""
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates short stop loss price and percentage distance based on 2.2x ATR above close."""
         stop_price = b.close + 2.2 * b.atr14
         stop_dist_pct = max(1.2, ((stop_price - b.close) / b.close) * 100.0)
         return stop_price, stop_dist_pct
 
-    def _check_exit(
-        self, b: EnrichedBar, days: int, stop_price: float, mode: str
-    ) -> Tuple[bool, float, str]:
+    def _check_exit(self, b: EnrichedBar, days: int, stop_price: float, mode: str) -> tuple[bool, float, str]:
         """
         Checks exit conditions for short positions.
-        
+
         Returns:
             (exit_flag, exit_price, exit_reason)
         """
@@ -106,15 +99,15 @@ class BearMarketShortStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 3."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         max_high = 0.0
@@ -186,7 +179,7 @@ class BearMarketShortStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live short signal generation."""
         if len(series) < 205:
             return None

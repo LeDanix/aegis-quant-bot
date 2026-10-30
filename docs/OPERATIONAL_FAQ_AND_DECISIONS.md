@@ -1,7 +1,7 @@
 # Aegis-Quant: Guía Operativa, Fiscal y Registro de Decisiones de Arquitectura
 
-> **DOCUMENTO OFICIAL DEL REPOSITORIO — SISTEMA AEGIS-QUANT**  
-> *Destinatario: Operador del Sistema & Inversor Residente en España*  
+> **DOCUMENTO OFICIAL DEL REPOSITORIO — SISTEMA AEGIS-QUANT**
+> *Destinatario: Operador del Sistema & Inversor Residente en España*
 > *Última actualización: 26 de Octubre de 2026*
 
 Este documento consolida de forma viva y permanente todas las dudas operativas, decisiones de arquitectura cuantitativa, marco legal y fiscal en España, y análisis de riesgo resueltos para el funcionamiento del bot en dinero real.
@@ -42,7 +42,7 @@ En el IRPF español existen dos cestas totalmente independientes:
 - **Base Imponible del Ahorro:** Ganancias y pérdidas patrimoniales derivadas de la transmisión de elementos patrimoniales (compra-venta de ETFs, acciones, derivados).
 
 > [!IMPORTANT]
-> **Tu nómina laboral nunca incrementa el tipo impositivo de las ganancias del bot.**  
+> **Tu nómina laboral nunca incrementa el tipo impositivo de las ganancias del bot.**
 > Las plusvalías generadas por el bot tributan de forma aislada en la escala del ahorro, empezando siempre desde el tramo más bajo (19%).
 
 ### B. Escala Progresiva de la Base del Ahorro en España
@@ -60,18 +60,18 @@ Si en un ejercicio fiscal el bot experimentase un año negativo:
 2. El saldo negativo se registra en la declaración de la Renta y se arrastra para **compensar al 100% las ganancias que genere el bot durante los 4 ejercicios fiscales siguientes**.
 
 ### D. Retiradas de Dinero a tu Banco: ¿Tributan de nuevo?
-**No.** El hecho imponible que genera la obligación tributaria es la **venta** de las participaciones dentro del bróker. Una vez presentada la declaración del IRPF anual y pagada la cuota correspondiente, ese dinero es **100% tuyo y legalmente limpio**.  
+**No.** El hecho imponible que genera la obligación tributaria es la **venta** de las participaciones dentro del bróker. Una vez presentada la declaración del IRPF anual y pagada la cuota correspondiente, ese dinero es **100% tuyo y legalmente limpio**.
 Transferir fondos desde Interactive Brokers a tu cuenta bancaria personal en España (BBVA, Santander, etc.) es un simple movimiento entre cuentas propias: **no tributa de nuevo ni se declara como un nuevo ingreso**.
 
 ### E. Declaraciones Informativas: El Modelo 720 y Cifras en Vivo
-Interactive Brokers opera para clientes de la UE a través de su filial europea (**IBKR Ireland - IBIE**).  
+Interactive Brokers opera para clientes de la UE a través de su filial europea (**IBKR Ireland - IBIE**).
 Si el saldo a 31 de diciembre o el saldo medio del cuarto trimestre de los valores depositados en el extranjero supera los **50.000 €**, la ley española exige presentar el **Modelo 720** (declaración meramente informativa entre el 1 de enero y el 31 de marzo, sin coste impositivo).
 
 > [!NOTE]
-> **¿Por qué aparecen 9.192,08 € (Paper) y 9.208,10 € (IBKR) en el panel de control?**  
+> **¿Por qué aparecen 9.192,08 € (Paper) y 9.208,10 € (IBKR) en el panel de control?**
 > Estas cifras representan el **patrimonio total de la cuenta en Interactive Brokers convertido a Euros** utilizando el tipo de cambio oficial diario del Banco Central Europeo (BCE, en este caso 1.0860 EUR/USD):
 > - **Entorno Paper:** $9,982.60 USD / 1.0860 = **9.192,08 €** (18,4% del límite de 50k €).
-> - **Entorno IBKR Real:** $10,000.00 USD / 1.0860 = **9.208,10 €** (18,4% del límite de 50k €).  
+> - **Entorno IBKR Real:** $10,000.00 USD / 1.0860 = **9.208,10 €** (18,4% del límite de 50k €).
 > Ambas cantidades se sitúan muy lejos de los 50.000 € obligatorios, por lo que el sistema marca con total rigor el estado legal **"Exento"**.
 
 ### F. Tratamiento Fiscal de Bitcoin vía ETP Físico (Tradegate / Xetra)
@@ -234,13 +234,13 @@ Antes de decidir si `M6_TOTM` debía **añadirse como sexto motor** o **sustitui
 
 El sistema incluye en producción el paquete [`aegis_quant/tax/spanish_tax_engine.py`](aegis_quant/tax/spanish_tax_engine.py), expuesto en los endpoints `GET /api/tax/live-audit` y `GET /api/tax/export.csv` e integrado visualmente en la pestaña **`5. Fiscalidad España (IRPF)`**:
 
-1. **Conversión Oficial Diaria EUR/USD del BCE (`ECBExchangeRateProvider`):**  
+1. **Conversión Oficial Diaria EUR/USD del BCE (`ECBExchangeRateProvider`):**
    Cada ejecución en el libro contable (`ledger_paper_trades.jsonl` y `ledger_real_trades.jsonl`) registra su ISIN UCITS homogéneo y el tipo de cambio EUR/USD del Banco Central Europeo de su fecha exacta, calculando de forma independiente el valor de adquisición en Euros el día de la compra y el valor de transmisión en Euros el día de la venta (Consulta Vinculante DGT `V1097-19`).
-2. **Emparejamiento Estricto FIFO por ISIN Homogéneo (`Art. 37.2 LIRPF`):**  
+2. **Emparejamiento Estricto FIFO por ISIN Homogéneo (`Art. 37.2 LIRPF`):**
    Agrupa todas las compras y ventas por código ISIN (`IE00B5BMR087` / `IE000XZSV718`, `IE0032077012`, `IE00B579F325`, `IE00BFM6TC58`, `GB00B15KXV33`, `GB00B15KY211`, `LU0322251520`), consumiendo siempre las participaciones más antiguas e incorporando las comisiones de bróker al precio de adquisición/transmisión.
-3. **Detector Automático de la Regla Antiaplicación de los 2 Meses (`Art. 33.5.f LIRPF`):**  
+3. **Detector Automático de la Regla Antiaplicación de los 2 Meses (`Art. 33.5.f LIRPF`):**
    Analiza la ventana de **$\pm 60$ días naturales** alrededor de cada venta con pérdida. Si el bot recompra el mismo ISIN antes de 60 días (o conserva lotes comprados en los 60 días previos), marca automáticamente la minusvalía como **Diferida 2M**, excluyéndola de la base imponible de ese año hasta que el ISIN quede liquidado a cero durante más de 60 días, y muestra un aviso activo en pantalla con la fecha exacta de desbloqueo.
-4. **Cuota Progresiva del Ahorro, Casillas Renta WEB y Vigilancia del Modelo 720:**  
+4. **Cuota Progresiva del Ahorro, Casillas Renta WEB y Vigilancia del Modelo 720:**
    Calcula en tiempo real la cuota íntegra según la escala del ahorro (19%–28%), agrupa los totales por emisor para copiar en el **Apartado F2 de Renta WEB (Casillas `0326–0335`)**, vigila el porcentaje de uso respecto al umbral de **50.000 € del Modelo 720**, y permite descargar con un clic el **CSV compatible con Excel en España** (UTF-8 BOM y separador `;`).
 
 ---
@@ -278,6 +278,3 @@ El sistema incluye en producción el paquete [`aegis_quant/tax/spanish_tax_engin
 | **2026-10-29** | Interés Compuesto Dinámico (10k a 12k) y Discretización Entera en Tradegate (Múltiplos de 18 € en SOYB) | **1) Dinamismo de Capital:** Confirmado que el bot dimensiona posiciones sobre el 100% del saldo real vivo de la cuenta (`Total Equity` / `Net Liquidation Value`). Al crecer la cuenta de 10.000 € a 12.000 €, los porcentajes se calculan sobre 12.000 € para garantizar el interés compuesto sin dejar beneficios ociosos en efectivo. El control de capital se ejerce de forma óptima depositando en IBKR únicamente los fondos asignados a la estrategia. **2) Discretización Entera (Múltiplos de 18 € en SOYB):** En Tradegate/IBKR no hay acciones fraccionadas. El bot aplica la función de suelo `floor(Presupuesto / Precio_Unitario)`. Si a SOYB (~18 €) le corresponden 30 €, compra 1 acción (18 €) y los 12 € sobrantes se preservan en liquidez de seguridad. Si el presupuesto no alcanza para 1 acción (ej. 45 € para Oro `4GLD` a ~80 €), la orden es de 0 acciones y se preserva el efectivo intacto. Documentado en detalle en [`docs/TRANSICION_DINERO_REAL_CHECKLIST.md`](docs/TRANSICION_DINERO_REAL_CHECKLIST.md#3-restricciones-de-negociacion-por-multiplos-enteros-ej-soyb-a-18--spyl-a-14--y-conservacion-de-liquidez). |
 | **2026-10-30** | Limpieza de Interfaz: Retirada de Simulación Preliminar de Bitcoin | **1) Retirada de Botón Redundante:** Eliminado el botón `+ Simulación Bitcoin M4` de la gráfica principal de rentabilidad acumulada, dado que Bitcoin ya está formalmente integrado y activo dentro de la curva oficial del Modo 3 Élite ($614.368,50). **2) Retirada de Tarjeta Experimental:** Eliminada la tarjeta de estudio experimental preliminar en la subsección `Estrategia`, homogeneizando la cuadrícula de fundamentos a 3 módulos simétricos (`Arquitectura Híbrida`, `Gestión de Capital y Concurrencia`, `Ejecución Real en España y Fiscalidad`). **3) Oficialización en Motor 4:** Actualizada la ficha técnica de Motor 4 (`M4_CTA_TREND`) en frontend para reflejar formalmente la cesta completa de los 5 activos operativos descorrelacionados (Oro `4GLD`, Bonos `DTLA`, Petróleo `CRUD`, Soja `SOYB` y Bitcoin `BTCE`). Suite completa de 71 tests pasando al 100%. |
 | **2026-10-30** | Indicador Visual Dinámico de Sesión Abierta/Cerrada en Badge Horario DST | **1) Semáforo Operativo Dinámico:** El cuadro de cabecera (`#pt-dst-badge`) que señaliza el desfase horario estacional (DST) se transforma en un indicador de sesión en tiempo real: se muestra en **Verde institucional** (`bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300 text-emerald-800`) cuando el mercado de Wall Street (NYSE/Nasdaq) está **ABIERTO** (lunes a viernes de 09:30 a 16:00 NY, no festivo), y en **Amarillo/Ámbar** (`bg-amber-50 dark:bg-amber-950/70 border-amber-300 text-amber-800`) cuando está **CERRADO** (pre-apertura matinal en Europa, fuera de horario, fin de semana o festivo). **2) Información de Desfase Horario Preservada:** El texto y tooltip del cuadro mantienen la señalización explícita del desfase estacional (ej. `● Mercado Abierto · DST Desfase EU/US (5h · EDT/CET)` vs `○ Mercado Cerrado · DST Desfase EU/US (5h · EDT/CET)`). **3) Sincronización Backend/Frontend:** Implementado `LiveBotController.is_market_open_now(now_ny)` expuesto en `/api/live/status` y cálculo cliente en `app.js` como contingencia. Suite ampliada a **72 tests unitarios (100% pasando)**. |
-
-
-

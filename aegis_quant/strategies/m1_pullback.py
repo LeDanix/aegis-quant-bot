@@ -18,8 +18,7 @@ Execution Parameters:
 - Max Holding Time: 10 trading sessions
 """
 
-from typing import List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
 
 
@@ -36,10 +35,10 @@ class SchermanPullbackStrategy(BaseStrategy):
             category="mean_reversion_long",
         )
 
-    def _check_entry(self, b: EnrichedBar) -> Tuple[bool, str]:
+    def _check_entry(self, b: EnrichedBar) -> tuple[bool, str]:
         """
         Evaluates whether an EnrichedBar meets the quantitative entry conditions.
-        
+
         Rules:
         1. Structural Trend: Close > SMA(200) and positive ATR.
         2. Mean Reversion Trigger (any of three):
@@ -67,18 +66,16 @@ class SchermanPullbackStrategy(BaseStrategy):
 
         return True, " + ".join(reasons) + " con Close>SMA200"
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates stop loss price and percentage distance based on 2.5x ATR."""
         stop_price = b.close - 2.5 * b.atr14
         stop_dist_pct = max(1.2, ((b.close - stop_price) / b.close) * 100.0)
         return stop_price, stop_dist_pct
 
-    def _check_exit(
-        self, b: EnrichedBar, days: int, stop_price: float
-    ) -> Tuple[bool, float, str]:
+    def _check_exit(self, b: EnrichedBar, days: int, stop_price: float) -> tuple[bool, float, str]:
         """
         Checks whether the open position should be closed today.
-        
+
         Returns:
             (exit_flag, exit_price, exit_reason)
         """
@@ -103,15 +100,15 @@ class SchermanPullbackStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 1."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         min_low = 0.0
@@ -181,7 +178,7 @@ class SchermanPullbackStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live signal generation."""
         if len(series) < 205:
             return None

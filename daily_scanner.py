@@ -6,6 +6,7 @@ y las señales tácticas activas hoy en los 5 Motores.
 """
 
 import os
+
 from aegis_quant.data.market_repository import MarketDataRepository
 from aegis_quant.indicators.quant_feature_engine import QuantFeatureEngine
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
@@ -23,9 +24,7 @@ def main():
         vix3m_bars=raw_universe["VIX3M"],
     )
     enriched_universe = {
-        sym: feature_engine.enrich_series(bars)
-        for sym, bars in raw_universe.items()
-        if sym not in ("VIX", "VIX3M")
+        sym: feature_engine.enrich_series(bars) for sym, bars in raw_universe.items() if sym not in ("VIX", "VIX3M")
     }
 
     engine = AegisPortfolioEngine(enriched_universe=enriched_universe)

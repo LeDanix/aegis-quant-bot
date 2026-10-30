@@ -6,17 +6,17 @@ Dedicated to Signal Messenger:
 """
 
 import json
-import urllib.request
 import urllib.parse
+import urllib.request
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Tuple
+from typing import Any
 
 
 class BaseNotifier(ABC):
     """Base interface for mobile notification channels."""
 
     @abstractmethod
-    def send_message(self, text: str) -> Tuple[bool, str]:
+    def send_message(self, text: str) -> tuple[bool, str]:
         pass
 
 
@@ -35,17 +35,12 @@ class SignalRestNotifier(BaseNotifier):
     def is_configured(self) -> bool:
         return bool(self.phone and (self.api_url or self.apikey))
 
-    def send_message(self, text: str) -> Tuple[bool, str]:
+    def send_message(self, text: str) -> tuple[bool, str]:
         if not self.is_configured():
             return False, "Signal no configurado (falta número de teléfono o apikey/URL de pasarela)."
 
         # Strip basic HTML tags for plain Signal formatting
-        clean_text = (
-            text.replace("<b>", "")
-            .replace("</b>", "")
-            .replace("<code>", "")
-            .replace("</code>", "")
-        )
+        clean_text = text.replace("<b>", "").replace("</b>", "").replace("<code>", "").replace("</code>", "")
 
         try:
             target_url = self.api_url or "https://api.callmebot.com/signal/send.php"
@@ -61,6 +56,7 @@ class SignalRestNotifier(BaseNotifier):
                     raw_body = resp.read().decode("utf-8", errors="replace")
                     if "ERROR" in raw_body or "Error Num" in raw_body:
                         import re
+
                         m = re.search(r"Error Text:</u>\s*([^<]+)", raw_body)
                         err_txt = m.group(1).strip() if m else raw_body[:80].strip()
                         return False, f"CallMeBot error: {err_txt} (Verifica si debes usar tu UUID en vez del número)"
@@ -89,7 +85,7 @@ class SignalRestNotifier(BaseNotifier):
 class MultiChannelNotifier:
     """Dispatches notifications across configured active channels (Signal Messenger)."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         phone = config.get("mobile_phone") or config.get("signal_recipient_phone", "")
         self.signal = SignalRestNotifier(
             api_url=config.get("signal_api_url", "https://api.callmebot.com/signal/send.php"),
@@ -97,7 +93,7 @@ class MultiChannelNotifier:
             apikey=config.get("signal_apikey", ""),
         )
 
-    def notify(self, text: str) -> Tuple[bool, str]:
+    def notify(self, text: str) -> tuple[bool, str]:
         if not self.signal.is_configured():
             return True, "Canal de notificaciones Signal no configurado."
         ok, msg = self.signal.send_message(text)

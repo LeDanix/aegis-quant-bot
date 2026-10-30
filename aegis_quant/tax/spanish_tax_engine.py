@@ -19,18 +19,19 @@ Implementa la normativa tributaria vigente de la Agencia Tributaria (Ley 35/2006
 import csv
 import io
 import json
+import math
 import os
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from aegis_quant.live.config_store import atomic_write_json
 
 MODELO_720_THRESHOLD_EUR = 50000.0
 
 # Escala progresiva vigente Base Imponible del Ahorro (IRPF España)
-SPANISH_SAVINGS_BRACKETS: List[Tuple[float, float]] = [
+SPANISH_SAVINGS_BRACKETS: list[tuple[float, float]] = [
     (6000.0, 0.19),
     (50000.0, 0.21),
     (200000.0, 0.23),
@@ -39,7 +40,7 @@ SPANISH_SAVINGS_BRACKETS: List[Tuple[float, float]] = [
 ]
 
 # Catálogo oficial de equivalencias UCITS (Opción A: Tradegate Exchange en EUR)
-UCITS_CATALOG: Dict[str, Dict[str, str]] = {
+UCITS_CATALOG: dict[str, dict[str, str]] = {
     "SPY": {
         "ucits_ticker": "SXR8 / SPYL",
         "primary_ucits": "SXR8",
@@ -195,7 +196,7 @@ UCITS_CATALOG: Dict[str, Dict[str, str]] = {
 }
 
 # Tabla base determinista de referencias históricas EUR/USD del BCE para funcionamiento offline
-_HISTORICAL_ECB_ANCHORS: Dict[str, float] = {
+_HISTORICAL_ECB_ANCHORS: dict[str, float] = {
     "2020": 1.1420,
     "2021": 1.1827,
     "2022": 1.0530,
@@ -206,7 +207,7 @@ _HISTORICAL_ECB_ANCHORS: Dict[str, float] = {
 }
 
 
-def map_to_ucits_metadata(symbol: str) -> Dict[str, str]:
+def map_to_ucits_metadata(symbol: str) -> dict[str, str]:
     """Devuelve metadatos UCITS e ISIN homogéneo para cualquier ticker interno o europeo."""
     clean = str(symbol or "SPY").strip().upper()
     if clean in UCITS_CATALOG:
@@ -257,12 +258,12 @@ class ECBExchangeRateProvider:
         self.allow_network = allow_network
         os.makedirs(self.data_dir, exist_ok=True)
         self.cache_path = os.path.join(self.data_dir, "fx_eurusd_ecb.json")
-        self._rates: Dict[str, float] = self._load_cache()
+        self._rates: dict[str, float] = self._load_cache()
 
-    def _load_cache(self) -> Dict[str, float]:
+    def _load_cache(self) -> dict[str, float]:
         if os.path.exists(self.cache_path):
             try:
-                with open(self.cache_path, "r", encoding="utf-8") as f:
+                with open(self.cache_path, encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, dict):
                     return {str(k): float(v) for k, v in data.items()}
@@ -304,7 +305,7 @@ class ECBExchangeRateProvider:
         return _HISTORICAL_ECB_ANCHORS.get(yr, 1.0860)
 
     @staticmethod
-    def _fetch_frankfurter_ecb(day_str: str) -> Optional[float]:
+    def _fetch_frankfurter_ecb(day_str: str) -> float | None:
         """Consulta el fixing oficial del BCE vía Frankfurter API pública (sin API key)."""
         try:
             today_iso = date.today().isoformat()
@@ -321,7 +322,7 @@ class ECBExchangeRateProvider:
         return None
 
 
-def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any]:
+def compute_backtest_tax_waterfall(mode_result: dict[str, Any]) -> dict[str, Any]:
     """
     Calcula la cascada histórica auditada (2007–2026) para un residente fiscal en España:
       - Curva Bruta del algoritmo (`gross_eq`).
@@ -348,10 +349,10 @@ def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any
     total_op_fees = 0.0
 
     # Cola FIFO de pérdidas pendientes de compensar (máximo 4 ejercicios siguientes, Art. 49 LIRPF)
-    loss_carry_queue: List[List[float]] = []  # elementos [year_int, remaining_loss_usd]
+    loss_carry_queue: list[list[float]] = []  # elementos [year_int, remaining_loss_usd]
 
-    yearly_breakdown: List[Dict[str, Any]] = []
-    year_scale_map: Dict[str, Tuple[float, float, float, float, float, float]] = {}
+    yearly_breakdown: list[dict[str, Any]] = []
+    year_scale_map: dict[str, tuple[float, float, float, float, float, float]] = {}
 
     gross_track = initial_capital
     for y_row in yearly:
@@ -406,20 +407,22 @@ def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any
         eff_rate_pct = (tax_paid / taxable_base * 100.0) if taxable_base > 0 else 0.0
         pending_loss = round(sum(b[1] for b in loss_carry_queue), 2)
 
-        yearly_breakdown.append({
-            "year": yr_str,
-            "start_capital": round(yr_start_net, 2),
-            "gross_ret_pct": round(gross_ret_pct, 2),
-            "operational_fees": op_fees_usd,
-            "realized_gain_usd": realized_gain,
-            "loss_offset_used": round(loss_offset_used, 2),
-            "taxable_base": taxable_base,
-            "tax_paid": round(tax_paid, 2),
-            "effective_rate_pct": round(eff_rate_pct, 1),
-            "loss_carried_forward": pending_loss,
-            "net_end_equity": net_end,
-            "net_ret_pct": round(net_ret_pct, 2),
-        })
+        yearly_breakdown.append(
+            {
+                "year": yr_str,
+                "start_capital": round(yr_start_net, 2),
+                "gross_ret_pct": round(gross_ret_pct, 2),
+                "operational_fees": op_fees_usd,
+                "realized_gain_usd": realized_gain,
+                "loss_offset_used": round(loss_offset_used, 2),
+                "taxable_base": taxable_base,
+                "tax_paid": round(tax_paid, 2),
+                "effective_rate_pct": round(eff_rate_pct, 1),
+                "loss_carried_forward": pending_loss,
+                "net_end_equity": net_end,
+                "net_ret_pct": round(net_ret_pct, 2),
+            }
+        )
 
         year_scale_map[yr_str] = (
             gross_start,
@@ -432,7 +435,7 @@ def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any
         net_cap = net_end
 
     # Construir curva temporal continua alineada con monthly_curve
-    net_curve: List[Dict[str, Any]] = []
+    net_curve: list[dict[str, Any]] = []
     for pt in monthly_curve:
         d = pt["date"]
         yr = d[:4]
@@ -452,13 +455,15 @@ def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any
             op_pt = g_eq
             net_pt = g_eq
 
-        net_curve.append({
-            "date": d,
-            "gross_eq": round(g_eq, 2),
-            "op_net_eq": round(max(100.0, op_pt), 2),
-            "net_eq": round(max(100.0, net_pt), 2),
-            "spy_eq": round(s_eq, 2),
-        })
+        net_curve.append(
+            {
+                "date": d,
+                "gross_eq": round(g_eq, 2),
+                "op_net_eq": round(max(100.0, op_pt), 2),
+                "net_eq": round(max(100.0, net_pt), 2),
+                "spy_eq": round(s_eq, 2),
+            }
+        )
 
     # Métricas consolidadas 2007-2026
     gross_final = float(mode_result["final_equity"])
@@ -520,9 +525,6 @@ def compute_backtest_tax_waterfall(mode_result: Dict[str, Any]) -> Dict[str, Any
     }
 
 
-import math
-
-
 @dataclass
 class _OpenFifoLot:
     lot_id: int
@@ -560,7 +562,7 @@ class ClosedFifoTransmission:
     gross_gain_eur: float
     remaining_homogeneous_qty: float
     blocked_2m: bool = False
-    unblocked_date: Optional[str] = None
+    unblocked_date: str | None = None
     effective_tax_year: str = ""
     rule_2m_note: str = "Computable"
     motor: str = ""
@@ -569,7 +571,7 @@ class ClosedFifoTransmission:
     def computable_gain_eur(self) -> float:
         return 0.0 if self.blocked_2m else self.gross_gain_eur
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "tx_id": self.tx_id,
             "isin": self.isin,
@@ -607,13 +609,13 @@ class SpanishTaxAuditor:
         self.data_dir = os.path.join(base_dir, "data")
         self.fx_provider = ECBExchangeRateProvider(self.data_dir, allow_network=allow_network_fx)
 
-    def load_ledger_entries(self, env: str = "PAPER") -> List[Dict[str, Any]]:
+    def load_ledger_entries(self, env: str = "PAPER") -> list[dict[str, Any]]:
         filename = "ledger_real_trades.jsonl" if env == "LIVE_REAL" else "ledger_paper_trades.jsonl"
         path = os.path.join(self.data_dir, filename)
         if not os.path.exists(path):
             return []
-        rows: List[Dict[str, Any]] = []
-        with open(path, "r", encoding="utf-8") as f:
+        rows: list[dict[str, Any]] = []
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -628,10 +630,10 @@ class SpanishTaxAuditor:
         self,
         env: str = "PAPER",
         tax_year: str = "ALL",
-        current_equity_usd: Optional[float] = None,
+        current_equity_usd: float | None = None,
         prior_loss_carryforward_eur: float = 0.0,
-        reference_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reference_date: str | None = None,
+    ) -> dict[str, Any]:
         entries = self.load_ledger_entries(env=env)
         if current_equity_usd is None:
             state_file = "bot_live_state_real.json" if env == "LIVE_REAL" else "bot_live_state.json"
@@ -639,7 +641,7 @@ class SpanishTaxAuditor:
             current_equity_usd = 10000.0
             if os.path.exists(state_path):
                 try:
-                    with open(state_path, "r", encoding="utf-8") as sf:
+                    with open(state_path, encoding="utf-8") as sf:
                         st = json.load(sf)
                         current_equity_usd = float(st.get("account", {}).get("total_equity_usd", 10000.0))
                 except Exception:
@@ -656,21 +658,21 @@ class SpanishTaxAuditor:
 
     def audit_entries(
         self,
-        entries: List[Dict[str, Any]],
+        entries: list[dict[str, Any]],
         env: str = "PAPER",
         tax_year: str = "ALL",
         current_equity_usd: float = 10000.0,
         prior_loss_carryforward_eur: float = 0.0,
-        reference_date: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        reference_date: str | None = None,
+    ) -> dict[str, Any]:
         ref_iso = (reference_date or date.today().isoformat())[:10]
-        open_long_lots: Dict[str, List[_OpenFifoLot]] = {}
-        open_short_lots: Dict[str, List[_OpenFifoLot]] = {}
-        closed_txs: List[ClosedFifoTransmission] = []
+        open_long_lots: dict[str, list[_OpenFifoLot]] = {}
+        open_short_lots: dict[str, list[_OpenFifoLot]] = {}
+        closed_txs: list[ClosedFifoTransmission] = []
 
         # Registro cronológico de compras y liquidaciones totales por ISIN para evaluar la regla de 2 meses
-        acquisition_events: Dict[str, List[Tuple[str, int, float]]] = {}  # isin -> [(date, lot_id, qty)]
-        zero_holding_events: Dict[str, List[str]] = {}  # isin -> [dates where remaining_qty reached 0]
+        acquisition_events: dict[str, list[tuple[str, int, float]]] = {}  # isin -> [(date, lot_id, qty)]
+        zero_holding_events: dict[str, list[str]] = {}  # isin -> [dates where remaining_qty reached 0]
 
         lot_seq = 0
         tx_seq = 0
@@ -733,9 +735,7 @@ class SpanishTaxAuditor:
                 open_long_lots.setdefault(isin, []).append(lot)
                 acquisition_events.setdefault(isin, []).append((op_date, lot_seq, qty))
 
-            elif side in ("SELL", "SELL_PARTIAL") or (
-                side == "LIQUIDATE_ALL" and open_long_lots.get(isin)
-            ):
+            elif side in ("SELL", "SELL_PARTIAL") or (side == "LIQUIDATE_ALL" and open_long_lots.get(isin)):
                 lots = open_long_lots.get(isin, [])
                 rem_to_sell = qty if side != "LIQUIDATE_ALL" else max(qty, sum(l.qty_remaining for l in lots))
                 while rem_to_sell > 1e-7 and lots:
@@ -878,13 +878,11 @@ class SpanishTaxAuditor:
 
         estimated_irpf_eur = calculate_spanish_savings_irpf(taxable_savings_base_eur)
         eff_rate_pct = (
-            round((estimated_irpf_eur / taxable_savings_base_eur) * 100.0, 2)
-            if taxable_savings_base_eur > 0
-            else 0.0
+            round((estimated_irpf_eur / taxable_savings_base_eur) * 100.0, 2) if taxable_savings_base_eur > 0 else 0.0
         )
 
         # Agrupación por Emisor / ISIN para Renta WEB (Apartado F2, Casillas 0326-0335)
-        isin_groups: Dict[str, Dict[str, Any]] = {}
+        isin_groups: dict[str, dict[str, Any]] = {}
         for tx in filtered_txs:
             grp = isin_groups.setdefault(
                 tx.isin,
@@ -923,15 +921,17 @@ class SpanishTaxAuditor:
                         l.qty_remaining * (l.unit_price_ccy / l.fx_eur_usd) + l.qty_remaining * l.unit_fee_eur,
                         2,
                     )
-                    open_lots_summary.append({
-                        "isin": isin_key,
-                        "symbol": l.symbol,
-                        "ucits_ticker": l.ucits_ticker,
-                        "open_date": l.open_date,
-                        "qty_remaining": round(l.qty_remaining, 4),
-                        "fx_acquisition": round(l.fx_eur_usd, 4),
-                        "cost_basis_eur": cost_eur,
-                    })
+                    open_lots_summary.append(
+                        {
+                            "isin": isin_key,
+                            "symbol": l.symbol,
+                            "ucits_ticker": l.ucits_ticker,
+                            "open_date": l.open_date,
+                            "qty_remaining": round(l.qty_remaining, 4),
+                            "fx_acquisition": round(l.fx_eur_usd, 4),
+                            "cost_basis_eur": cost_eur,
+                        }
+                    )
 
         return {
             "ok": True,
@@ -979,10 +979,10 @@ class SpanishTaxAuditor:
 
     @staticmethod
     def _apply_two_month_wash_sale_rule(
-        closed_txs: List[ClosedFifoTransmission],
-        acquisition_events: Dict[str, List[Tuple[str, int, float]]],
-        zero_holding_events: Dict[str, List[str]],
-        open_long_lots: Dict[str, List[_OpenFifoLot]],
+        closed_txs: list[ClosedFifoTransmission],
+        acquisition_events: dict[str, list[tuple[str, int, float]]],
+        zero_holding_events: dict[str, list[str]],
+        open_long_lots: dict[str, list[_OpenFifoLot]],
     ) -> None:
         """
         Aplica el Art. 33.5.f LIRPF (Regla de los 2 meses = +-60 días naturales en valores cotizados):
@@ -1006,16 +1006,10 @@ class SpanishTaxAuditor:
 
             acqs = acquisition_events.get(tx.isin, [])
             # Compras posteriores dentro de los 60 días siguientes
-            subsequent_buys = [
-                ev for ev in acqs if tx.transmission_date < ev[0] <= win_end and ev[1] != tx.lot_id
-            ]
+            subsequent_buys = [ev for ev in acqs if tx.transmission_date < ev[0] <= win_end and ev[1] != tx.lot_id]
             # Compras previas dentro de los 60 días anteriores que NO se liquidaron en esta venta
-            prior_recent_buys_held = (
-                tx.remaining_homogeneous_qty > 1e-7
-                and any(
-                    win_start <= ev[0] <= tx.transmission_date and ev[1] != tx.lot_id
-                    for ev in acqs
-                )
+            prior_recent_buys_held = tx.remaining_homogeneous_qty > 1e-7 and any(
+                win_start <= ev[0] <= tx.transmission_date and ev[1] != tx.lot_id for ev in acqs
             )
 
             if not subsequent_buys and not prior_recent_buys_held:
@@ -1024,7 +1018,7 @@ class SpanishTaxAuditor:
                 continue
 
             # Verificar si en una fecha posterior se vendió el 100% del ISIN sin recompra en +60 días
-            unblock_dt_str: Optional[str] = None
+            unblock_dt_str: str | None = None
             last_recompra_date = subsequent_buys[-1][0] if subsequent_buys else tx.transmission_date
             for z_date in zero_holding_events.get(tx.isin, []):
                 if z_date <= last_recompra_date:
@@ -1046,16 +1040,14 @@ class SpanishTaxAuditor:
                 tx.rule_2m_note = "Diferida Art. 33.5.f (Recompra homogénea < 2 meses)"
 
     @staticmethod
-    def _compute_active_60d_lockouts(
-        closed_txs: List[ClosedFifoTransmission], ref_iso: str
-    ) -> List[Dict[str, Any]]:
+    def _compute_active_60d_lockouts(closed_txs: list[ClosedFifoTransmission], ref_iso: str) -> list[dict[str, Any]]:
         """Detecta ventas con pérdida en los últimos 60 días para alertar sobre ventana de recompra."""
         try:
             ref_dt = date.fromisoformat(ref_iso)
         except ValueError:
             return []
 
-        by_isin: Dict[str, Dict[str, Any]] = {}
+        by_isin: dict[str, dict[str, Any]] = {}
         for tx in closed_txs:
             if tx.gross_gain_eur >= 0.0:
                 continue
@@ -1094,50 +1086,54 @@ class SpanishTaxAuditor:
         buf.write("\ufeff")  # UTF-8 BOM para compatibilidad directa con Microsoft Excel
         writer = csv.writer(buf, delimiter=";")
 
-        writer.writerow([
-            "ID_Transmision",
-            "Ejercicio_Fiscal_Imputable",
-            "ISIN_Homogeneo",
-            "Ticker_Orden",
-            "Equivalente_UCITS",
-            "Denominacion_Emisor",
-            "Direccion",
-            "Fecha_Adquisicion",
-            "Fecha_Transmision",
-            "Participaciones",
-            "Cambio_BCE_Compra_EURUSD",
-            "Cambio_BCE_Venta_EURUSD",
-            "Valor_Adquisicion_EUR",
-            "Valor_Transmision_EUR",
-            "Comisiones_Incluidas_EUR",
-            "Plusvalia_Bruta_EUR",
-            "Bloqueada_Regla_2_Meses",
-            "Plusvalia_Computable_IRPF_EUR",
-            "Observacion_AEAT",
-        ])
+        writer.writerow(
+            [
+                "ID_Transmision",
+                "Ejercicio_Fiscal_Imputable",
+                "ISIN_Homogeneo",
+                "Ticker_Orden",
+                "Equivalente_UCITS",
+                "Denominacion_Emisor",
+                "Direccion",
+                "Fecha_Adquisicion",
+                "Fecha_Transmision",
+                "Participaciones",
+                "Cambio_BCE_Compra_EURUSD",
+                "Cambio_BCE_Venta_EURUSD",
+                "Valor_Adquisicion_EUR",
+                "Valor_Transmision_EUR",
+                "Comisiones_Incluidas_EUR",
+                "Plusvalia_Bruta_EUR",
+                "Bloqueada_Regla_2_Meses",
+                "Plusvalia_Computable_IRPF_EUR",
+                "Observacion_AEAT",
+            ]
+        )
 
         for tx in report["transmissions"]:
-            writer.writerow([
-                tx["tx_id"],
-                tx["effective_tax_year"],
-                tx["isin"],
-                tx["symbol"],
-                tx["ucits_ticker"],
-                tx["issuer"],
-                tx["direction"],
-                tx["acquisition_date"],
-                tx["transmission_date"],
-                f"{tx['qty']:.4f}".replace(".", ","),
-                f"{tx['fx_acquisition']:.4f}".replace(".", ","),
-                f"{tx['fx_transmission']:.4f}".replace(".", ","),
-                f"{tx['acquisition_value_eur']:.2f}".replace(".", ","),
-                f"{tx['transmission_value_eur']:.2f}".replace(".", ","),
-                f"{tx['fees_eur']:.2f}".replace(".", ","),
-                f"{tx['gross_gain_eur']:.2f}".replace(".", ","),
-                "SI" if tx["blocked_2m"] else "NO",
-                f"{tx['computable_gain_eur']:.2f}".replace(".", ","),
-                tx["rule_2m_note"],
-            ])
+            writer.writerow(
+                [
+                    tx["tx_id"],
+                    tx["effective_tax_year"],
+                    tx["isin"],
+                    tx["symbol"],
+                    tx["ucits_ticker"],
+                    tx["issuer"],
+                    tx["direction"],
+                    tx["acquisition_date"],
+                    tx["transmission_date"],
+                    f"{tx['qty']:.4f}".replace(".", ","),
+                    f"{tx['fx_acquisition']:.4f}".replace(".", ","),
+                    f"{tx['fx_transmission']:.4f}".replace(".", ","),
+                    f"{tx['acquisition_value_eur']:.2f}".replace(".", ","),
+                    f"{tx['transmission_value_eur']:.2f}".replace(".", ","),
+                    f"{tx['fees_eur']:.2f}".replace(".", ","),
+                    f"{tx['gross_gain_eur']:.2f}".replace(".", ","),
+                    "SI" if tx["blocked_2m"] else "NO",
+                    f"{tx['computable_gain_eur']:.2f}".replace(".", ","),
+                    tx["rule_2m_note"],
+                ]
+            )
 
         s = report["summary"]
         writer.writerow([])
@@ -1146,8 +1142,12 @@ class SpanishTaxAuditor:
         writer.writerow(["Ejercicio Fiscal", report["tax_year"], ""])
         writer.writerow(["Ganancias Patrimoniales Brutas (EUR)", f"{s['gross_gains_eur']:.2f}".replace(".", ","), ""])
         writer.writerow(["Perdidas Deducibles FIFO (EUR)", f"{s['deductible_losses_eur']:.2f}".replace(".", ","), ""])
-        writer.writerow(["Perdidas Diferidas Regla 2 Meses (EUR)", f"{s['deferred_losses_2m_eur']:.2f}".replace(".", ","), ""])
-        writer.writerow(["Base Imponible del Ahorro Neta (EUR)", f"{s['taxable_savings_base_eur']:.2f}".replace(".", ","), ""])
+        writer.writerow(
+            ["Perdidas Diferidas Regla 2 Meses (EUR)", f"{s['deferred_losses_2m_eur']:.2f}".replace(".", ","), ""]
+        )
+        writer.writerow(
+            ["Base Imponible del Ahorro Neta (EUR)", f"{s['taxable_savings_base_eur']:.2f}".replace(".", ","), ""]
+        )
         writer.writerow(["Cuota IRPF Estimada (19%-28%) (EUR)", f"{s['estimated_irpf_eur']:.2f}".replace(".", ","), ""])
         writer.writerow(["Estado Modelo 720 (Umbral 50.000 EUR)", report["modelo_720"]["status_label"], ""])
 

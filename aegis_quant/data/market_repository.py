@@ -4,27 +4,27 @@ Gestiona la descarga, actualización y caché local de los 8 activos del univers
 (incluyendo ^VIX y ^VIX3M para calcular la Estructura Temporal de Volatilidad).
 """
 
-import os
+import datetime
 import json
+import os
 import time
 import urllib.request
-import datetime
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional
+
 from aegis_quant.models.market_models import MarketBar
 
 
 class MarketDataRepository:
     UNIVERSE_CONFIG = {
-        "SPY":   {"yahoo": "SPY",      "name": "S&P 500 ETF",                "asset_class": "equity"},
-        "QQQ":   {"yahoo": "QQQ",      "name": "Nasdaq 100 ETF",             "asset_class": "equity"},
-        "VIX":   {"yahoo": "%5EVIX",   "name": "CBOE 30-Day Volatility",     "asset_class": "volatility"},
-        "VIX3M": {"yahoo": "%5EVIX3M", "name": "CBOE 3-Month Volatility",    "asset_class": "volatility"},
-        "GLD":   {"yahoo": "GLD",      "name": "SPDR Gold Trust (Oro)",      "asset_class": "commodity_safe"},
-        "TLT":   {"yahoo": "TLT",      "name": "US Treasury 20+ Yr Bond",    "asset_class": "bond_safe"},
-        "USO":   {"yahoo": "USO",      "name": "WTI Crude Oil ETF",          "asset_class": "commodity_cyc"},
-        "ZS":    {"yahoo": "ZS%3DF",   "name": "CME Soybean Futures (Soja)", "asset_class": "commodity_agri"},
-        "BTC":   {"yahoo": "BTC-USD",  "name": "Bitcoin (BTC-USD / BTCE)",   "asset_class": "crypto_cta"},
+        "SPY": {"yahoo": "SPY", "name": "S&P 500 ETF", "asset_class": "equity"},
+        "QQQ": {"yahoo": "QQQ", "name": "Nasdaq 100 ETF", "asset_class": "equity"},
+        "VIX": {"yahoo": "%5EVIX", "name": "CBOE 30-Day Volatility", "asset_class": "volatility"},
+        "VIX3M": {"yahoo": "%5EVIX3M", "name": "CBOE 3-Month Volatility", "asset_class": "volatility"},
+        "GLD": {"yahoo": "GLD", "name": "SPDR Gold Trust (Oro)", "asset_class": "commodity_safe"},
+        "TLT": {"yahoo": "TLT", "name": "US Treasury 20+ Yr Bond", "asset_class": "bond_safe"},
+        "USO": {"yahoo": "USO", "name": "WTI Crude Oil ETF", "asset_class": "commodity_cyc"},
+        "ZS": {"yahoo": "ZS%3DF", "name": "CME Soybean Futures (Soja)", "asset_class": "commodity_agri"},
+        "BTC": {"yahoo": "BTC-USD", "name": "Bitcoin (BTC-USD / BTCE)", "asset_class": "crypto_cta"},
     }
 
     # Símbolos auxiliares usados en investigación (no forman parte del universo operativo).
@@ -50,7 +50,7 @@ class MarketDataRepository:
         meta = self.UNIVERSE_CONFIG.get(symbol_key) or self.EXTRA_SYMBOLS.get(symbol_key)
         return meta["yahoo"] if meta else symbol_key
 
-    def _download_chart(self, symbol_key: str, query: str, timeout: float) -> List[Dict]:
+    def _download_chart(self, symbol_key: str, query: str, timeout: float) -> list[dict]:
         """
         Descarga velas diarias de Yahoo Finance (endpoint v8/chart) y las normaliza.
 
@@ -69,7 +69,7 @@ class MarketDataRepository:
         return self._parse_chart_payload(payload)
 
     @staticmethod
-    def _parse_chart_payload(payload: Dict) -> List[Dict]:
+    def _parse_chart_payload(payload: dict) -> list[dict]:
         """Convierte la respuesta JSON de Yahoo en filas limpias (descarta velas incompletas/duplicadas)."""
         timestamps = payload.get("timestamp") or []
         quote = payload["indicators"]["quote"][0]
@@ -80,7 +80,7 @@ class MarketDataRepository:
         if payload["indicators"].get("adjclose"):
             adj_closes = payload["indicators"]["adjclose"][0].get("adjclose")
 
-        rows: List[Dict] = []
+        rows: list[dict] = []
         seen = set()
         for i, ts in enumerate(timestamps):
             o, h, l, c = opens[i], highs[i], lows[i], closes[i]
@@ -92,33 +92,35 @@ class MarketDataRepository:
             seen.add(dt_str)
             vol = volumes[i] if volumes and volumes[i] is not None else 0
             adj = adj_closes[i] if (adj_closes and adj_closes[i] is not None) else c
-            rows.append({
-                "date": dt_str,
-                "open": round(float(o), 4),
-                "high": round(float(h), 4),
-                "low": round(float(l), 4),
-                "close": round(float(c), 4),
-                "adj_close": round(float(adj), 4),
-                "volume": int(vol),
-            })
+            rows.append(
+                {
+                    "date": dt_str,
+                    "open": round(float(o), 4),
+                    "high": round(float(h), 4),
+                    "low": round(float(l), 4),
+                    "close": round(float(c), 4),
+                    "adj_close": round(float(adj), 4),
+                    "volume": int(vol),
+                }
+            )
         rows.sort(key=lambda x: x["date"])
         return rows
 
-    def _read_cache(self, symbol_key: str) -> List[Dict]:
+    def _read_cache(self, symbol_key: str) -> list[dict]:
         """Lee la caché local; devuelve lista vacía si no existe."""
         cache_path = self._cache_path(symbol_key)
         if not os.path.exists(cache_path):
             return []
-        with open(cache_path, "r", encoding="utf-8") as f:
+        with open(cache_path, encoding="utf-8") as f:
             return json.load(f)
 
-    def _write_cache(self, symbol_key: str, rows: List[Dict]) -> None:
+    def _write_cache(self, symbol_key: str, rows: list[dict]) -> None:
         """Guarda la caché con escritura atómica (nunca deja un fichero a medias)."""
         from aegis_quant.live.config_store import atomic_write_json
 
         atomic_write_json(self._cache_path(symbol_key), rows)
 
-    def fetch_symbol(self, symbol_key: str, start_year: int = 2006, force_refresh: bool = False) -> List[MarketBar]:
+    def fetch_symbol(self, symbol_key: str, start_year: int = 2006, force_refresh: bool = False) -> list[MarketBar]:
         """
         Devuelve el histórico diario completo de un símbolo, usando la caché local si existe.
 
@@ -139,7 +141,7 @@ class MarketDataRepository:
 
     def refresh_recent(
         self, symbol_key: str, completed_before: str, range_str: str = "1mo", timeout: float = 8.0
-    ) -> List[MarketBar]:
+    ) -> list[MarketBar]:
         """
         Actualiza el histórico con las últimas sesiones y devuelve la serie completa EN MEMORIA,
         incluida la vela de hoy aún en formación (a las 15:55 NY su 'close' es el precio actual).
@@ -165,8 +167,8 @@ class MarketDataRepository:
             self._write_cache(symbol_key, completed)
         return [MarketBar(**item) for item in all_rows]
 
-    def load_universe(self, force_refresh: bool = False, verbose: bool = True) -> Dict[str, List[MarketBar]]:
-        universe_bars: Dict[str, List[MarketBar]] = {}
+    def load_universe(self, force_refresh: bool = False, verbose: bool = True) -> dict[str, list[MarketBar]]:
+        universe_bars: dict[str, list[MarketBar]] = {}
         for key, meta in self.UNIVERSE_CONFIG.items():
             bars = self.fetch_symbol(key, start_year=2006, force_refresh=force_refresh)
             universe_bars[key] = bars
@@ -180,9 +182,9 @@ class MarketDataRepository:
     def refresh_universe_live(
         self,
         completed_before: str,
-        fallback_prices: Optional[Dict[str, float]] = None,
+        fallback_prices: dict[str, float] | None = None,
         timeout: float = 5.0,
-    ) -> Dict[str, List[MarketBar]]:
+    ) -> dict[str, list[MarketBar]]:
         """
         Refresca concurrentemente las últimas velas de los 8 activos del universo
         para evaluación táctica M1–M5 en vivo. Si algún activo falla en red, recurre
@@ -190,11 +192,9 @@ class MarketDataRepository:
         """
         fallback_prices = fallback_prices or {}
 
-        def _load_one(key: str) -> List[MarketBar]:
+        def _load_one(key: str) -> list[MarketBar]:
             try:
-                return self.refresh_recent(
-                    key, completed_before=completed_before, range_str="1mo", timeout=timeout
-                )
+                return self.refresh_recent(key, completed_before=completed_before, range_str="1mo", timeout=timeout)
             except Exception:
                 bars = self.fetch_symbol(key, start_year=2006, force_refresh=False)
                 px = fallback_prices.get(key)
@@ -213,7 +213,7 @@ class MarketDataRepository:
                 return bars
 
         keys = list(self.UNIVERSE_CONFIG.keys())
-        universe_bars: Dict[str, List[MarketBar]] = {}
+        universe_bars: dict[str, list[MarketBar]] = {}
         with ThreadPoolExecutor(max_workers=4) as pool:
             for key, bars in zip(keys, pool.map(_load_one, keys)):
                 universe_bars[key] = bars

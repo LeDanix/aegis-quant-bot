@@ -1,9 +1,9 @@
 # Aegis-Quant: Protocolo de Transición a Dinero Real (IBKR)
 ## Checklist Operativo, Modo 100% Automático y Despliegue con 300 € en Producción
 
-> **DOCUMENTO OFICIAL DE PROCEDIMIENTO EN VIVO — SISTEMA AEGIS-QUANT**  
-> *Destinatario: Operador del Sistema & Inversor Residente en España*  
-> *Ruta: `docs/TRANSICION_DINERO_REAL_CHECKLIST.md`*  
+> **DOCUMENTO OFICIAL DE PROCEDIMIENTO EN VIVO — SISTEMA AEGIS-QUANT**
+> *Destinatario: Operador del Sistema & Inversor Residente en España*
+> *Ruta: `docs/TRANSICION_DINERO_REAL_CHECKLIST.md`*
 > *Última actualización: 29 de Octubre de 2026*
 
 Este documento consolida el procedimiento exacto paso a paso para cuando decidas pasar de **Paper Trading (`PAPER`)** a **Operativa Real en Interactive Brokers (`LIVE_REAL`)** en **Modo 100% Automático (`AUTO_100`)** y con un capital de prueba de **300 €**.
@@ -29,7 +29,7 @@ Comenzar con **300 €** ofrece una enorme ventaja cuantitativa y operativa fren
 | **Máxima Caída Histórica (-15,7% MaxDD)** | Fluctuación máxima de ~7,80 € | **Fluctuación máxima histórica de ~47,00 €** |
 
 > [!NOTE]
-> **Riesgo Monetario Real con 300 €:**  
+> **Riesgo Monetario Real con 300 €:**
 > Con 300 €, la máxima caída histórica experimentada por el sistema en 19 años de backtest (incluyendo las crisis de 2008 y 2020) supondría apenas **47 € de variación**. Y si una sesión sufriera un pánico anómalo, el *Kill Switch* detiene todo automáticamente a los **-24 €**. El riesgo está 100% acotado mientras el algoritmo opera con su verdadera lógica multiactivo.
 
 ---
@@ -45,7 +45,7 @@ Si depositas 10.000 € y tras un período de ganancias la cuenta alcanza los **
   - Cuando sube a 15.000 € o 20.000 €: asigna sobre **15.000 € o 20.000 €**.
 
 ### B. La Mejor Práctica Institucional: Aislar la Cuenta de IBKR
-La conclusión del operador es absolutamente impecable:  
+La conclusión del operador es absolutamente impecable:
 > **"Si no quiero invertir más dinero, directamente no lo añado a Interactive Brokers."**
 
 Esta es la regla de oro de la gestión cuantitativa:
@@ -104,7 +104,7 @@ Justamente para minimizar este "error de discretización", la arquitectura de Ae
 | **GLD (Oro Físico)** | **`4GLD`** | `DE000A0S9GB0` | **~80,00 €** | Múltiplos de ~80,00 € | Exige >= 80 € asignados |
 
 > [!TIP]
-> **Conclusión sobre los múltiplos de 18 €:**  
+> **Conclusión sobre los múltiplos de 18 €:**
 > El sistema está matemáticamente blindado ante las compras discretas: **nunca gastará más del presupuesto asignado, comprará el múltiplo entero máximo posible y el sobrante se preservará automáticamente en efectivo.**
 
 ---
@@ -163,11 +163,11 @@ flowchart TD
    - Evalúa los 6 motores y calcula el rebalanceo Meta-Kelly sobre la base de 300 €.
    - Emite órdenes limitadas a Tradegate (por ejemplo, compra de participaciones de `SPYL` a ~14 €).
 2. A las **21:55:10 CET** (apenas 10 segundos después), recibes en tu móvil por Signal:
-   > 💼 **ORDEN EJECUTADA EN MERCADO REAL (AEGIS-QUANT)**  
-   > • Operación: BUY LIMIT 4 SPYL @ 14.15 EUR  
-   > • Mercado: Tradegate (Alemania)  
-   > • Importe invertido: 56.60 € | Comisión IBKR: 1.25 €  
-   > • Efectivo restante: 242.15 € (80.7% cash)  
+   > 💼 **ORDEN EJECUTADA EN MERCADO REAL (AEGIS-QUANT)**
+   > • Operación: BUY LIMIT 4 SPYL @ 14.15 EUR
+   > • Mercado: Tradegate (Alemania)
+   > • Importe invertido: 56.60 € | Comisión IBKR: 1.25 €
+   > • Efectivo restante: 242.15 € (80.7% cash)
    > • Estado: En cartera bajo supervisión de Stop ATR y Take Profit.
 
 ### Paso 3: Verificación en el Módulo Fiscal
@@ -186,7 +186,7 @@ flowchart TD
 ---
 
 > [!TIP]
-> **Todo listo para cuando tú decidas:**  
-> Este protocolo está guardado de forma permanente. Cuando tengas los 300 € en Interactive Brokers y desees activar la operativa, solo escríbeme:  
-> *"Vamos a preparar la conexión real con 300 € en modo automático"*  
+> **Todo listo para cuando tú decidas:**
+> Este protocolo está guardado de forma permanente. Cuando tengas los 300 € en Interactive Brokers y desees activar la operativa, solo escríbeme:
+> *"Vamos a preparar la conexión real con 300 € en modo automático"*
 > y ejecutaremos este checklist punto por punto.

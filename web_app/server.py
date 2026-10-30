@@ -12,14 +12,14 @@ Endpoints:
   - POST /api/live/config    : Actualiza parámetros del bot en caliente desde la web o móvil.
 """
 
-import os
-import sys
 import gzip
 import json
-import time
+import os
+import sys
 import threading
+import time
 import urllib.parse
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 # Asegurar que el paquete raíz `aegis_quant` esté en sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,7 +46,7 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
             with cls._init_lock:
                 if cls.summary_cache is None:
                     summary_path = os.path.join(cls.base_dir, "data", "aegis_backtest_summary.json")
-                    with open(summary_path, "r", encoding="utf-8") as f:
+                    with open(summary_path, encoding="utf-8") as f:
                         cls.summary_cache = json.load(f)
                     cls.summary_raw_bytes = json.dumps(cls.summary_cache, ensure_ascii=False).encode("utf-8")
                     cls.summary_gzip_bytes = gzip.compress(cls.summary_raw_bytes, compresslevel=6)
@@ -120,14 +120,8 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
             qs = urllib.parse.parse_qs(parsed.query)
             symbol = (qs.get("symbol", ["SPY"])[0] or "SPY").upper()
             timeframe = (qs.get("timeframe", ["1d"])[0] or "1d").lower()
-            force_refresh = (
-                qs.get("refresh", ["false"])[0].lower() in ("true", "1", "yes")
-            )
-            live_prices = (
-                dict(self.bot_controller.latest_prices)
-                if self.bot_controller is not None
-                else None
-            )
+            force_refresh = qs.get("refresh", ["false"])[0].lower() in ("true", "1", "yes")
+            live_prices = dict(self.bot_controller.latest_prices) if self.bot_controller is not None else None
             svc = EtfChartService(self.base_dir)
             self._send_json(
                 svc.get_etf_payload(
@@ -256,13 +250,15 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
         self._send_json({"ok": False, "error": "Ruta POST no encontrada"}, 404)
 
     def log_message(self, format, *args):
-        sys.stderr.write("[%s] %s - %s\n" % (self.log_date_time_string(), self.client_address[0], format % args))
+        msg = format % args if args else format
+        sys.stderr.write(f"[{self.log_date_time_string()}] {self.client_address[0]} - {msg}\n")
         sys.stderr.flush()
 
 
 def _get_tailscale_ip() -> str:
     try:
         import subprocess
+
         res = subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=2)
         if res.returncode == 0 and res.stdout.strip():
             return res.stdout.strip()
@@ -273,6 +269,7 @@ def _get_tailscale_ip() -> str:
 
 def _start_etf_hourly_updater(base_dir: str):
     """Hilo demonio en segundo plano que mantiene templada la caché horaria de ETFs cada 60 minutos."""
+
     def _loop():
         time.sleep(10)  # Espera inicial para dar prioridad al arranque del servidor
         svc = EtfChartService(base_dir)
@@ -301,7 +298,7 @@ def run_server(port: int = 8085):
     httpd = ThreadingHTTPServer(server_address, AegisRequestHandler)
     ts_ip = _get_tailscale_ip()
     print("=" * 78)
-    print(f"AEGIS-QUANT WEB STUDIO & PAPER TRADING CONTROL CENTER ACTIVO")
+    print("AEGIS-QUANT WEB STUDIO & PAPER TRADING CONTROL CENTER ACTIVO")
     print(f"  -> Acceso Local PC      : http://localhost:{port}")
     if ts_ip:
         print(f"  -> Acceso Móvil Tailscale: http://{ts_ip}:{port}")

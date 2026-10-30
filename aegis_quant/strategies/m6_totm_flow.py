@@ -27,7 +27,6 @@ Execution Parameters:
 
 import calendar
 from datetime import date, timedelta
-from typing import List, Optional, Tuple
 
 from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
@@ -77,18 +76,13 @@ class TurnOfTheMonthFlowStrategy(BaseStrategy):
             category="calendar_institutional_flow",
         )
 
-    def _check_entry(self, b: EnrichedBar) -> Tuple[bool, str]:
+    def _check_entry(self, b: EnrichedBar) -> tuple[bool, str]:
         """Evaluates deterministic end-of-month institutional flow setup."""
         if b.atr14 <= 0:
             return False, ""
 
         rem_bdays = business_days_remaining_in_month(b.date)
-        if (
-            rem_bdays <= 1
-            and b.close > b.sma200
-            and b.vts_ratio < 0.98
-            and b.rsi2 < 35.0
-        ):
+        if rem_bdays <= 1 and b.close > b.sma200 and b.vts_ratio < 0.98 and b.rsi2 < 35.0:
             reason = (
                 f"Flujo Institucional Fin de Mes (T-{rem_bdays}d) con RSI(2)={b.rsi2:.1f}<35 "
                 f"en Contango (VTS={b.vts_ratio:.2f})"
@@ -97,15 +91,13 @@ class TurnOfTheMonthFlowStrategy(BaseStrategy):
 
         return False, ""
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates 2.5x ATR(14) stop loss with 1.35% floor."""
         stop_price = b.close - 2.5 * b.atr14
         stop_dist_pct = max(1.35, ((b.close - stop_price) / b.close) * 100.0)
         return stop_price, stop_dist_pct
 
-    def _check_exit(
-        self, b: EnrichedBar, days: int, stop_price: float
-    ) -> Tuple[bool, float, str]:
+    def _check_exit(self, b: EnrichedBar, days: int, stop_price: float) -> tuple[bool, float, str]:
         """Checks stop loss, SMA(5) impulse target after T+2, or T+4 window completion."""
         if b.low <= stop_price:
             exit_px = stop_price if b.open > stop_price else b.open
@@ -122,15 +114,15 @@ class TurnOfTheMonthFlowStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 6 (TOTM)."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         min_low = 0.0
@@ -200,7 +192,7 @@ class TurnOfTheMonthFlowStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live Turn-of-the-Month signal generation."""
         if len(series) < 205:
             return None

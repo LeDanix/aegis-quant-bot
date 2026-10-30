@@ -7,9 +7,8 @@ Ejecuta 4 baterías de pruebas de estrés sobre Aegis-Quant:
   4. Sensibilidad Paramétrica (Perturbación de umbrales RSI, ATR Stop y VIX/VIX3M para descartar Overfitting)
 """
 
-import math
 import random
-from typing import Dict, List
+
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 
 
@@ -17,7 +16,7 @@ class RobustnessAnalyzer:
     def __init__(self, engine: AegisPortfolioEngine):
         self.engine = engine
 
-    def run_friction_stress_test(self, mode_result: Dict) -> List[Dict]:
+    def run_friction_stress_test(self, mode_result: dict) -> list[dict]:
         """
         Evalúa cómo impactan diferentes niveles de coste de transacción (comisión + slippage ida y vuelta)
         sobre todas las operaciones tácticas y rotaciones del Core desde 2007 hasta 2026.
@@ -45,41 +44,40 @@ class RobustnessAnalyzer:
             for t in trades:
                 w = t.get("position_weight", 0.45)
                 trade_cost = (cost_pct * w) / 100.0
-                drag_factor *= (1.0 - trade_cost)
+                drag_factor *= 1.0 - trade_cost
 
             for _ in range(core_rebalances_total):
-                drag_factor *= (1.0 - (cost_pct * 0.35) / 100.0)
+                drag_factor *= 1.0 - (cost_pct * 0.35) / 100.0
 
             net_eq = base_final_eq * drag_factor
             net_ret_pct = ((net_eq - 10000.0) / 10000.0) * 100.0
             net_cagr = ((net_eq / 10000.0) ** (1.0 / n_years) - 1.0) * 100.0
 
-            results.append({
-                "scenario": lvl["label"],
-                "roundtrip_pct": cost_pct,
-                "final_equity": round(net_eq, 2),
-                "total_return_pct": round(net_ret_pct, 2),
-                "cagr_pct": round(net_cagr, 2),
-                "beats_sp500": net_eq > mode_result["spy_final_equity"],
-            })
+            results.append(
+                {
+                    "scenario": lvl["label"],
+                    "roundtrip_pct": cost_pct,
+                    "final_equity": round(net_eq, 2),
+                    "total_return_pct": round(net_ret_pct, 2),
+                    "cagr_pct": round(net_cagr, 2),
+                    "beats_sp500": net_eq > mode_result["spy_final_equity"],
+                }
+            )
         return results
 
     def run_monte_carlo_simulation(
         self,
-        mode_result: Dict,
+        mode_result: dict,
         num_simulations: int = 1000,
         miss_trade_prob: float = 0.08,
         seed: int = 42,
-    ) -> Dict:
+    ) -> dict:
         """
         Ejecuta 1,000 simulaciones de Monte Carlo mediante Block-Bootstrapping de los retornos anuales
         y perturbación aleatoria de las operaciones tácticas (simulando un 8% de señales perdidas por
         fallos de conexión o falta de liquidez + ruido gaussiano de ejecución).
         """
         rng = random.Random(seed)
-        yearly_data = mode_result["yearly"]
-        trades = mode_result["trades"]
-        n_years = len(yearly_data)
 
         final_equities = []
         cagrs = []
@@ -107,7 +105,7 @@ class RobustnessAnalyzer:
             idx = 0
             while idx < n_periods:
                 block_start = rng.randint(0, max(0, n_periods - 6))
-                block = period_rets[block_start: block_start + 6]
+                block = period_rets[block_start : block_start + 6]
                 for r in block:
                     if idx >= n_periods:
                         break
@@ -139,7 +137,7 @@ class RobustnessAnalyzer:
         cagrs.sort()
         max_dds.sort()  # Más negativo primero
 
-        def pct(arr: List[float], p: float) -> float:
+        def pct(arr: list[float], p: float) -> float:
             k = max(0, min(len(arr) - 1, int(len(arr) * p)))
             return round(arr[k], 2)
 
@@ -179,7 +177,7 @@ class RobustnessAnalyzer:
             },
         }
 
-    def run_regime_subperiod_analysis(self, mode_result: Dict) -> List[Dict]:
+    def run_regime_subperiod_analysis(self, mode_result: dict) -> list[dict]:
         """
         Divide los 20 años de historia (2007-2026) en 4 grandes bloques macroeconómicos de 5 años
         para verificar que el sistema genera Alpha en todos los entornos de tipos e inflación.
@@ -199,22 +197,24 @@ class RobustnessAnalyzer:
             spy_mult = 1.0
             trades_cnt = 0
             for y in sub_y:
-                bot_mult *= (1.0 + y["bot_ret_pct"] / 100.0)
-                spy_mult *= (1.0 + y["spy_ret_pct"] / 100.0)
+                bot_mult *= 1.0 + y["bot_ret_pct"] / 100.0
+                spy_mult *= 1.0 + y["spy_ret_pct"] / 100.0
                 trades_cnt += y["trades"]
 
             bot_ret = (bot_mult - 1.0) * 100.0
             spy_ret = (spy_mult - 1.0) * 100.0
-            out.append({
-                "period": sp["name"],
-                "bot_cum_ret_pct": round(bot_ret, 2),
-                "spy_cum_ret_pct": round(spy_ret, 2),
-                "alpha_pct": round(bot_ret - spy_ret, 2),
-                "trades": trades_cnt,
-            })
+            out.append(
+                {
+                    "period": sp["name"],
+                    "bot_cum_ret_pct": round(bot_ret, 2),
+                    "spy_cum_ret_pct": round(spy_ret, 2),
+                    "alpha_pct": round(bot_ret - spy_ret, 2),
+                    "trades": trades_cnt,
+                }
+            )
         return out
 
-    def run_parameter_sensitivity(self) -> List[Dict]:
+    def run_parameter_sensitivity(self) -> list[dict]:
         """
         Comprueba que el Modo 3 Élite no está 'sobre-optimizado' (overfitted) variando el riesgo base
         y el tope máximo por operación táctica en una malla de configuraciones vecinas.
@@ -239,18 +239,20 @@ class RobustnessAnalyzer:
                 core_type="ELITE_PYRAMID",
                 overlay_scale=1.0,
             )
-            results.append({
-                "config": g["label"],
-                "final_equity": res["final_equity"],
-                "total_return_pct": res["total_return_pct"],
-                "cagr_pct": res["cagr_pct"],
-                "max_dd_pct": res["max_dd_pct"],
-                "sharpe": res["sharpe"],
-                "calmar": res["calmar"],
-            })
+            results.append(
+                {
+                    "config": g["label"],
+                    "final_equity": res["final_equity"],
+                    "total_return_pct": res["total_return_pct"],
+                    "cagr_pct": res["cagr_pct"],
+                    "max_dd_pct": res["max_dd_pct"],
+                    "sharpe": res["sharpe"],
+                    "calmar": res["calmar"],
+                }
+            )
         return results
 
-    def generate_full_report(self, mode_elite: Dict) -> Dict:
+    def generate_full_report(self, mode_elite: dict) -> dict:
         return {
             "friction_test": self.run_friction_stress_test(mode_elite),
             "monte_carlo": self.run_monte_carlo_simulation(mode_elite, num_simulations=1000),

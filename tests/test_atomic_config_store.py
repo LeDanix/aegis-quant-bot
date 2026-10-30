@@ -6,8 +6,8 @@ Verifies Audit Fix #3:
   - Concurrent multi-threaded save_state, append_log, and get_state never raise JSONDecodeError.
 """
 
-import os
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -20,7 +20,7 @@ class TestAtomicConfigStore(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             target = os.path.join(tmpdir, "state.json")
             atomic_write_json(target, {"equity": 10250.5, "positions": ["SPY"]})
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 loaded = json.load(f)
             self.assertEqual(loaded["equity"], 10250.5)
             leftovers = [n for n in os.listdir(tmpdir) if n.startswith(".tmp_")]
@@ -37,7 +37,7 @@ class TestAtomicConfigStore(unittest.TestCase):
                 atomic_write_json(target, {"bad": object()})
 
             # Original file must remain intact (not 0 bytes!) and no .tmp_ files left behind
-            with open(target, "r", encoding="utf-8") as f:
+            with open(target, encoding="utf-8") as f:
                 recovered = json.load(f)
             self.assertEqual(recovered, original)
             leftovers = [n for n in os.listdir(tmpdir) if n.startswith(".tmp_")]

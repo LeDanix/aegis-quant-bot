@@ -13,20 +13,19 @@ empleados por los motores algorítmicos del bot (M1 a M6) ni altera la toma de d
 El histórico horario intradía se almacena de forma aislada en data/cache_etf_hourly/.
 """
 
-import os
-import json
-import time
-import threading
-import urllib.request
 import datetime
+import json
+import os
+import threading
+import time
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from aegis_quant.live.config_store import atomic_write_json
 
-
-ETF_UNIVERSE_META: Dict[str, Dict[str, str]] = {
+ETF_UNIVERSE_META: dict[str, dict[str, str]] = {
     "SPY": {
         "symbol": "SPY",
         "display_name": "S&P 500 Index ETF",
@@ -99,9 +98,9 @@ ETF_UNIVERSE_META: Dict[str, Dict[str, str]] = {
     },
 }
 
-ORDERED_ETF_SYMBOLS: List[str] = ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS", "BTC"]
+ORDERED_ETF_SYMBOLS: list[str] = ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS", "BTC"]
 
-ETF_HOURLY_YAHOO_TICKERS: Dict[str, str] = {
+ETF_HOURLY_YAHOO_TICKERS: dict[str, str] = {
     "SPY": "SPY",
     "QQQ": "QQQ",
     "GLD": "GLD",
@@ -120,8 +119,8 @@ class EtfChartService:
     """
 
     _lock = threading.RLock()
-    _series_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
-    _hourly_cache: Dict[str, Tuple[float, List[Dict[str, Any]]]] = {}
+    _series_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+    _hourly_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 
     def __init__(self, base_dir: str):
         self.base_dir = base_dir
@@ -130,7 +129,7 @@ class EtfChartService:
         os.makedirs(self.hourly_cache_dir, exist_ok=True)
 
     @staticmethod
-    def normalize_symbol(symbol: Optional[str]) -> str:
+    def normalize_symbol(symbol: str | None) -> str:
         clean = str(symbol or "SPY").strip().upper()
         if clean == "SOYB":
             return "ZS"
@@ -148,11 +147,11 @@ class EtfChartService:
     def _hourly_file_path(self, symbol: str) -> str:
         return os.path.join(self.hourly_cache_dir, f"{symbol}_1h.json")
 
-    def get_hourly_cache_meta(self) -> Dict[str, Any]:
+    def get_hourly_cache_meta(self) -> dict[str, Any]:
         path = self._meta_file_path()
         if os.path.exists(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -163,12 +162,9 @@ class EtfChartService:
             "status": "pending",
         }
 
-    def _fetch_one_hourly(self, symbol: str, timeout: float = 6.0) -> Tuple[str, List[Dict[str, Any]]]:
+    def _fetch_one_hourly(self, symbol: str, timeout: float = 6.0) -> tuple[str, list[dict[str, Any]]]:
         ticker = ETF_HOURLY_YAHOO_TICKERS.get(symbol, symbol)
-        url = (
-            f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-            f"?range=1mo&interval=1h&events=history"
-        )
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1mo&interval=1h&events=history"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         raw_bytes = urllib.request.urlopen(req, timeout=timeout).read()
         res = json.loads(raw_bytes)["chart"]["result"][0]
@@ -177,7 +173,7 @@ class EtfChartService:
         opens, highs, lows, closes = quote["open"], quote["high"], quote["low"], quote["close"]
         vols = quote.get("volume") or [0] * len(timestamps)
 
-        bars: List[Dict[str, Any]] = []
+        bars: list[dict[str, Any]] = []
         for i, ts in enumerate(timestamps):
             c = closes[i]
             if c is None or c <= 0:
@@ -189,18 +185,20 @@ class EtfChartService:
 
             # Formatear en horario local de Wall Street (New York)
             dt_ny = datetime.datetime.fromtimestamp(ts, ZoneInfo("America/New_York"))
-            bars.append({
-                "datetime": dt_ny.strftime("%Y-%m-%d %H:%M"),
-                "date": dt_ny.strftime("%Y-%m-%d"),
-                "open": round(float(o), 2),
-                "high": round(float(h), 2),
-                "low": round(float(l), 2),
-                "close": round(float(c), 2),
-                "volume": int(v),
-            })
+            bars.append(
+                {
+                    "datetime": dt_ny.strftime("%Y-%m-%d %H:%M"),
+                    "date": dt_ny.strftime("%Y-%m-%d"),
+                    "open": round(float(o), 2),
+                    "high": round(float(h), 2),
+                    "low": round(float(l), 2),
+                    "close": round(float(c), 2),
+                    "volume": int(v),
+                }
+            )
         return symbol, bars
 
-    def refresh_all_hourly(self, force: bool = False, timeout: float = 6.0) -> Dict[str, Any]:
+    def refresh_all_hourly(self, force: bool = False, timeout: float = 6.0) -> dict[str, Any]:
         """
         Descarga concurrentemente las barras horarias (1H) del último mes para los 6 ETFs.
         Las persiste de forma atómica en data/cache_etf_hourly/<SYMBOL>_1h.json.
@@ -213,7 +211,7 @@ class EtfChartService:
                 return meta
 
             # Actualizar en paralelo con timeout controlado
-            successful_symbols: List[str] = []
+            successful_symbols: list[str] = []
             try:
                 symbols_to_fetch = list(ORDERED_ETF_SYMBOLS)
                 with ThreadPoolExecutor(max_workers=4) as pool:
@@ -246,7 +244,7 @@ class EtfChartService:
                     "status": f"error: {exc}",
                 }
 
-    def _load_hourly_bars(self, symbol: str) -> List[Dict[str, Any]]:
+    def _load_hourly_bars(self, symbol: str) -> list[dict[str, Any]]:
         file_path = self._hourly_file_path(symbol)
         if not os.path.exists(file_path):
             return []
@@ -255,7 +253,7 @@ class EtfChartService:
             cached = self._hourly_cache.get(symbol)
             if cached is not None and cached[0] == mtime:
                 return cached[1]
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 bars = json.load(f)
             self._hourly_cache[symbol] = (mtime, bars)
             return bars
@@ -267,24 +265,19 @@ class EtfChartService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def _compute_series_payload(
-        symbol: str, raw_bars: List[Dict[str, Any]], date_key: str = "date"
-    ) -> Dict[str, Any]:
+    def _compute_series_payload(symbol: str, raw_bars: list[dict[str, Any]], date_key: str = "date") -> dict[str, Any]:
         """Calcula de forma determinista SMA(50), SMA(200), RSI(2) y retornos sobre la lista de barras."""
-        bars = [
-            b for b in raw_bars
-            if b.get(date_key) and float(b.get("close") or 0.0) > 0.0
-        ]
+        bars = [b for b in raw_bars if b.get(date_key) and float(b.get("close") or 0.0) > 0.0]
         bars.sort(key=lambda x: str(x[date_key]))
 
-        dates: List[str] = []
-        opens: List[float] = []
-        highs: List[float] = []
-        lows: List[float] = []
-        closes: List[float] = []
-        volumes: List[int] = []
-        sma50_list: List[float] = []
-        sma200_list: List[float] = []
+        dates: list[str] = []
+        opens: list[float] = []
+        highs: list[float] = []
+        lows: list[float] = []
+        closes: list[float] = []
+        volumes: list[int] = []
+        sma50_list: list[float] = []
+        sma200_list: list[float] = []
 
         running_sum50 = 0.0
         running_sum200 = 0.0
@@ -361,15 +354,11 @@ class EtfChartService:
         ret_ytd_pct = round(((last_close - ytd_ref) / ytd_ref) * 100.0, 2) if ytd_ref > 0 else 0.0
         ret_total_pct = round(((last_close - closes[0]) / closes[0]) * 100.0, 2) if n and closes[0] > 0 else 0.0
 
-        w52_highs = highs[max(0, n - 252):] if n else [0.0]
-        w52_lows = lows[max(0, n - 252):] if n else [0.0]
+        w52_highs = highs[max(0, n - 252) :] if n else [0.0]
+        w52_lows = lows[max(0, n - 252) :] if n else [0.0]
         last_sma50 = sma50_list[-1] if n else 0.0
         last_sma200 = sma200_list[-1] if n else 0.0
-        dist_sma200_pct = (
-            round(((last_close - last_sma200) / last_sma200) * 100.0, 2)
-            if last_sma200 > 0
-            else 0.0
-        )
+        dist_sma200_pct = round(((last_close - last_sma200) / last_sma200) * 100.0, 2) if last_sma200 > 0 else 0.0
         is_bull = last_close >= last_sma200
 
         return {
@@ -411,9 +400,7 @@ class EtfChartService:
     # GENERACIÓN DE SERIES: RESOLUCIÓN 1D (DIARIA) vs 1H (HORARIA)
     # -------------------------------------------------------------------------
 
-    def _load_computed_series(
-        self, symbol: str, live_prices: Optional[Dict[str, float]] = None
-    ) -> Dict[str, Any]:
+    def _load_computed_series(self, symbol: str, live_prices: dict[str, float] | None = None) -> dict[str, Any]:
         """
         Carga la serie histórica diaria base desde data/<SYMBOL>_daily.json.
         Si la sesión de hoy tiene datos en la caché horaria o en live_prices,
@@ -423,14 +410,11 @@ class EtfChartService:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Serie histórica no encontrada para {symbol}: {file_path}")
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             raw_bars = json.load(f)
 
         # Clonar barras base
-        bars: List[Dict[str, Any]] = [
-            dict(b) for b in raw_bars
-            if b.get("date") and float(b.get("close") or 0.0) > 0.0
-        ]
+        bars: list[dict[str, Any]] = [dict(b) for b in raw_bars if b.get("date") and float(b.get("close") or 0.0) > 0.0]
         bars.sort(key=lambda x: str(x["date"]))
 
         # Comprobar si hay actividad intradía hoy
@@ -478,18 +462,20 @@ class EtfChartService:
                 bars[-1]["low"] = min(bars[-1].get("low", px), px)
             elif bars and bars[-1]["date"] < today_ny:
                 prev_c = bars[-1]["close"]
-                bars.append({
-                    "date": today_ny,
-                    "open": prev_c,
-                    "high": max(prev_c, px),
-                    "low": min(prev_c, px),
-                    "close": px,
-                    "volume": 0,
-                })
+                bars.append(
+                    {
+                        "date": today_ny,
+                        "open": prev_c,
+                        "high": max(prev_c, px),
+                        "low": min(prev_c, px),
+                        "close": px,
+                        "volume": 0,
+                    }
+                )
 
         return self._compute_series_payload(symbol, bars, date_key="date")
 
-    def _load_computed_hourly_series(self, symbol: str) -> Dict[str, Any]:
+    def _load_computed_hourly_series(self, symbol: str) -> dict[str, Any]:
         """Carga la serie horaria (1H) desde la caché aislada data/cache_etf_hourly/<SYMBOL>_1h.json."""
         hourly_bars = self._load_hourly_bars(symbol)
         if len(hourly_bars) < 5:
@@ -503,11 +489,11 @@ class EtfChartService:
 
     def get_etf_payload(
         self,
-        symbol: Optional[str] = "SPY",
-        live_prices: Optional[Dict[str, float]] = None,
+        symbol: str | None = "SPY",
+        live_prices: dict[str, float] | None = None,
         timeframe: str = "1d",
         force_refresh: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Devuelve el catálogo de los 6 ETFs y la serie detallada del ETF seleccionado.
 
@@ -529,8 +515,8 @@ class EtfChartService:
 
         meta_info = self.get_hourly_cache_meta()
 
-        catalog: List[Dict[str, Any]] = []
-        selected_data: Optional[Dict[str, Any]] = None
+        catalog: list[dict[str, Any]] = []
+        selected_data: dict[str, Any] | None = None
 
         for sym in ORDERED_ETF_SYMBOLS:
             # Para el catálogo de tarjetas rápidas siempre usamos métricas de 1D con precio en vivo
@@ -547,16 +533,18 @@ class EtfChartService:
                     m["day_change_pct"] = round(((px - prev) / prev) * 100.0, 2)
                 m["trend"] = "ALCISTA" if px >= float(m.get("sma200") or 0) else "BAJISTA"
 
-            catalog.append({
-                "symbol": sym,
-                "display_name": meta.get("display_name", sym),
-                "ucits_ticker": meta.get("ucits_ticker", ""),
-                "isin": meta.get("isin", ""),
-                "last_close": m["last_close"],
-                "day_change_pct": m["day_change_pct"],
-                "ret_1y_pct": m["ret_1y_pct"],
-                "trend": m["trend"],
-            })
+            catalog.append(
+                {
+                    "symbol": sym,
+                    "display_name": meta.get("display_name", sym),
+                    "ucits_ticker": meta.get("ucits_ticker", ""),
+                    "isin": meta.get("isin", ""),
+                    "last_close": m["last_close"],
+                    "day_change_pct": m["day_change_pct"],
+                    "ret_1y_pct": m["ret_1y_pct"],
+                    "trend": m["trend"],
+                }
+            )
 
             if sym == norm_sym:
                 hourly_res = self._load_computed_hourly_series(norm_sym)

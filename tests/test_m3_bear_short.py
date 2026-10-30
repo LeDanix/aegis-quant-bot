@@ -9,6 +9,7 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.strategies.m3_bear_short import BearMarketShortStrategy
 from tests.helpers import create_mock_bar
 
@@ -66,9 +67,7 @@ class TestBearMarketShortStrategy(unittest.TestCase):
     def test_exit_on_short_stop_loss(self):
         """Short exit triggers when bar High rises to or above stop price."""
         bar = create_mock_bar(high=425.0, close=420.0, open_px=415.0)
-        exit_flag, exit_price, reason = self.strategy._check_exit(
-            bar, days=2, stop_price=422.0, mode="BOUNCE"
-        )
+        exit_flag, exit_price, reason = self.strategy._check_exit(bar, days=2, stop_price=422.0, mode="BOUNCE")
         self.assertTrue(exit_flag)
         self.assertEqual(exit_price, 422.0)
         self.assertIn("Stop Loss Bajista", reason)
@@ -76,9 +75,7 @@ class TestBearMarketShortStrategy(unittest.TestCase):
     def test_exit_on_bounce_target(self):
         """BOUNCE short exits when Close drops below SMA5 or RSI2 < 20."""
         bar = create_mock_bar(close=380.0, sma5=385.0, high=390.0, rsi2=18.0)
-        exit_flag, exit_price, reason = self.strategy._check_exit(
-            bar, days=2, stop_price=422.0, mode="BOUNCE"
-        )
+        exit_flag, exit_price, reason = self.strategy._check_exit(bar, days=2, stop_price=422.0, mode="BOUNCE")
         self.assertTrue(exit_flag)
         self.assertEqual(exit_price, 380.0)
         self.assertIn("Target Corto", reason)

@@ -3,7 +3,6 @@ Gestor Orientado a Objetos de Riesgo Cuantitativo, Meta-Labeling, Kelly Fraccion
 y Volatility Targeting (MetaLabelRiskManager).
 """
 
-from typing import Dict
 from aegis_quant.models.market_models import EnrichedBar
 
 
@@ -53,9 +52,7 @@ class MetaLabelRiskManager:
         (Close > SMA50 > SMA200), volatilidad implícita (VIX) y Estructura Temporal (VIX / VIX3M).
         """
         clean_bull_trend = (
-            spy_bar.close > spy_bar.sma200
-            and spy_bar.sma50 > spy_bar.sma200
-            and spy_bar.close > spy_bar.sma50
+            spy_bar.close > spy_bar.sma200 and spy_bar.sma50 > spy_bar.sma200 and spy_bar.close > spy_bar.sma50
         )
         low_stress_vol = spy_bar.vix_close < 21.0 and spy_bar.vts_ratio < 0.96
 
@@ -72,10 +69,10 @@ class MetaLabelRiskManager:
 
     def compute_elite_core_allocation(
         self,
-        bars_by_sym: Dict[str, EnrichedBar],
+        bars_by_sym: dict[str, EnrichedBar],
         idle_capital_fraction: float = 1.0,
         totm_boost: bool = False,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Asigna únicamente el Capital Ocioso (1.0 - Exposición Táctica Activa), garantizando
         que la suma total (Táctico + Core) jamás supere el 100% del capital (0% deuda/margen):
@@ -96,7 +93,7 @@ class MetaLabelRiskManager:
         if spy is None:
             return {}
 
-        alloc: Dict[str, float] = {}
+        alloc: dict[str, float] = {}
         regime = self.classify_regime(spy)
 
         if regime == "BULL_QUIET_CONTANGO":

@@ -7,12 +7,14 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.live.bot_controller import LiveBotController
 
 
 class TestNotificationBuilder(unittest.TestCase):
     def test_notification_message_formatting(self):
         """Verifies that the executive report contains all required quantitative sections."""
+
         # Create a mock controller without starting background thread
         class DummyController(LiveBotController):
             def __init__(self):
@@ -99,7 +101,15 @@ class TestNotificationBuilder(unittest.TestCase):
         self.assertIn("Cartera protegida.", msg_closed)
 
         # 6. Check differentiation between 100% cash and active positions maintained
-        state_cash = {"account": {"total_equity_usd": 10000.0, "cash_usd": 10000.0, "total_return_pct": 0.0, "current_dd_pct": 0.0}, "positions": []}
+        state_cash = {
+            "account": {
+                "total_equity_usd": 10000.0,
+                "cash_usd": 10000.0,
+                "total_return_pct": 0.0,
+                "current_dd_pct": 0.0,
+            },
+            "positions": [],
+        }
         msg_100_cash = ctrl._build_notification_message(
             "Reloj Automático",
             [],

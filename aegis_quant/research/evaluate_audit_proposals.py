@@ -12,13 +12,12 @@ Evalúa sin sesgo de anticipación (zero lookahead bias) sobre $10,000 iniciales
   6. Combinación Completa (M6 + M7 + M8 + M9)
 """
 
-import os
-import sys
+import calendar
 import copy
 import math
-import calendar
+import os
+import sys
 from datetime import date, timedelta
-from typing import Dict, List, Set
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if BASE_DIR not in sys.path:
@@ -62,13 +61,13 @@ def is_totm_date(iso_date: str) -> bool:
     return business_days_remaining_in_month(iso_date) <= 1 or business_day_index_in_month(iso_date) <= 4
 
 
-def compute_ratio_zscore(num_bars, den_bars, window: int = 50) -> Dict[str, float]:
+def compute_ratio_zscore(num_bars, den_bars, window: int = 50) -> dict[str, float]:
     """Calcula Z-Score rodante de 50 sesiones del ratio HYG / LQD."""
     num_map = {b.date: b.close for b in num_bars}
     den_map = {b.date: b.close for b in den_bars}
     common_dates = sorted(set(num_map.keys()) & set(den_map.keys()))
     ratios = [num_map[d] / den_map[d] for d in common_dates]
-    z_by_date: Dict[str, float] = {}
+    z_by_date: dict[str, float] = {}
     for i, d in enumerate(common_dates):
         if i < window:
             z_by_date[d] = 0.0
@@ -80,14 +79,14 @@ def compute_ratio_zscore(num_bars, den_bars, window: int = 50) -> Dict[str, floa
     return z_by_date
 
 
-def compute_breadth_exhaustion(rsp_bars, spy_bars) -> Set[str]:
+def compute_breadth_exhaustion(rsp_bars, spy_bars) -> set[str]:
     """Detecta divergencia bajista RSP/SPY cuando SPY marca máximos de 20 sesiones."""
     rsp_map = {b.date: b.close for b in rsp_bars}
     spy_map = {b.date: b.close for b in spy_bars}
     common = sorted(set(rsp_map.keys()) & set(spy_map.keys()))
     ratios = [rsp_map[d] / spy_map[d] for d in common]
     spy_closes = [spy_map[d] for d in common]
-    exhaustion_dates: Set[str] = set()
+    exhaustion_dates: set[str] = set()
     for i, d in enumerate(common):
         if i < 55:
             continue
@@ -100,13 +99,15 @@ def compute_breadth_exhaustion(rsp_bars, spy_bars) -> Set[str]:
     return exhaustion_dates
 
 
-def generate_m7_totm_trades(enriched: Dict[str, List[EnrichedBar]], start_date: str = "2007-01-01") -> List[ClosedTrade]:
+def generate_m7_totm_trades(
+    enriched: dict[str, list[EnrichedBar]], start_date: str = "2007-01-01"
+) -> list[ClosedTrade]:
     """
     Motor 7 Táctico (Turn-of-the-Month Institutional Flow):
     Compra debilidad moderada (RSI(2) < 35) al cierre de fin de mes en tendencia alcista estructural
     (Close > SMA200 y VTS < 0.98) para capturar los flujos automáticos de pensiones/nóminas de T+1..T+4.
     """
-    trades: List[ClosedTrade] = []
+    trades: list[ClosedTrade] = []
     for sym in ("QQQ", "SPY"):
         series = enriched[sym]
         in_pos = False
@@ -166,15 +167,15 @@ def generate_m7_totm_trades(enriched: Dict[str, List[EnrichedBar]], start_date: 
 
 def evaluate_variant(
     engine: AegisPortfolioEngine,
-    raw_trades_base: List[ClosedTrade],
+    raw_trades_base: list[ClosedTrade],
     name: str,
-    credit_z: Dict[str, float],
-    breadth_exh: Set[str],
+    credit_z: dict[str, float],
+    breadth_exh: set[str],
     use_m6: bool = False,
     use_m7: bool = False,
     use_m8: bool = False,
     use_m9: bool = False,
-) -> Dict:
+) -> dict:
     risk_mgr = MetaLabelRiskManager(
         base_risk_pct=2.5,
         max_tactical_weight=0.55,
@@ -183,11 +184,11 @@ def evaluate_variant(
     )
 
     spy_all = engine.universe["SPY"]
-    vrp_by_date: Dict[str, float] = {}
-    vrp_rebound_dates: Set[str] = set()
+    vrp_by_date: dict[str, float] = {}
+    vrp_rebound_dates: set[str] = set()
     vrp_list = []
     for i, b in enumerate(spy_all):
-        vrp = (b.vix_close ** 2) - (b.realized_vol20 ** 2)
+        vrp = (b.vix_close**2) - (b.realized_vol20**2)
         vrp_by_date[b.date] = vrp
         vrp_list.append((b.date, vrp))
         if i >= 5:
@@ -195,7 +196,7 @@ def evaluate_variant(
             if vrp > 0 and recent_min < 0:
                 vrp_rebound_dates.add(b.date)
 
-    mod_trades: List[ClosedTrade] = []
+    mod_trades: list[ClosedTrade] = []
     for orig in raw_trades_base:
         t = copy.deepcopy(orig)
         d = t.entry_date
@@ -208,7 +209,7 @@ def evaluate_variant(
         mod_trades.append(t)
 
     tactical_trades = engine.filter_and_size_tactical_trades(mod_trades, risk_mgr, max_slots=3)
-    trades_by_exit: Dict[str, List[ClosedTrade]] = {}
+    trades_by_exit: dict[str, list[ClosedTrade]] = {}
     for t in tactical_trades:
         trades_by_exit.setdefault(t.exit_date, []).append(t)
 
@@ -216,10 +217,10 @@ def evaluate_variant(
     equity = 10000.0
     peak_eq = 10000.0
     max_dd = 0.0
-    daily_returns: List[float] = []
+    daily_returns: list[float] = []
 
     trade_ptr = 0
-    open_tactical: List[ClosedTrade] = []
+    open_tactical: list[ClosedTrade] = []
 
     for idx, spy_bar in enumerate(spy_series):
         d = spy_bar.date
@@ -235,14 +236,8 @@ def evaluate_variant(
         core_ret_d = 0.0
         if idx > 0 and idle_cash_fraction > 0.01:
             prev_d = spy_series[idx - 1].date
-            prev_bars = {
-                sym: engine.date_map[sym][prev_d]
-                for sym in engine.universe
-                if prev_d in engine.date_map[sym]
-            }
-            alloc_weights = risk_mgr.compute_elite_core_allocation(
-                prev_bars, idle_capital_fraction=idle_cash_fraction
-            )
+            prev_bars = {sym: engine.date_map[sym][prev_d] for sym in engine.universe if prev_d in engine.date_map[sym]}
+            alloc_weights = risk_mgr.compute_elite_core_allocation(prev_bars, idle_capital_fraction=idle_cash_fraction)
             if use_m7 and is_totm_date(d):
                 reg = risk_mgr.classify_regime(prev_bars["SPY"])
                 if reg in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
@@ -267,10 +262,10 @@ def evaluate_variant(
             for sym, weight in alloc_weights.items():
                 core_ret_d += weight * engine.ret_map[sym].get(d, 0.0)
 
-        equity *= (1.0 + core_ret_d)
+        equity *= 1.0 + core_ret_d
         if d in trades_by_exit:
             for t in trades_by_exit[d]:
-                equity *= (1.0 + t.portfolio_ret_pct / 100.0)
+                equity *= 1.0 + t.portfolio_ret_pct / 100.0
 
         daily_ret = (equity - prev_eq) / prev_eq if prev_eq > 0 else 0.0
         daily_returns.append(daily_ret)
@@ -284,7 +279,7 @@ def evaluate_variant(
     cagr = ((equity / 10000.0) ** (1.0 / n_years) - 1.0) * 100.0
     mean_d = sum(daily_returns) / len(daily_returns)
     std_d = math.sqrt(sum((r - mean_d) ** 2 for r in daily_returns) / len(daily_returns))
-    down_std = math.sqrt(sum(r ** 2 for r in daily_returns if r < 0) / len(daily_returns))
+    down_std = math.sqrt(sum(r**2 for r in daily_returns if r < 0) / len(daily_returns))
     sharpe = (mean_d / std_d) * math.sqrt(252.0) if std_d > 0 else 0.0
     sortino = (mean_d / down_std) * math.sqrt(252.0) if down_std > 0 else 0.0
     calmar = cagr / abs(max_dd) if max_dd < 0 else 0.0
@@ -301,7 +296,7 @@ def evaluate_variant(
     }
 
 
-def run_evaluation(extra_cache_dir: str = None) -> List[Dict]:
+def run_evaluation(extra_cache_dir: str = None) -> list[dict]:
     main_repo = MarketDataRepository(data_dir=os.path.join(BASE_DIR, "data"))
     raw_universe = main_repo.load_universe(force_refresh=False, verbose=False)
 
@@ -312,11 +307,7 @@ def run_evaluation(extra_cache_dir: str = None) -> List[Dict]:
     rsp = extra_repo.fetch_symbol("RSP", start_year=2006)
 
     feat = QuantFeatureEngine(vix_bars=raw_universe["VIX"], vix3m_bars=raw_universe["VIX3M"])
-    enriched = {
-        sym: feat.enrich_series(bars)
-        for sym, bars in raw_universe.items()
-        if sym not in ("VIX", "VIX3M")
-    }
+    enriched = {sym: feat.enrich_series(bars) for sym, bars in raw_universe.items() if sym not in ("VIX", "VIX3M")}
     engine = AegisPortfolioEngine(enriched_universe=enriched, start_date="2007-01-01")
     base_trades = engine.generate_raw_trades(include_motor5=True)
     m7_trades = sorted(
@@ -330,15 +321,33 @@ def run_evaluation(extra_cache_dir: str = None) -> List[Dict]:
     results = [
         evaluate_variant(engine, base_trades, "0. Baseline: Modo 3 Elite Actual (M1-M5)", credit_z, breadth_exh),
         evaluate_variant(engine, base_trades, "1. + M6 Credit Spread (HYG/LQD)", credit_z, breadth_exh, use_m6=True),
-        evaluate_variant(engine, base_trades, "2. + M7 TOTM (Solo Filtro/Conviccion)", credit_z, breadth_exh, use_m7=True),
-        evaluate_variant(engine, m7_trades, "3. + M7 TOTM (Motor Tactico + Overlay)", credit_z, breadth_exh, use_m7=True),
-        evaluate_variant(engine, base_trades, "4. + M8 Variance Risk Premium (VRP)", credit_z, breadth_exh, use_m8=True),
+        evaluate_variant(
+            engine, base_trades, "2. + M7 TOTM (Solo Filtro/Conviccion)", credit_z, breadth_exh, use_m7=True
+        ),
+        evaluate_variant(
+            engine, m7_trades, "3. + M7 TOTM (Motor Tactico + Overlay)", credit_z, breadth_exh, use_m7=True
+        ),
+        evaluate_variant(
+            engine, base_trades, "4. + M8 Variance Risk Premium (VRP)", credit_z, breadth_exh, use_m8=True
+        ),
         evaluate_variant(engine, base_trades, "5. + M9 Market Breadth (RSP/SPY)", credit_z, breadth_exh, use_m9=True),
-        evaluate_variant(engine, base_trades, "6. Combo Completo Filtros (M6+M7+M8+M9)", credit_z, breadth_exh, use_m6=True, use_m7=True, use_m8=True, use_m9=True),
+        evaluate_variant(
+            engine,
+            base_trades,
+            "6. Combo Completo Filtros (M6+M7+M8+M9)",
+            credit_z,
+            breadth_exh,
+            use_m6=True,
+            use_m7=True,
+            use_m8=True,
+            use_m9=True,
+        ),
     ]
 
     print("=" * 116)
-    print(f"{'ARQUITECTURA EVALUADA (2007-2026 | $10k)':44s} | {'FINAL ($)':>11s} | {'CAGR':>6s} | {'MAX DD':>7s} | {'SHARPE':>6s} | {'SORTINO':>7s} | {'CALMAR':>6s} | {'TRADES':>6s}")
+    print(
+        f"{'ARQUITECTURA EVALUADA (2007-2026 | $10k)':44s} | {'FINAL ($)':>11s} | {'CAGR':>6s} | {'MAX DD':>7s} | {'SHARPE':>6s} | {'SORTINO':>7s} | {'CALMAR':>6s} | {'TRADES':>6s}"
+    )
     print("=" * 116)
     for r in results:
         print(

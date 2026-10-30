@@ -1,10 +1,10 @@
 # Auditoría Estratégica, Arquitectura Institucional y Propuestas Cuantitativas: Sistema Aegis-Quant
 
-> **INFORME DE AUDITORÍA TÉCNICA Y CUANTITATIVA INSTITUCIONAL**  
-> **Autor:** Senior Quantitative Architect & Hedge Fund Systems Auditor  
-> **Fecha:** 25 de Octubre de 2026  
-> **Proyecto:** Aegis-Quant Trading Framework (`/media/myfiles/Dani/server_related/aegis-quant-bot`)  
-> **Clasificación:** Confidencial / Estratégico  
+> **INFORME DE AUDITORÍA TÉCNICA Y CUANTITATIVA INSTITUCIONAL**
+> **Autor:** Senior Quantitative Architect & Hedge Fund Systems Auditor
+> **Fecha:** 25 de Octubre de 2026
+> **Proyecto:** Aegis-Quant Trading Framework (`/media/myfiles/Dani/server_related/aegis-quant-bot`)
+> **Clasificación:** Confidencial / Estratégico
 
 ---
 
@@ -71,6 +71,7 @@ flowchart TD
   from http.server import HTTPServer, SimpleHTTPRequestHandler
   from socketserver import ThreadingMixIn
 
+
   class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
       daemon_threads = True
   ```
@@ -81,6 +82,8 @@ flowchart TD
 - **Solución Requerida (Atomic Write Pattern):**
   ```python
   import tempfile
+
+
   def atomic_save_json(target_path: str, data: dict):
       dir_name = os.path.dirname(target_path)
       with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, encoding="utf-8") as tf:
@@ -190,7 +193,7 @@ En lugar de fijar $p$ y $b$ con datos estáticos del backtest, actualizar dinám
 $$p_t \sim \text{Beta}(\alpha_0 + \text{Wins}_{t-50:t}, \, \beta_0 + \text{Losses}_{t-50:t})$$
 
 #### Penalización por Matriz de Covarianza (Shrinkage Ledoit-Wolf)
-Cuando coinciden señales simultáneas de varios motores (por ejemplo, M1 en SPY y M2 en QQQ), la correlación entre ambos activos ronda el $0.92$. Dimensionar cada posición de forma independiente provocaría una sobreexposición masiva al factor de mercado común.  
+Cuando coinciden señales simultáneas de varios motores (por ejemplo, M1 en SPY y M2 en QQQ), la correlación entre ambos activos ronda el $0.92$. Dimensionar cada posición de forma independiente provocaría una sobreexposición masiva al factor de mercado común.
 El vector de pesos $\mathbf{w}$ debe resolver la optimización cuadrática:
 $$\max_{\mathbf{w}} \left( \mathbf{w}^T \boldsymbol{\mu} - \frac{\lambda}{2} \mathbf{w}^T \boldsymbol{\Sigma}_{\text{LW}} \mathbf{w} \right) \quad \text{s.t.} \quad \sum |w_i| \le 1.0, \quad w_i \ge 0$$
 donde $\boldsymbol{\Sigma}_{\text{LW}}$ es la matriz de covarianza estimada mediante encogimiento de Ledoit-Wolf para evitar sobreajuste muestral.
@@ -211,7 +214,7 @@ flowchart LR
 ```
 
 #### El Mecanismo Destructivo del Efecto Divisa
-Un inversor particular con cuenta bancaria y base imponible en España mide su patrimonio final en **Euros (€)**.  
+Un inversor particular con cuenta bancaria y base imponible en España mide su patrimonio final en **Euros (€)**.
 Si el bot compra participaciones de un activo denominado en dólares estadounidenses (USD) o de un ETF como `CSPX` cotizado en USD:
 $$R_{\text{EUR}} = (1 + R_{\text{USD}}) \cdot \left(1 + \frac{\text{USD/EUR}_t - \text{USD/EUR}_0}{\text{USD/EUR}_0}\right) - 1$$
 
@@ -232,7 +235,7 @@ $$R_{\text{EUR}} = (1 + R_{\text{USD}}) \cdot \left(1 + \frac{\text{USD/EUR}_t -
 > **Requisito de Arquitectura:** El almacén de estado y la base de datos deben registrar para cada orden:
 > 1. `execution_price_usd`
 > 2. `official_ecb_fx_eurusd` (tipo de cambio oficial del BCE en la fecha de liquidación)
-> 3. `effective_cost_eur`  
+> 3. `effective_cost_eur`
 > Sin este desglose, el cálculo del IRPF español ante la Agencia Tributaria será defectuoso.
 
 ---
@@ -254,7 +257,7 @@ sequenceDiagram
     B->>IB: Intento de compra de SXR8 (UCITS)
     IB--x B: ERROR: XETRA CERRADO. Orden encolada para 09:00 CET mañana
     Note over B,E: Se pierde la ejecución al cierre; gap matinal desastroso
-    
+
     rect rgb(230, 245, 230)
     Note over B,NY: SOLUCIÓN A: Futuros CME (MES) / Opciones
     B->>NY: Orden MOC en futuros o asignación (Abierto 23/5)
@@ -268,13 +271,13 @@ sequenceDiagram
 - Si el bot intenta comprar `SXR8` a las 21:55 CET, **XETRA está cerrado desde hace 4 horas y media**. La orden quedará pendiente para la subasta de apertura del día siguiente (09:00 CET), sufriendo el riesgo de salto de precios (*overnight gap*) y destruyendo la ventaja estadística de las reversiones a la media de 2-4 días.
 
 #### B. Soluciones Operativas Viables para el Inversor en España
-1. **Plataformas Multilaterales Alemanas de Horario Extendido (Tradegate / Lang & Schwarz):**  
-   Interactive Brokers permite enrutar órdenes a **Tradegate** hasta las **22:00 CET**. Tradegate cotiza los ETFs UCITS (`SXR8`, `EQQQ`) en tiempo real siguiendo el mercado americano hasta las 22:00 CET.  
+1. **Plataformas Multilaterales Alemanas de Horario Extendido (Tradegate / Lang & Schwarz):**
+   Interactive Brokers permite enrutar órdenes a **Tradegate** hasta las **22:00 CET**. Tradegate cotiza los ETFs UCITS (`SXR8`, `EQQQ`) en tiempo real siguiendo el mercado americano hasta las 22:00 CET.
    *Inconveniente:* Los spreads bid-ask se abren ligeramente a partir de las 17:30 CET (de 0.02% a ~0.08%).
-2. **Operativa con Micro-Futuros del CME (`MES` / `MNQ`):**  
+2. **Operativa con Micro-Futuros del CME (`MES` / `MNQ`):**
    Exentos de la directiva europea PRIIPs/KID. Cotizan 23 horas al día de forma ininterrumpida. Permiten ejecutar órdenes a las 15:55 NY con comisiones institucionales ($0.50 por contrato) y ejecución milimétrica sin desfase horario.
 3. **Mapeo de Tipos de Órdenes en Interactive Brokers:**
-   - **Market-On-Close (MOC):** Solo válida para acciones/ETFs estadounidenses en NYSE/NASDAQ.  
+   - **Market-On-Close (MOC):** Solo válida para acciones/ETFs estadounidenses en NYSE/NASDAQ.
      *Límite crítico:* El corte de cancelación y entrada de MOC en NYSE es a las **15:50:00 EST** (10 minutos antes del cierre). A las 15:55 EST el sistema de NYSE **rechaza órdenes MOC nuevas**.
    - **Limit-On-Close (LOC):** Permite fijar un precio techo para la subasta de cierre de las 16:00 EST.
    - **Orden Adaptativa de IBKR a las 15:55 (`IBKR Adaptive Algo - Urgent`):** La opción superior para Aegis-Quant. Envía una orden inteligente durante los últimos 5 minutos de negociación continua, buscando liquidez entre el bid y el ask sin cruzar el spread completo.
@@ -359,7 +362,7 @@ flowchart TD
     SUB -.->|Fallo de proceso, kernel panic o corte de red| DEAD["Silencio / Ping No Enviado"]
     DEAD --> ALERT["Healthchecks.io dispara alerta a los 10 minutos"]
     ALERT --> TEL["Llamada de Voz / SMS / Push al Operador"]
-    
+
     subgraph Monitorización Interna
         SUB --> CB["Circuit Breakers de API (Yahoo, Alpaca, IBKR)"]
         CB -->|3 fallos consecutivos| FALLBACK["Fallback a Fuente Secundaria / Modo Seguro"]
@@ -403,7 +406,7 @@ Actualmente, el sistema es accesible vía navegador web conectando por VPN Tails
 
 ### 4.2. Simulador Interactivo de Escenarios de Estrés en Tiempo Real ("What-If")
 
-Una herramienta analítica de alto valor añadido para el usuario antes del cierre: un simulador interactivo en la pestaña de control web que responde a la pregunta:  
+Una herramienta analítica de alto valor añadido para el usuario antes del cierre: un simulador interactivo en la pestaña de control web que responde a la pregunta:
 *¿Qué pasaría con mi cartera si el mercado se desploma hoy un -5% o el VIX salta a 40?*
 
 ```mermaid
@@ -548,6 +551,6 @@ gantt
 
 ## Conclusión del Auditor
 
-Aegis-Quant posee los cimientos matemáticos, la elegancia de código OOP y la rentabilidad ajustada al riesgo necesarias para situarse en el percentil superior de los sistemas de inversión cuantitativa para inversores individuales en Europa. 
+Aegis-Quant posee los cimientos matemáticos, la elegancia de código OOP y la rentabilidad ajustada al riesgo necesarias para situarse en el percentil superior de los sistemas de inversión cuantitativa para inversores individuales en Europa.
 
 La implementación de las recomendaciones detalladas en este informe transformará el proyecto de un prototipo avanzado a una **infraestructura institucional de gestión sistemática de capital**, inmune a fallos de concurrencia, optimizada fiscalmente para la legislación tributaria española y preparada para operar con rigor en los mercados financieros globales.

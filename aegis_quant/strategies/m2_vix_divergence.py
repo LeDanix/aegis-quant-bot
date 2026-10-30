@@ -19,8 +19,7 @@ Execution Parameters:
 - Max Holding Time: 10 trading sessions
 """
 
-from typing import List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
 
 
@@ -37,12 +36,10 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
             category="intermarket_long",
         )
 
-    def _check_entry(
-        self, b: EnrichedBar, recent_bars: List[EnrichedBar]
-    ) -> Tuple[bool, str, float]:
+    def _check_entry(self, b: EnrichedBar, recent_bars: list[EnrichedBar]) -> tuple[bool, str, float]:
         """
         Evaluates intermarket divergence between price action and VIX.
-        
+
         Requires:
         1. Macro context: Close > SMA200 * 0.96 and RSI(2) < 20.0 and positive ATR.
         2. Volatility peak: Recent 5-day VIX high >= 20.0.
@@ -66,21 +63,16 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
         if not vix_turning_down:
             return False, "", 0.0
 
-        reason = (
-            f"Divergencia VIX (Pico 5d={recent_vix_high:.1f} -> Hoy={b.vix_close:.1f}) "
-            f"+ RSI(2)={b.rsi2:.1f}"
-        )
+        reason = f"Divergencia VIX (Pico 5d={recent_vix_high:.1f} -> Hoy={b.vix_close:.1f}) + RSI(2)={b.rsi2:.1f}"
         return True, reason, recent_vix_high
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates stop loss price and percentage distance based on 2.2x ATR."""
         stop_price = b.close - 2.2 * b.atr14
         stop_dist_pct = max(1.2, ((b.close - stop_price) / b.close) * 100.0)
         return stop_price, stop_dist_pct
 
-    def _check_exit(
-        self, b: EnrichedBar, days: int, stop_price: float
-    ) -> Tuple[bool, float, str]:
+    def _check_exit(self, b: EnrichedBar, days: int, stop_price: float) -> tuple[bool, float, str]:
         """Checks exit conditions for open divergence positions."""
         if b.low <= stop_price:
             exit_price = stop_price if b.open > stop_price else b.open
@@ -100,15 +92,15 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 2."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         min_low = 0.0
@@ -179,7 +171,7 @@ class SchermanVixDivergenceStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live signal generation."""
         if len(series) < 205:
             return None

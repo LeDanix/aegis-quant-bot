@@ -9,16 +9,15 @@ Verifies Audit Fix #1:
 
 import unittest
 from datetime import date, timedelta
-from typing import List
 
 from aegis_quant.models.market_models import EnrichedBar
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 from tests.helpers import create_mock_bar
 
 
-def _build_series(n: int = 220, base_close: float = 500.0) -> List[EnrichedBar]:
+def _build_series(n: int = 220, base_close: float = 500.0) -> list[EnrichedBar]:
     start = date(2026, 1, 1)
-    bars: List[EnrichedBar] = []
+    bars: list[EnrichedBar] = []
     for i in range(n):
         d = (start + timedelta(days=i)).isoformat()
         bars.append(

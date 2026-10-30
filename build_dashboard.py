@@ -8,12 +8,12 @@ Incluye:
   3. Tabla Anual, Desglose de la Pirámide Cuantitativa, Auditoría de Trades y Escáner en Vivo.
 """
 
-import os
 import json
+import os
 
 
 def build_html_dashboard(summary_path: str, output_paths: list):
-    with open(summary_path, "r", encoding="utf-8") as f:
+    with open(summary_path, encoding="utf-8") as f:
         data = json.load(f)
 
     # Compactamos los trades de cada modo para que incluyan todos los 725 trades sin sobrecargar el tamaño del archivo
@@ -22,23 +22,25 @@ def build_html_dashboard(summary_path: str, output_paths: list):
         cm = dict(m)
         compact_trades = []
         for t in m["trades"]:
-            compact_trades.append({
-                "e": t["engine_id"],
-                "s": t["symbol"],
-                "d": t["direction"],
-                "in_d": t["entry_date"],
-                "in_p": t["entry_price"],
-                "out_d": t["exit_date"],
-                "out_p": t["exit_price"],
-                "w": round(t["position_weight"], 2),
-                "mc": t["meta_confidence"],
-                "rr": round(t["raw_ret_pct"], 2),
-                "pr": round(t["portfolio_ret_pct"], 2),
-                "win": 1 if t["win"] else 0,
-                "eq": round(t.get("eq_at_exit", 10000.0), 1),
-                "rsn": t["entry_reason"][:58],
-                "xrsn": t["exit_reason"][:42],
-            })
+            compact_trades.append(
+                {
+                    "e": t["engine_id"],
+                    "s": t["symbol"],
+                    "d": t["direction"],
+                    "in_d": t["entry_date"],
+                    "in_p": t["entry_price"],
+                    "out_d": t["exit_date"],
+                    "out_p": t["exit_price"],
+                    "w": round(t["position_weight"], 2),
+                    "mc": t["meta_confidence"],
+                    "rr": round(t["raw_ret_pct"], 2),
+                    "pr": round(t["portfolio_ret_pct"], 2),
+                    "win": 1 if t["win"] else 0,
+                    "eq": round(t.get("eq_at_exit", 10000.0), 1),
+                    "rsn": t["entry_reason"][:58],
+                    "xrsn": t["exit_reason"][:42],
+                }
+            )
         cm["trades"] = compact_trades
         compact_modes[k] = cm
 

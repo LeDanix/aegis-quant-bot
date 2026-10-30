@@ -16,9 +16,8 @@ Primary vs Secondary Models (Meta-Labeling):
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
 
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 
 # Fecha de salida "centinela" para operaciones que siguen abiertas al final de la serie.
 # Al ser lexicográficamente mayor que cualquier fecha ISO real, el filtro de huecos
@@ -29,7 +28,7 @@ OPEN_TRADE_EXIT_DATE = "9999-12-31"
 class BaseStrategy(ABC):
     """
     Abstract Base Class for all quantitative strategy engines in Aegis-Quant.
-    
+
     Subclasses must implement:
       - simulate(symbol, series, start_date): Historical simulation producing ClosedTrade records.
       - evaluate_live(symbol, series): Evaluates the latest market bar to generate a live TradeSignal.
@@ -38,7 +37,7 @@ class BaseStrategy(ABC):
     def __init__(self, engine_id: str, engine_name: str, category: str):
         """
         Initialize strategy metadata.
-        
+
         :param engine_id: Short unique identifier (e.g., 'M1_PULLBACK', 'M5_VOL_CRUSH').
         :param engine_name: Descriptive name with direction and academic style.
         :param category: Engine category ('mean_reversion_long', 'cta_trend', etc.).
@@ -51,13 +50,13 @@ class BaseStrategy(ABC):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """
         Executes a historical backtest of the strategy over an enriched daily bar series.
-        
+
         :param symbol: Ticker symbol (e.g. 'SPY', 'QQQ', 'GLD').
         :param series: Chronologically ordered list of EnrichedBar objects.
         :param start_date: Starting ISO date filter (default '2007-01-01').
@@ -108,10 +107,10 @@ class BaseStrategy(ABC):
         )
 
     @abstractmethod
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """
         Evaluates the most recent market data bar for active signal triggers today.
-        
+
         :param symbol: Ticker symbol.
         :param series: Chronologically ordered list of EnrichedBar objects up to today.
         :return: TradeSignal if triggered, otherwise None.
@@ -122,7 +121,7 @@ class BaseStrategy(ABC):
     def compute_meta_confidence(bar: EnrichedBar, direction: str, base_score: float = 1.0) -> float:
         """
         Calculates meta-labeling conviction multiplier (0.55x to 1.35x).
-        
+
         Quantitative Logic:
         -------------------
         - In LONG trades:

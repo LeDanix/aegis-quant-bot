@@ -23,8 +23,7 @@ Execution Parameters:
 - Max Holding Time: 12 trading sessions
 """
 
-from typing import List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
 
 
@@ -42,11 +41,11 @@ class VolTermStructureCrushStrategy(BaseStrategy):
         )
 
     def _check_entry(
-        self, b: EnrichedBar, prev_bar: EnrichedBar, recent_bars: List[EnrichedBar]
-    ) -> Tuple[bool, str, float]:
+        self, b: EnrichedBar, prev_bar: EnrichedBar, recent_bars: list[EnrichedBar]
+    ) -> tuple[bool, str, float]:
         """
         Evaluates compression of volatility term structure backwardation.
-        
+
         Requires:
         1. Valid bar & non-zero ATR.
         2. Free-fall filter: Avoid catastrophic systemic waterfalls without floor
@@ -78,7 +77,7 @@ class VolTermStructureCrushStrategy(BaseStrategy):
         )
         return True, reason, peak_vts
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates stop loss based on 2.3x ATR below close."""
         stop_price = b.close - 2.3 * b.atr14
         stop_dist_pct = max(1.2, ((b.close - stop_price) / b.close) * 100.0)
@@ -86,7 +85,7 @@ class VolTermStructureCrushStrategy(BaseStrategy):
 
     def _check_exit(
         self, b: EnrichedBar, entry_bar: EnrichedBar, days: int, stop_price: float
-    ) -> Tuple[bool, float, str]:
+    ) -> tuple[bool, float, str]:
         """Checks exit conditions for Vol-Crush trades."""
         if b.low <= stop_price:
             exit_price = stop_price if b.open > stop_price else b.open
@@ -109,15 +108,15 @@ class VolTermStructureCrushStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 5."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         min_low = 0.0
@@ -147,9 +146,7 @@ class VolTermStructureCrushStrategy(BaseStrategy):
                 if b.low < min_low:
                     min_low = b.low
 
-                exit_flag, exit_price, exit_reason = self._check_exit(
-                    b, entry_bar, days, stop_price
-                )
+                exit_flag, exit_price, exit_reason = self._check_exit(b, entry_bar, days, stop_price)
                 if exit_flag:
                     raw_ret = ((exit_price - entry_bar.close) / entry_bar.close) * 100.0
                     mae = ((min_low - entry_bar.close) / entry_bar.close) * 100.0
@@ -191,7 +188,7 @@ class VolTermStructureCrushStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live Vol-Crush signal generation."""
         if len(series) < 205:
             return None

@@ -20,6 +20,51 @@ packages = [{include = "aegis_quant"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0"
+ruff = ">=0.8.0"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    ".git",
+    ".venv",
+    "build",
+    "dist",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (ordenación de imports)
+    "UP",  # pyupgrade (sintaxis moderna Python 3.12)
+    "B",   # flake8-bugbear (errores comunes y trampas)
+]
+ignore = [
+    "E501",  # line length handled by formatter
+    "E741",  # ambiguous variable name (standard o, h, l, c in finance)
+    "B008",  # do not perform function calls in argument defaults
+    "B904",  # raise ... from err (opcional en scripts legacy)
+    "B905",  # zip() without an explicit strict= parameter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"web_app/server.py" = ["E402"]
+"main_backtest.py" = ["E402"]
+"daily_scanner.py" = ["E402"]
+"build_dashboard.py" = ["E402"]
+"tests/*" = ["E402"]
+"aegis_quant/research/*" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aegis_quant", "web_app"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]

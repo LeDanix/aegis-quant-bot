@@ -8,6 +8,7 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.strategies.m1_pullback import SchermanPullbackStrategy
 from tests.helpers import create_mock_bar
 

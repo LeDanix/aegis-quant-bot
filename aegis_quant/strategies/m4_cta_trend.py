@@ -19,8 +19,7 @@ Execution Parameters:
 - Max Holding Time: 45 trading sessions
 """
 
-from typing import List, Optional, Tuple
-from aegis_quant.models.market_models import EnrichedBar, TradeSignal, ClosedTrade
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
 from aegis_quant.strategies.base import BaseStrategy
 
 
@@ -37,40 +36,31 @@ class CommodityBreakoutCTAStrategy(BaseStrategy):
             category="cta_trend",
         )
 
-    def _check_entry(self, b: EnrichedBar, symbol: str) -> Tuple[bool, str]:
+    def _check_entry(self, b: EnrichedBar, symbol: str) -> tuple[bool, str]:
         """
         Evaluates 20-day Donchian channel breakout with moving average confirmation.
-        
+
         Rules:
         1. Golden trend alignment: Close > SMA50 and SMA50 > SMA200.
         2. Breakout: Close > 20-day prior high (prev_high_20).
         3. ATR check: atr14 > 0.
         """
-        if (
-            b.close > b.sma50
-            and b.sma50 > b.sma200
-            and b.close > b.prev_high_20
-            and b.atr14 > 0
-        ):
+        if b.close > b.sma50 and b.sma50 > b.sma200 and b.close > b.prev_high_20 and b.atr14 > 0:
             reason = f"Ruptura Donchian 20d ({b.prev_high_20:.2f}) en {symbol} con SMA50>SMA200"
             return True, reason
         return False, ""
 
-    def _calculate_stops(self, b: EnrichedBar) -> Tuple[float, float]:
+    def _calculate_stops(self, b: EnrichedBar) -> tuple[float, float]:
         """Calculates initial stop loss based on 2.5x ATR below close."""
         stop_price = b.close - 2.5 * b.atr14
         stop_dist_pct = max(1.5, ((b.close - stop_price) / b.close) * 100.0)
         return stop_price, stop_dist_pct
 
-    def _calculate_trailing_stop(
-        self, b: EnrichedBar, initial_stop: float, highest_close: float
-    ) -> float:
+    def _calculate_trailing_stop(self, b: EnrichedBar, initial_stop: float, highest_close: float) -> float:
         """Dynamic trailing stop: highest of initial stop, 10-day low, and 3x ATR below peak."""
         return max(initial_stop, b.prev_low_10, highest_close - 3.0 * b.atr14)
 
-    def _check_exit(
-        self, b: EnrichedBar, days: int, trailing_stop: float
-    ) -> Tuple[bool, float, str]:
+    def _check_exit(self, b: EnrichedBar, days: int, trailing_stop: float) -> tuple[bool, float, str]:
         """Checks trailing stop and trend exhaustion exits."""
         if b.low <= trailing_stop:
             exit_price = trailing_stop if b.open > trailing_stop else b.open
@@ -87,15 +77,15 @@ class CommodityBreakoutCTAStrategy(BaseStrategy):
     def simulate(
         self,
         symbol: str,
-        series: List[EnrichedBar],
+        series: list[EnrichedBar],
         start_date: str = "2007-01-01",
         include_open: bool = False,
-    ) -> List[ClosedTrade]:
+    ) -> list[ClosedTrade]:
         """Executes a chronological historical simulation of Motor 4."""
-        trades: List[ClosedTrade] = []
+        trades: list[ClosedTrade] = []
         in_pos = False
         entry_idx = 0
-        entry_bar: Optional[EnrichedBar] = None
+        entry_bar: EnrichedBar | None = None
         stop_price = 0.0
         stop_dist_pct = 0.0
         min_low = 0.0
@@ -169,7 +159,7 @@ class CommodityBreakoutCTAStrategy(BaseStrategy):
 
         return trades
 
-    def evaluate_live(self, symbol: str, series: List[EnrichedBar]) -> Optional[TradeSignal]:
+    def evaluate_live(self, symbol: str, series: list[EnrichedBar]) -> TradeSignal | None:
         """Evaluates today's bar for live CTA breakout signal generation."""
         if len(series) < 205:
             return None

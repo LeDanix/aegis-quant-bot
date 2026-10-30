@@ -11,29 +11,30 @@ Permite ejecutar y comparar en igualdad de condiciones (2007-2026):
 
 import copy
 import math
-from typing import Any, Dict, List, Optional
-from aegis_quant.models.market_models import EnrichedBar, ClosedTrade, TradeSignal
+from typing import Any
+
+from aegis_quant.models.market_models import ClosedTrade, EnrichedBar, TradeSignal
+from aegis_quant.risk.meta_kelly_sizer import MetaLabelRiskManager
 from aegis_quant.strategies.base import OPEN_TRADE_EXIT_DATE
 from aegis_quant.strategies.m6_totm_flow import is_totm_window
 from aegis_quant.strategies.strategies import (
     BaseStrategy,
-    SchermanPullbackStrategy,
-    SchermanVixDivergenceStrategy,
     BearMarketShortStrategy,
     CommodityBreakoutCTAStrategy,
-    VolTermStructureCrushStrategy,
+    SchermanPullbackStrategy,
+    SchermanVixDivergenceStrategy,
     TurnOfTheMonthFlowStrategy,
+    VolTermStructureCrushStrategy,
 )
-from aegis_quant.risk.meta_kelly_sizer import MetaLabelRiskManager
 
 
 class AegisPortfolioEngine:
-    def __init__(self, enriched_universe: Dict[str, List[EnrichedBar]], start_date: str = "2007-01-01"):
+    def __init__(self, enriched_universe: dict[str, list[EnrichedBar]], start_date: str = "2007-01-01"):
         self.universe = enriched_universe
         self.start_date = start_date
 
-        self.date_map: Dict[str, Dict[str, EnrichedBar]] = {}
-        self.ret_map: Dict[str, Dict[str, float]] = {}
+        self.date_map: dict[str, dict[str, EnrichedBar]] = {}
+        self.ret_map: dict[str, dict[str, float]] = {}
 
         for sym, series in self.universe.items():
             self.date_map[sym] = {}
@@ -53,7 +54,7 @@ class AegisPortfolioEngine:
         self.m5_vol_crush = VolTermStructureCrushStrategy()
         self.m6_totm = TurnOfTheMonthFlowStrategy()
 
-        self.all_strategies: List[BaseStrategy] = [
+        self.all_strategies: list[BaseStrategy] = [
             self.m1_pullback,
             self.m2_vix_div,
             self.m3_bear_short,
@@ -66,10 +67,10 @@ class AegisPortfolioEngine:
         self,
         include_motor5: bool = True,
         include_open: bool = False,
-        enabled_motors: Optional[Dict[str, bool]] = None,
-        include_motor6: Optional[bool] = None,
-    ) -> List[ClosedTrade]:
-        raw: List[ClosedTrade] = []
+        enabled_motors: dict[str, bool] | None = None,
+        include_motor6: bool | None = None,
+    ) -> list[ClosedTrade]:
+        raw: list[ClosedTrade] = []
         en = enabled_motors or {}
         if include_motor6 is None:
             include_motor6 = include_motor5
@@ -110,9 +111,7 @@ class AegisPortfolioEngine:
             for eq_sym in ("QQQ", "SPY"):
                 if eq_sym in self.universe:
                     raw.extend(
-                        self.m6_totm.simulate(
-                            eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open
-                        )
+                        self.m6_totm.simulate(eq_sym, self.universe[eq_sym], self.start_date, include_open=include_open)
                     )
             for t in raw:
                 if t.engine_id in ("M1_PULLBACK", "M5_VOL_CRUSH") and is_totm_window(t.entry_date):
@@ -132,12 +131,12 @@ class AegisPortfolioEngine:
 
     def filter_and_size_tactical_trades(
         self,
-        raw_trades: List[ClosedTrade],
+        raw_trades: list[ClosedTrade],
         risk_manager: MetaLabelRiskManager,
         max_slots: int = 3,
-    ) -> List[ClosedTrade]:
-        accepted: List[ClosedTrade] = []
-        active: List[ClosedTrade] = []
+    ) -> list[ClosedTrade]:
+        accepted: list[ClosedTrade] = []
+        active: list[ClosedTrade] = []
 
         for orig in raw_trades:
             t = copy.deepcopy(orig)
@@ -176,8 +175,8 @@ class AegisPortfolioEngine:
         include_motor5: bool,
         core_type: str,  # 'NONE' | 'SPY_SMA200' | 'ELITE_PYRAMID'
         overlay_scale: float = 1.0,
-        include_motor6: Optional[bool] = None,
-    ) -> Dict:
+        include_motor6: bool | None = None,
+    ) -> dict:
         if include_motor6 is None:
             include_motor6 = include_motor5 and core_type == "ELITE_PYRAMID"
 
@@ -193,7 +192,7 @@ class AegisPortfolioEngine:
         )
         tactical_trades = self.filter_and_size_tactical_trades(raw_trades, risk_mgr, max_slots=max_slots)
 
-        trades_by_exit: Dict[str, List[ClosedTrade]] = {}
+        trades_by_exit: dict[str, list[ClosedTrade]] = {}
         for t in tactical_trades:
             trades_by_exit.setdefault(t.exit_date, []).append(t)
 
@@ -208,17 +207,17 @@ class AegisPortfolioEngine:
         spy_bh_max_dd = 0.0
         first_spy_close = spy_series[0].close
 
-        yearly_stats: Dict[str, Dict] = {}
-        monthly_curve: List[Dict] = []
-        daily_returns: List[float] = []
-        equity_by_date: Dict[str, float] = {}
-        spy_eq_by_date: Dict[str, float] = {}
-        pnl_by_engine: Dict[str, float] = {}
-        trade_pnl_usd: Dict[int, float] = {}
+        yearly_stats: dict[str, dict] = {}
+        monthly_curve: list[dict] = []
+        daily_returns: list[float] = []
+        equity_by_date: dict[str, float] = {}
+        spy_eq_by_date: dict[str, float] = {}
+        pnl_by_engine: dict[str, float] = {}
+        trade_pnl_usd: dict[int, float] = {}
 
         # Puntero eficiente para saber qué operaciones tácticas están abiertas cada día
         trade_ptr = 0
-        open_tactical: List[ClosedTrade] = []
+        open_tactical: list[ClosedTrade] = []
 
         for idx, spy_bar in enumerate(spy_series):
             d = spy_bar.date
@@ -260,9 +259,7 @@ class AegisPortfolioEngine:
                         core_ret_d = (idle_cash_fraction * 0.70) * self.ret_map["SPY"].get(d, 0.0)
                 elif core_type == "ELITE_PYRAMID":
                     prev_bars = {
-                        sym: self.date_map[sym][prev_d]
-                        for sym in self.universe
-                        if prev_d in self.date_map[sym]
+                        sym: self.date_map[sym][prev_d] for sym in self.universe if prev_d in self.date_map[sym]
                     }
                     alloc_weights = risk_mgr.compute_elite_core_allocation(
                         prev_bars,
@@ -272,7 +269,7 @@ class AegisPortfolioEngine:
                     for sym, weight in alloc_weights.items():
                         core_ret_d += weight * self.ret_map[sym].get(d, 0.0)
 
-            equity *= (1.0 + core_ret_d)
+            equity *= 1.0 + core_ret_d
 
             # 2. Rendimiento de los Motores Tácticos (Prioridad #1) cerrados hoy
             if d in trades_by_exit:
@@ -309,15 +306,17 @@ class AegisPortfolioEngine:
             spy_eq_by_date[d] = round(spy_bh_eq, 2)
 
             if idx % 3 == 0 or idx == len(spy_series) - 1:
-                monthly_curve.append({
-                    "date": d,
-                    "bot_eq": round(equity, 2),
-                    "bot_dd": round(dd, 2),
-                    "spy_eq": round(spy_bh_eq, 2),
-                    "spy_dd": round(s_dd, 2),
-                    "vix": spy_bar.vix_close,
-                    "vts": spy_bar.vts_ratio,
-                })
+                monthly_curve.append(
+                    {
+                        "date": d,
+                        "bot_eq": round(equity, 2),
+                        "bot_dd": round(dd, 2),
+                        "spy_eq": round(spy_bh_eq, 2),
+                        "spy_dd": round(s_dd, 2),
+                        "vix": spy_bar.vix_close,
+                        "vts": spy_bar.vts_ratio,
+                    }
+                )
 
         # Métricas institucionales globales
         total_ret_pct = ((equity - 10000.0) / 10000.0) * 100.0
@@ -329,7 +328,7 @@ class AegisPortfolioEngine:
         mean_d = sum(daily_returns) / len(daily_returns)
         std_d = math.sqrt(sum((r - mean_d) ** 2 for r in daily_returns) / len(daily_returns))
         downside_rets = [r for r in daily_returns if r < 0]
-        down_std_d = math.sqrt(sum(r ** 2 for r in downside_rets) / max(1, len(daily_returns)))
+        down_std_d = math.sqrt(sum(r**2 for r in downside_rets) / max(1, len(daily_returns)))
 
         sharpe = (mean_d / std_d) * math.sqrt(252.0) if std_d > 0 else 0.0
         sortino = (mean_d / down_std_d) * math.sqrt(252.0) if down_std_d > 0 else 0.0
@@ -349,15 +348,17 @@ class AegisPortfolioEngine:
                 total_bear_years += 1
                 if b_ret > s_ret:
                     bear_years_beaten += 1
-            yearly_list.append({
-                "year": yr,
-                "bot_ret_pct": round(b_ret, 2),
-                "spy_ret_pct": round(s_ret, 2),
-                "alpha_pct": round(b_ret - s_ret, 2),
-                "trades": st["trades"],
-                "win_rate": round((st["wins"] / st["trades"] * 100.0), 1) if st["trades"] > 0 else 0.0,
-                "end_eq": round(st["end_eq"], 2),
-            })
+            yearly_list.append(
+                {
+                    "year": yr,
+                    "bot_ret_pct": round(b_ret, 2),
+                    "spy_ret_pct": round(s_ret, 2),
+                    "alpha_pct": round(b_ret - s_ret, 2),
+                    "trades": st["trades"],
+                    "win_rate": round((st["wins"] / st["trades"] * 100.0), 1) if st["trades"] > 0 else 0.0,
+                    "end_eq": round(st["end_eq"], 2),
+                }
+            )
 
         engine_breakdown = {}
         for strat in self.all_strategies:
@@ -418,18 +419,16 @@ class AegisPortfolioEngine:
             "trades": trades_serialized,
         }
 
-    def scan_live_market(self, enabled_motors: Optional[Dict[str, bool]] = None) -> Dict[str, Any]:
+    def scan_live_market(self, enabled_motors: dict[str, bool] | None = None) -> dict[str, Any]:
         latest_bars = {sym: series[-1] for sym, series in self.universe.items() if series}
         spy = latest_bars["SPY"]
         risk_mgr = MetaLabelRiskManager()
         regime = risk_mgr.classify_regime(spy)
         en = enabled_motors or {}
         totm_on = bool(en.get("M6_TOTM", True) and is_totm_window(spy.date))
-        core_alloc = risk_mgr.compute_elite_core_allocation(
-            latest_bars, idle_capital_fraction=1.0, totm_boost=totm_on
-        )
+        core_alloc = risk_mgr.compute_elite_core_allocation(latest_bars, idle_capital_fraction=1.0, totm_boost=totm_on)
 
-        signals: List[TradeSignal] = []
+        signals: list[TradeSignal] = []
         for eq_sym in ("SPY", "QQQ"):
             if eq_sym not in self.universe:
                 continue
@@ -458,20 +457,22 @@ class AegisPortfolioEngine:
         for sym, b in latest_bars.items():
             if sym in ("VIX", "VIX3M"):
                 continue
-            asset_snapshots.append({
-                "symbol": sym,
-                "date": b.date,
-                "close": round(b.close, 2),
-                "last_close": round(b.close, 2),
-                "sma50": round(b.sma50, 2),
-                "sma200": round(b.sma200, 2),
-                "rsi2": round(b.rsi2, 1),
-                "realized_vol20": round(b.realized_vol20, 1),
-                "mom60_vol_adj": round(b.mom60_vol_adj, 2),
-                "core_weight_pct": round(core_alloc.get(sym, 0.0) * 100.0, 1),
-                "trend": "ALCISTA" if b.close > b.sma200 else "BAJISTA",
-                "sma200_trend": "BULL" if b.close > b.sma200 else "BEAR",
-            })
+            asset_snapshots.append(
+                {
+                    "symbol": sym,
+                    "date": b.date,
+                    "close": round(b.close, 2),
+                    "last_close": round(b.close, 2),
+                    "sma50": round(b.sma50, 2),
+                    "sma200": round(b.sma200, 2),
+                    "rsi2": round(b.rsi2, 1),
+                    "realized_vol20": round(b.realized_vol20, 1),
+                    "mom60_vol_adj": round(b.mom60_vol_adj, 2),
+                    "core_weight_pct": round(core_alloc.get(sym, 0.0) * 100.0, 1),
+                    "trend": "ALCISTA" if b.close > b.sma200 else "BAJISTA",
+                    "sma200_trend": "BULL" if b.close > b.sma200 else "BEAR",
+                }
+            )
 
         return {
             "as_of_date": spy.date,
@@ -479,7 +480,9 @@ class AegisPortfolioEngine:
             "vix_close": spy.vix_close,
             "vix3m_close": spy.vix3m_close,
             "vts_ratio": spy.vts_ratio,
-            "vts_state": "CONTANGO (Normal / Alcista)" if spy.vts_ratio < 1.0 else "BACKWARDATION (Alerta Institucional)",
+            "vts_state": "CONTANGO (Normal / Alcista)"
+            if spy.vts_ratio < 1.0
+            else "BACKWARDATION (Alerta Institucional)",
             "core_allocation": {k: round(v * 100.0, 1) for k, v in core_alloc.items()},
             "assets": asset_snapshots,
             "active_signals": [sig.__dict__ for sig in signals],
@@ -487,12 +490,12 @@ class AegisPortfolioEngine:
 
     def compute_live_portfolio(
         self,
-        enabled_motors: Optional[Dict[str, bool]] = None,
+        enabled_motors: dict[str, bool] | None = None,
         base_risk_pct: float = 2.5,
         max_fast_weight: float = 0.55,
         max_cta_weight: float = 0.40,
         max_slots: int = 3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Evalúa en vivo los 6 motores tácticos (incluyendo tanto señales disparadas hoy
         como operaciones multisesión abiertas en días previos que aún no han alcanzado
@@ -513,9 +516,7 @@ class AegisPortfolioEngine:
             enabled_motors=en,
             include_motor6=bool(en.get("M6_TOTM", True)),
         )
-        sized_trades = self.filter_and_size_tactical_trades(
-            raw_trades, risk_mgr, max_slots=max_slots
-        )
+        sized_trades = self.filter_and_size_tactical_trades(raw_trades, risk_mgr, max_slots=max_slots)
         open_tactical = [t for t in sized_trades if t.exit_date == OPEN_TRADE_EXIT_DATE]
 
         active_tactical_weight = min(1.0, sum(t.position_weight for t in open_tactical))
@@ -531,7 +532,7 @@ class AegisPortfolioEngine:
         # Actualizar core_allocation efectivo tras descontar capital ocupado por tácticos
         live_scan["core_allocation"] = {k: round(v * 100.0, 1) for k, v in core_alloc.items()}
 
-        targets: Dict[str, Dict[str, Any]] = {}
+        targets: dict[str, dict[str, Any]] = {}
         for t in open_tactical:
             targets[t.symbol] = {
                 "weight": round(t.position_weight, 4),
@@ -553,9 +554,7 @@ class AegisPortfolioEngine:
             elif targets[sym]["direction"] == "LONG":
                 targets[sym]["weight"] = round(min(1.0, targets[sym]["weight"] + w), 4)
                 targets[sym]["motor"] = f"{targets[sym]['motor']}+CORE"
-                targets[sym]["reason"] = (
-                    f"{targets[sym]['reason']} + Core Modo 3 ({round(w * 100.0, 1)}%)"
-                )
+                targets[sym]["reason"] = f"{targets[sym]['reason']} + Core Modo 3 ({round(w * 100.0, 1)}%)"
 
         # Garantizar que la suma total de pesos jamás supere el 100% (0% margen/deuda)
         total_w = sum(item["weight"] for item in targets.values())

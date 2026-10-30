@@ -6,12 +6,12 @@ garantizando que si el Ubuntu Server se reinicia por un corte de luz, el bot rec
 exactamente su estado al arrancar.
 """
 
-import os
 import json
+import os
 import tempfile
 import threading
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 
 def atomic_write_json(path: str, data: Any) -> None:
@@ -74,12 +74,12 @@ class BotConfigStore:
 
         self._ensure_defaults()
 
-    def get_state_path(self, env: Optional[str] = None) -> str:
+    def get_state_path(self, env: str | None = None) -> str:
         """Devuelve la ruta del fichero de estado según el entorno (PAPER vs LIVE_REAL)."""
         if env is None:
             try:
                 if os.path.exists(self.config_path):
-                    with open(self.config_path, "r", encoding="utf-8") as f:
+                    with open(self.config_path, encoding="utf-8") as f:
                         cfg = json.load(f)
                         env = cfg.get("environment", "PAPER")
                 else:
@@ -93,12 +93,12 @@ class BotConfigStore:
             # Para Paper Trading mantenemos compatibilidad con bot_live_state.json existente
             return self.state_path
 
-    def get_ledger_path(self, env: Optional[str] = None) -> str:
+    def get_ledger_path(self, env: str | None = None) -> str:
         """Devuelve el fichero de auditoría contable inmutable JSONL según el entorno."""
         if env is None:
             try:
                 if os.path.exists(self.config_path):
-                    with open(self.config_path, "r", encoding="utf-8") as f:
+                    with open(self.config_path, encoding="utf-8") as f:
                         cfg = json.load(f)
                         env = cfg.get("environment", "PAPER")
                 else:
@@ -111,14 +111,14 @@ class BotConfigStore:
         else:
             return os.path.join(self.data_dir, "ledger_paper_trades.jsonl")
 
-    def append_trade_ledger(self, order_entry: Dict[str, Any]) -> None:
+    def append_trade_ledger(self, order_entry: dict[str, Any]) -> None:
         """Escribe una entrada inmutable en el libro contable de operaciones (JSONL) para auditoría e IRPF."""
         with self._lock:
             ledger_path = self.get_ledger_path()
             with open(ledger_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(order_entry, ensure_ascii=False) + "\n")
 
-    def _default_config(self) -> Dict[str, Any]:
+    def _default_config(self) -> dict[str, Any]:
         return {
             # Entorno de operativa: "PAPER" (Simulado / Sandbox) | "LIVE_REAL" (Dinero Real en Mercado)
             "environment": "PAPER",
@@ -157,7 +157,7 @@ class BotConfigStore:
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def _default_state(self) -> Dict[str, Any]:
+    def _default_state(self) -> dict[str, Any]:
         return {
             "account": {
                 "initial_capital": 10000.0,
@@ -193,9 +193,9 @@ class BotConfigStore:
             if not os.path.exists(cur_state_path):
                 atomic_write_json(cur_state_path, self._default_state())
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         with self._lock:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 cfg = json.load(f)
             defaults = self._default_config()
             for k, v in defaults.items():
@@ -206,9 +206,9 @@ class BotConfigStore:
                     cfg["enabled_motors"].setdefault(mk, mv)
             return cfg
 
-    def update_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+    def update_config(self, updates: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 cfg = json.load(f)
             for k, v in updates.items():
                 if k == "enabled_motors" and isinstance(v, dict):
@@ -225,15 +225,15 @@ class BotConfigStore:
 
             return cfg
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         with self._lock:
             p = self.get_state_path()
             if not os.path.exists(p):
                 atomic_write_json(p, self._default_state())
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
 
-    def save_state(self, state: Dict[str, Any]) -> None:
+    def save_state(self, state: dict[str, Any]) -> None:
         with self._lock:
             p = self.get_state_path()
             atomic_write_json(p, state)
@@ -243,14 +243,14 @@ class BotConfigStore:
             p = self.get_state_path()
             if not os.path.exists(p):
                 atomic_write_json(p, self._default_state())
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 state = json.load(f)
             entry = {
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "level": level,
                 "msg": msg,
             }
-            logs: List[Dict[str, str]] = state.get("logs", [])
+            logs: list[dict[str, str]] = state.get("logs", [])
             logs.insert(0, entry)
             state["logs"] = logs[:120]  # Mantener los últimos 120 eventos
             atomic_write_json(p, state)

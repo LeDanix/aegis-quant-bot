@@ -8,6 +8,7 @@ Tests:
 """
 
 import unittest
+
 from aegis_quant.strategies.m5_vol_crush import VolTermStructureCrushStrategy
 from tests.helpers import create_mock_bar
 
@@ -58,9 +59,7 @@ class TestVolTermStructureCrushStrategy(unittest.TestCase):
         """Exit triggers when price normalizes back above SMA20 after >= 2 days."""
         entry_bar = create_mock_bar(close=480.0)
         bar = create_mock_bar(close=495.0, sma20=490.0, low=485.0)
-        exit_flag, exit_price, reason = self.strategy._check_exit(
-            bar, entry_bar, days=3, stop_price=465.0
-        )
+        exit_flag, exit_price, reason = self.strategy._check_exit(bar, entry_bar, days=3, stop_price=465.0)
         self.assertTrue(exit_flag)
         self.assertEqual(exit_price, 495.0)
         self.assertIn("Target Vol-Crush: Normalizacion a SMA(20)", reason)
@@ -69,9 +68,7 @@ class TestVolTermStructureCrushStrategy(unittest.TestCase):
         """Exit aborts early if panic reignites with VTS > 1.06 and price below entry."""
         entry_bar = create_mock_bar(close=485.0)
         bar = create_mock_bar(close=480.0, vts_ratio=1.09, low=478.0)
-        exit_flag, _, reason = self.strategy._check_exit(
-            bar, entry_bar, days=1, stop_price=465.0
-        )
+        exit_flag, _, reason = self.strategy._check_exit(bar, entry_bar, days=1, stop_price=465.0)
         self.assertTrue(exit_flag)
         self.assertIn("Re-expansion Backwardation", reason)
 
