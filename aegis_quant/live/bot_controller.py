@@ -193,6 +193,11 @@ class LiveBotController:
         state = self.store.get_state()
         if enable_network_init and not state.get("positions") and state.get("last_scan_time", "").startswith("Nunca"):
             self.run_scan_and_sync(trigger_source="Arranque Inicial Automático")
+        elif enable_network_init:
+            try:
+                self.reconcile_state_with_broker()
+            except Exception as exc:
+                self.store.append_log(f"Aviso en conciliación inicial de custodia: {exc}", "WARN")
 
     def reconcile_state_with_broker(self) -> dict[str, Any]:
         """Concilia el estado local contra la custodia real del bróker."""

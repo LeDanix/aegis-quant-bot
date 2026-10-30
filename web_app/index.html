@@ -206,9 +206,6 @@
             <button id="btn-toggle-bot" onclick="triggerLiveAction('TOGGLE_BOT')" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
               Pausar Bot
             </button>
-            <button id="btn-reconcile-bot" onclick="triggerLiveAction('RECONCILE_NOW')" title="Verifica y alinea la custodia del bróker contra el estado local para eliminar posiciones fantasma o discrepancias" class="touch-target px-3.5 py-2.5 sm:py-2 rounded-md text-xs font-semibold bg-white hover:bg-brand-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-brand-800 dark:text-brand-200 border border-brand-300 dark:border-brand-700 transition col-span-2 sm:col-span-1">
-              Conciliar Custodia
-            </button>
           </div>
         </div>
 
@@ -553,6 +550,17 @@
                 </div>
                 <button type="button" onclick="triggerLiveAction('RESET_ACCOUNT')" class="touch-target px-3.5 py-2 rounded-md text-xs font-semibold bg-white hover:bg-red-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-900/80 transition shrink-0">
                   Reiniciar Paper
+                </button>
+              </div>
+
+              <!-- Auditoría Técnica de Custodia (Diagnóstico manual secundario) -->
+              <div class="p-3 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <span class="font-bold text-slate-800 dark:text-slate-200 block text-xs">Auditoría Técnica de Custodia</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Verifica la integridad de la cartera local contra el bróker (se ejecuta automáticamente a diario).</span>
+                </div>
+                <button type="button" onclick="triggerLiveAction('RECONCILE_NOW')" class="touch-target px-3.5 py-2 rounded-md text-xs font-semibold bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition shrink-0">
+                  Auditar Ahora
                 </button>
               </div>
 
