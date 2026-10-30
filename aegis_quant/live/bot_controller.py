@@ -33,6 +33,8 @@ from aegis_quant.live.broker_adapter import (
 )
 from aegis_quant.live.config_store import BotConfigStore
 from aegis_quant.live.notifier_service import MultiChannelNotifier
+from aegis_quant.live.order_manager import IdempotentOrderManager
+from aegis_quant.live.reconciliation_service import StateReconciliationService
 from aegis_quant.models.market_models import MarketBar
 from aegis_quant.portfolio.aegis_engine import AegisPortfolioEngine
 
@@ -159,6 +161,7 @@ class LiveBotController:
         self.summary_data = summary_data
         self.store = BotConfigStore(base_dir)
         self.repo = MarketDataRepository(data_dir=os.path.join(base_dir, "data"))
+        self.order_manager = IdempotentOrderManager()
         self._scan_lock = threading.RLock()
         self._last_auto_run_date = ""
 
@@ -190,6 +193,22 @@ class LiveBotController:
         state = self.store.get_state()
         if enable_network_init and not state.get("positions") and state.get("last_scan_time", "").startswith("Nunca"):
             self.run_scan_and_sync(trigger_source="Arranque Inicial Automático")
+
+    def reconcile_state_with_broker(self) -> dict[str, Any]:
+        """Concilia el estado local contra la custodia real del bróker."""
+        broker = self._get_broker()
+        snapshot = broker.get_portfolio_snapshot()
+        local_state = self.store.get_state()
+        res = StateReconciliationService.reconcile(local_state, snapshot)
+        if not res.in_sync and res.action_taken == "AUTO_ALIGNED":
+            self.store.save_state(res.reconciled_state)
+            self.store.append_log(res.summary_message, "WARN")
+        return {
+            "in_sync": res.in_sync,
+            "action_taken": res.action_taken,
+            "discrepancies_count": len(res.discrepancies),
+            "summary": res.summary_message,
+        }
 
     # -------------------------------------------------------------------------
     # GESTIÓN HORARIA Y DESFASE DST (ESPAÑA VS WALL STREET)
@@ -431,12 +450,40 @@ class LiveBotController:
     # CÁLCULO DE ASIGNACIÓN OBJETIVO (CARTERA TARGET DINÁMICA M1-M5 + CORE)
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _build_fallback_core_targets(live_scan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        core_alloc = live_scan.get("core_allocation", {"SPY": 85.0, "QQQ": 15.0})
+        targets: dict[str, dict[str, Any]] = {}
+        for sym, pct in core_alloc.items():
+            if pct > 0:
+                targets[sym] = {
+                    "weight": round(float(pct) / 100.0, 4),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": f"Nucleo Inteligente Modo 3 Elite ({live_scan.get('vts_state', 'Contango')})",
+                }
+        return targets
+
+    @staticmethod
+    def _build_enriched_live_universe(
+        raw_universe: dict[str, list[MarketBar]],
+    ) -> tuple[dict[str, Any], str]:
+        vix_slice = raw_universe.get("VIX", [])[-450:]
+        vix3m_slice = raw_universe.get("VIX3M", [])[-450:]
+        feature_engine = QuantFeatureEngine(vix_bars=vix_slice, vix3m_bars=vix3m_slice)
+        enriched_universe: dict[str, Any] = {}
+        live_start_date = "2007-01-01"
+        for sym, bars in raw_universe.items():
+            if sym in ("VIX", "VIX3M"):
+                continue
+            sliced = bars[-450:] if len(bars) > 450 else bars
+            enriched_universe[sym] = feature_engine.enrich_series(sliced)
+            if sym == "SPY" and len(sliced) > 210:
+                live_start_date = sliced[205].date
+        return enriched_universe, live_start_date
+
     def _evaluate_live_engine(self, refresh_remote: bool = True) -> dict[str, dict[str, Any]]:
-        """
-        Evalúa en vivo sobre barras diarias reales (caché + actualización Yahoo Finance)
-        tanto los 5 motores tácticos (M1..M5, incluyendo trades multisesión aún abiertos
-        y nuevas señales de hoy) como la asignación del Core Modo 3 Élite sobre la liquidez ociosa.
-        """
+        """Evalúa en vivo barras diarias y calcula la asignación del Core y motores tácticos."""
         cfg = self.store.get_config()
         enabled = cfg.get("enabled_motors", {})
         base_risk_pct = float(cfg.get("risk_per_trade_pct", 2.5))
@@ -450,55 +497,24 @@ class LiveBotController:
 
         if refresh_remote:
             raw_universe = self.repo.refresh_universe_live(
-                completed_before=today_ny_str,
-                fallback_prices=self.latest_prices,
+                completed_before=today_ny_str, fallback_prices=self.latest_prices
             )
         else:
             raw_universe = {sym: self.repo._read_cache(sym) for sym in MarketDataRepository.UNIVERSE_CONFIG.keys()}
             raw_universe = {sym: [MarketBar(**item) for item in rows] for sym, rows in raw_universe.items() if rows}
 
-        # Fallback seguro si aún no existen series históricas en disco (p.ej. tests aislados)
+        # Fallback seguro si aún no existen series históricas en disco
         if "SPY" not in raw_universe or len(raw_universe.get("SPY", [])) < 210:
             live_scan = self.live_scan_cache or self.summary_data.get("live_scan", {})
-            core_alloc = live_scan.get("core_allocation", {"SPY": 85.0, "QQQ": 15.0})
-            targets: dict[str, dict[str, Any]] = {}
-            for sym, pct in core_alloc.items():
-                if pct > 0:
-                    targets[sym] = {
-                        "weight": round(float(pct) / 100.0, 4),
-                        "direction": "LONG",
-                        "motor": "CORE_BULL",
-                        "reason": f"Nucleo Inteligente Modo 3 Elite ({live_scan.get('vts_state', 'Contango')})",
-                    }
-            return targets
+            return self._build_fallback_core_targets(live_scan)
 
-        # Sincronizar latest_prices con el último cierre disponible si no hubo pulso más reciente
+        # Sincronizar latest_prices con el último cierre disponible
         for sym, bars in raw_universe.items():
             if bars and sym not in self.market_pulse_cache:
                 self.latest_prices[sym] = round(float(bars[-1].close), 2)
 
-        # Ventana deslizante de 450 sesiones (~1.8 años): suficiente para convergencia exacta
-        # de SMA(200), ATR(14), RSI(2) y operaciones CTA de hasta 45 sesiones, reduciendo latencia 12x.
-        vix_slice = raw_universe.get("VIX", [])[-450:]
-        vix3m_slice = raw_universe.get("VIX3M", [])[-450:]
-        feature_engine = QuantFeatureEngine(
-            vix_bars=vix_slice,
-            vix3m_bars=vix3m_slice,
-        )
-        enriched_universe: dict[str, Any] = {}
-        live_start_date = "2007-01-01"
-        for sym, bars in raw_universe.items():
-            if sym in ("VIX", "VIX3M"):
-                continue
-            sliced = bars[-450:] if len(bars) > 450 else bars
-            enriched_universe[sym] = feature_engine.enrich_series(sliced)
-            if sym == "SPY" and len(sliced) > 210:
-                live_start_date = sliced[205].date
-
-        portfolio_engine = AegisPortfolioEngine(
-            enriched_universe=enriched_universe,
-            start_date=live_start_date,
-        )
+        enriched_universe, live_start_date = self._build_enriched_live_universe(raw_universe)
+        portfolio_engine = AegisPortfolioEngine(enriched_universe=enriched_universe, start_date=live_start_date)
         live_res = portfolio_engine.compute_live_portfolio(
             enabled_motors=enabled,
             base_risk_pct=base_risk_pct,
@@ -629,6 +645,55 @@ class LiveBotController:
     # CONSTRUCCIÓN DE NOTIFICACIONES MÓVILES ENRIQUECIDAS
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _format_pulse_section(pulse: dict[str, Any]) -> list[str]:
+        lines = ["", "📊 <b>PULSO DEL MERCADO HOY:</b>"]
+        for sym in ["SPY", "QQQ"]:
+            if sym in pulse:
+                p = pulse[sym]
+                chg = p.get("change_pct", 0.0)
+                sign = "+" if chg >= 0 else ""
+                lines.append(f"• <b>{sym}</b>: {_format_currency_signal(float(p['price']))} ({sign}{chg:.2f}%)")
+
+        vix = pulse.get("VIX", {}).get("price")
+        vix3m = pulse.get("VIX3M", {}).get("price")
+        if vix and vix3m:
+            vts_ratio = round(vix / vix3m, 3)
+            vts_state = "Contango (Alcista)" if vts_ratio < 1.0 else "Backwardation (Pánico/Cobertura)"
+            lines.append(f"• <b>VIX</b>: {vix:.2f} | <b>VIX3M</b>: {vix3m:.2f} | Ratio: {vts_ratio:.3f} ({vts_state})")
+        return lines
+
+    @staticmethod
+    def _format_positions_section(positions: list[dict[str, Any]]) -> list[str]:
+        lines = ["", "🎯 <b>POSICIONES ACTIVAS:</b>"]
+        if positions:
+            for pos in positions:
+                sym = pos.get("broker_symbol", pos.get("internal_symbol"))
+                w = float(pos.get("weight_pct", 0.0))
+                mkt_val = float(pos.get("market_value_usd", 0.0))
+                pnl = float(pos.get("unrealized_pnl_usd", 0.0))
+                lines.append(
+                    f"• {sym} ({w:.1f}%): {_format_currency_signal(mkt_val)} (P&L: {_format_currency_signal(pnl, is_pnl=True)})"
+                )
+        else:
+            lines.append("• 100% en Efectivo / Sin posiciones abiertas.")
+        return lines
+
+    @staticmethod
+    def _format_orders_section(orders: list[dict[str, Any]], direct_reason: str | None) -> list[str]:
+        lines = []
+        if orders:
+            lines.append(f"⚡ <b>ÓRDENES EJECUTADAS HOY ({len(orders)}):</b>")
+            for o in orders:
+                notional = float(o.get("notional_usd", 0.0))
+                lines.append(
+                    f"- <b>{o['side']} {o['symbol']}</b>: {_format_currency_signal(notional)} ({o.get('motor', 'CORE')})"
+                )
+        else:
+            reason_txt = direct_reason or "Sin rotación necesaria. Cartera alineada al régimen."
+            lines.append(f"⚡ <b>OPERATIVA HOY:</b> {reason_txt}")
+        return lines
+
     def _build_notification_message(
         self,
         trigger_source: str,
@@ -637,10 +702,7 @@ class LiveBotController:
         state_after: dict[str, Any],
         direct_reason: str | None = None,
     ) -> str:
-        """
-        Construye un mensaje informativo e institucional para Signal y Telegram.
-        Incluye variación diaria de mercado, estado de cartera, posiciones y órdenes.
-        """
+        """Construye un mensaje informativo e institucional para Signal y Telegram."""
         t_info = self.get_time_info()
         lines = [
             "🦅 <b>AEGIS-QUANT | REPORTE DE CIERRE</b>",
@@ -651,23 +713,7 @@ class LiveBotController:
         if t_info.get("is_dst_mismatch"):
             lines.append(f"⚠️ {t_info['mismatch_notice']}")
 
-        lines.extend(["", "📊 <b>PULSO DEL MERCADO HOY:</b>"])
-
-        # Variaciones de los índices clave
-        for sym in ["SPY", "QQQ"]:
-            if sym in pulse:
-                p = pulse[sym]
-                chg = p.get("change_pct", 0.0)
-                sign = "+" if chg >= 0 else ""
-                lines.append(f"• <b>{sym}</b>: {_format_currency_signal(float(p['price']))} ({sign}{chg:.2f}%)")
-
-        # Estructura Temporal de Volatilidad
-        vix = pulse.get("VIX", {}).get("price")
-        vix3m = pulse.get("VIX3M", {}).get("price")
-        if vix and vix3m:
-            vts_ratio = round(vix / vix3m, 3)
-            vts_state = "Contango (Alcista)" if vts_ratio < 1.0 else "Backwardation (Pánico/Cobertura)"
-            lines.append(f"• <b>VIX</b>: {vix:.2f} | <b>VIX3M</b>: {vix3m:.2f} | Ratio: {vts_ratio:.3f} ({vts_state})")
+        lines.extend(self._format_pulse_section(pulse))
 
         # Rendimiento de la cartera
         acct = state_after.get("account", {})
@@ -682,23 +728,9 @@ class LiveBotController:
                 "💼 <b>ESTADO DE CARTERA:</b>",
                 f"• Capital Total: <b>{_format_currency_signal(eq)}</b> (Retorno: {tot_ret:+.2f}%)",
                 f"• Efectivo (Cash): {_format_currency_signal(cash)} | Max Drawdown: {dd:.2f}%",
-                "",
-                "🎯 <b>POSICIONES ACTIVAS:</b>",
             ]
         )
-
-        positions = state_after.get("positions", [])
-        if positions:
-            for pos in positions:
-                sym = pos.get("broker_symbol", pos.get("internal_symbol"))
-                w = float(pos.get("weight_pct", 0.0))
-                mkt_val = float(pos.get("market_value_usd", 0.0))
-                pnl = float(pos.get("unrealized_pnl_usd", 0.0))
-                lines.append(
-                    f"• {sym} ({w:.1f}%): {_format_currency_signal(mkt_val)} (P&L: {_format_currency_signal(pnl, is_pnl=True)})"
-                )
-        else:
-            lines.append("• 100% en Efectivo / Sin posiciones abiertas.")
+        lines.extend(self._format_positions_section(state_after.get("positions", [])))
 
         lines.append("")
         tactical_info = getattr(self, "tactical_status_cache", None) or {}
@@ -711,34 +743,118 @@ class LiveBotController:
                 )
             lines.append("")
 
-        if orders:
-            lines.append(f"⚡ <b>ÓRDENES EJECUTADAS HOY ({len(orders)}):</b>")
-            for o in orders:
-                notional = float(o.get("notional_usd", 0.0))
-                lines.append(
-                    f"- <b>{o['side']} {o['symbol']}</b>: {_format_currency_signal(notional)} ({o.get('motor', 'CORE')})"
-                )
-        else:
-            reason_txt = direct_reason or "Sin rotación necesaria. Cartera alineada al régimen."
-            lines.append(f"⚡ <b>OPERATIVA HOY:</b> {reason_txt}")
-
+        lines.extend(self._format_orders_section(orders, direct_reason))
         return "\n".join(lines)
 
     # -------------------------------------------------------------------------
     # EJECUCIÓN Y ESCANEO EN VIVO (RUN SCAN & SYNC)
     # -------------------------------------------------------------------------
 
+    @staticmethod
+    def _explain_no_trade_reason(
+        regime: str,
+        pos: list[dict[str, Any]],
+        cash_pct: float,
+        open_tactical: list[dict[str, Any]],
+    ) -> str:
+        """Determina la explicación semántica precisa de por qué no hubo operaciones hoy."""
+        if pos:
+            pos_desc = ", ".join(
+                [
+                    f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
+                    for p in pos
+                ]
+            )
+            if open_tactical:
+                return (
+                    f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                    "Razón: Operaciones tácticas en curso siguiendo su plan de salida (stops y targets vigentes; sin nuevas señales hoy)."
+                )
+            if regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
+                return (
+                    f"Sin rotación necesaria. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                    "Razón: Cartera ya alineada al 100% con los pesos óptimos del régimen alcista."
+                )
+            return (
+                f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
+                f"Razón: Asignación alineada al régimen actual ({regime}); sin rotación hoy."
+            )
+
+        regime_reasons = {
+            "BEAR_DEFENSIVE": (
+                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
+                "Razón: Mercado en régimen defensivo (SPY por debajo de SMA-50) y ningún motor táctico (M1–M6) activó señal de entrada."
+            ),
+            "BEAR_CRISIS_BACKWARDATION": (
+                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
+                "Razón: Alerta institucional por pánico/backwardation (VIX/VIX3M >= 1.0); capital completamente preservado."
+            ),
+            "BULL_QUIET_CONTANGO": (
+                "Sin operaciones. Cartera temporalmente al 100% en liquidez/efectivo en espera de la siguiente señal táctica o rebalanceo Core."
+            ),
+            "BULL_MODERATE_VOL": (
+                "Sin operaciones. Cartera temporalmente al 100% en liquidez/efectivo en espera de la siguiente señal táctica o rebalanceo Core."
+            ),
+        }
+        return regime_reasons.get(
+            regime,
+            "Sin operaciones. Cartera al 100% en liquidez/efectivo protegida; sin señales activas hoy.",
+        )
+
+    def _handle_closed_market_scan(self, trigger_source: str, closed_reason: str) -> dict[str, Any]:
+        """Gestiona el reporte y notificación cuando Wall Street está cerrado."""
+        pulse = self.market_pulse_cache or self.refresh_market_pulse()
+        state = self.store.get_state()
+        pos = state.get("positions", [])
+        if pos:
+            pos_desc = ", ".join(
+                [
+                    f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
+                    for p in pos
+                ]
+            )
+            direct_reason = f"{closed_reason} Posiciones activas mantenidas sin cambios: {pos_desc}."
+        else:
+            direct_reason = f"{closed_reason} Cartera al 100% en liquidez/efectivo protegido."
+
+        full_msg = self._build_notification_message(trigger_source, [], pulse, state, direct_reason=direct_reason)
+        self._send_mobile_alert(full_msg)
+        self.store.append_log(f"Reporte diario emitido: {closed_reason}", "INFO")
+        cfg = self.store.get_config()
+        return {
+            "ok": True,
+            "mode": cfg.get("execution_mode", "AUTO_100"),
+            "orders_count": 0,
+            "message": direct_reason,
+        }
+
+    def _handle_copilot_proposal(self, trigger_source: str, targets: dict[str, Any]) -> dict[str, Any]:
+        """Registra y alerta sobre una propuesta pendiente de confirmación manual en modo Copiloto."""
+        state = self.store.get_state()
+        proposal = {
+            "id": f"PROP-{int(time.time())}",
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "trigger_source": trigger_source,
+            "targets": targets,
+        }
+        state["pending_confirmations"] = [proposal]
+        self.store.save_state(state)
+        msg = f"Modo Copiloto: Propuesta lista ({trigger_source}). Esperando confirmacion web."
+        self.store.append_log(msg, "INFO")
+        self._send_mobile_alert(
+            f"<b>AEGIS-QUANT (COPILOTO)</b>\nPropuesta generada ({trigger_source}).\n"
+            "Revisa el Centro de Mando Web para confirmar la operativa."
+        )
+        return {"ok": True, "mode": "COPILOT_CONFIRM", "message": msg}
+
     def run_scan_and_sync(
         self, trigger_source: str = "Manual desde Web", simulate_motor: str | None = None
     ) -> dict[str, Any]:
-        """
-        Ejecuta el ciclo de escaneo de mercado (protegido por lock reentrante):
-          1. Verifica si el mercado está abierto o cerrado (fin de semana o festivo en Wall Street).
-          2. Si está cerrado, genera y emite el reporte de estado con frase explicativa directa a Signal.
-          3. Si está abierto, refresca cotizaciones, evalúa motores tácticos y ejecuta órdenes.
-          4. Emite reporte diario puntual a Signal especificando la razón exacta si no hay operaciones.
-        """
+        """Ejecuta el ciclo de escaneo de mercado protegido por conciliación previa."""
         with self._scan_lock:
+            # 1. Conciliación previa de integridad: la verdad del bróker manda
+            self.reconcile_state_with_broker()
+
             cfg = self.store.get_config()
             try:
                 now_ny = datetime.now(ZoneInfo("America/New_York"))
@@ -746,123 +862,39 @@ class LiveBotController:
                 now_ny = datetime.now()
 
             is_closed, closed_reason = self.get_market_session_status(now_ny)
-
-            # Si el mercado está cerrado (fin de semana o festivo en Wall Street) y no es simulación Sandbox
             if is_closed and simulate_motor is None:
-                pulse = self.market_pulse_cache or self.refresh_market_pulse()
-                state = self.store.get_state()
-                pos = state.get("positions", [])
-                if pos:
-                    pos_desc = ", ".join(
-                        [
-                            f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
-                            for p in pos
-                        ]
-                    )
-                    direct_reason = f"{closed_reason} Posiciones activas mantenidas sin cambios: {pos_desc}."
-                else:
-                    direct_reason = f"{closed_reason} Cartera al 100% en liquidez/efectivo protegido."
-
-                full_msg = self._build_notification_message(
-                    trigger_source, [], pulse, state, direct_reason=direct_reason
-                )
-                self._send_mobile_alert(full_msg)
-                self.store.append_log(f"Reporte diario emitido: {closed_reason}", "INFO")
-                return {
-                    "ok": True,
-                    "mode": cfg.get("execution_mode", "AUTO_100"),
-                    "orders_count": 0,
-                    "message": direct_reason,
-                }
+                return self._handle_closed_market_scan(trigger_source, closed_reason)
 
             pulse = self.refresh_market_pulse()
             targets = self.compute_target_portfolio(simulate_motor=simulate_motor)
             exec_mode = cfg.get("execution_mode", "AUTO_100")
 
-            # MODO COPILOTO (Requiere confirmación previa en la interfaz)
             if exec_mode == "COPILOT_CONFIRM":
-                state = self.store.get_state()
-                proposal = {
-                    "id": f"PROP-{int(time.time())}",
-                    "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "trigger_source": trigger_source,
-                    "targets": targets,
-                }
-                state["pending_confirmations"] = [proposal]
-                self.store.save_state(state)
-                msg = f"Modo Copiloto: Propuesta lista ({trigger_source}). Esperando confirmacion web."
-                self.store.append_log(msg, "INFO")
-                self._send_mobile_alert(
-                    f"<b>AEGIS-QUANT (COPILOTO)</b>\nPropuesta generada ({trigger_source}).\n"
-                    f"Revisa el Centro de Mando Web para confirmar la operativa."
-                )
-                return {"ok": True, "mode": "COPILOT_CONFIRM", "message": msg}
+                return self._handle_copilot_proposal(trigger_source, targets)
 
-            # MODO 100% AUTOMÁTICO (Por defecto)
+            # Modo 100% Automático
             broker = self._get_broker()
             ok, orders, msg = broker.execute_target_weights(targets, reason_summary=trigger_source)
             state_after = self.store.get_state()
 
-            # Construir y despachar notificación enriquecida
-            # Se envía siempre en ejecuciones programadas o cuando hay órdenes activas
+            # Despacho de notificación
             is_scheduled = "Reloj Automático" in trigger_source
             if orders or is_scheduled:
                 direct_reason = None
                 if not orders:
                     live_scan = getattr(self, "live_scan_cache", None) or {}
-                    regime = live_scan.get("regime", "")
-                    pos = state_after.get("positions", [])
                     acct = state_after.get("account", {})
                     cash_pct = round(
                         (float(acct.get("cash_usd", 0.0)) / max(1.0, float(acct.get("total_equity_usd", 1.0)))) * 100.0,
                         1,
                     )
                     tactical_info = getattr(self, "tactical_status_cache", None) or {}
-                    open_tactical = tactical_info.get("open_trades") or []
-
-                    if pos:
-                        pos_desc = ", ".join(
-                            [
-                                f"{p.get('broker_symbol', p.get('internal_symbol'))} ({float(p.get('weight_pct', 0.0)):.1f}%)"
-                                for p in pos
-                            ]
-                        )
-                        if open_tactical:
-                            direct_reason = (
-                                f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
-                                f"Razón: Operaciones tácticas en curso siguiendo su plan de salida (stops y targets vigentes; sin nuevas señales hoy)."
-                            )
-                        elif regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
-                            direct_reason = (
-                                f"Sin rotación necesaria. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
-                                f"Razón: Cartera ya alineada al 100% con los pesos óptimos del régimen alcista."
-                            )
-                        else:
-                            direct_reason = (
-                                f"Sin cambios. Posiciones activas mantenidas: {pos_desc} (Efectivo: {cash_pct:.1f}%). "
-                                f"Razón: Asignación alineada al régimen actual ({regime}); sin rotación hoy."
-                            )
-                    else:
-                        if regime == "BEAR_DEFENSIVE":
-                            direct_reason = (
-                                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
-                                "Razón: Mercado en régimen defensivo (SPY por debajo de SMA-50) y ningún motor táctico (M1–M6) activó señal de entrada."
-                            )
-                        elif regime == "BEAR_CRISIS_BACKWARDATION":
-                            direct_reason = (
-                                "Sin operaciones. Cartera al 100% en liquidez/efectivo. "
-                                "Razón: Alerta institucional por pánico/backwardation (VIX/VIX3M >= 1.0); capital completamente preservado."
-                            )
-                        elif regime in ("BULL_QUIET_CONTANGO", "BULL_MODERATE_VOL"):
-                            direct_reason = (
-                                "Sin operaciones. Cartera temporalmente al 100% en liquidez/efectivo "
-                                "en espera de la siguiente señal táctica o rebalanceo Core."
-                            )
-                        else:
-                            direct_reason = (
-                                "Sin operaciones. Cartera al 100% en liquidez/efectivo protegida; "
-                                "sin señales activas hoy."
-                            )
+                    direct_reason = self._explain_no_trade_reason(
+                        regime=live_scan.get("regime", ""),
+                        pos=state_after.get("positions", []),
+                        cash_pct=cash_pct,
+                        open_tactical=tactical_info.get("open_trades") or [],
+                    )
 
                 full_msg = self._build_notification_message(
                     trigger_source, orders, pulse, state_after, direct_reason=direct_reason
@@ -940,87 +972,93 @@ class LiveBotController:
             "tactical": self.tactical_status_cache,
         }
 
+    def _action_toggle_bot(self, _payload: dict[str, Any]) -> dict[str, Any]:
+        cfg = self.store.get_config()
+        new_running = not cfg.get("bot_running", True)
+        self.store.update_config({"bot_running": new_running})
+        status_txt = "BOT INICIADO (Vigilancia horaria activa)" if new_running else "BOT PAUSADO por el usuario"
+        self.store.append_log(status_txt, "INFO" if new_running else "WARN")
+        self._send_mobile_alert(f"<b>Aegis-Quant:</b> {status_txt}")
+        return {"ok": True, "message": status_txt}
+
+    def _action_scan_now(self, payload: dict[str, Any]) -> dict[str, Any]:
+        sim_motor = payload.get("simulate_motor")
+        return self.run_scan_and_sync(
+            trigger_source=("Escaneo Manual desde Web" if not sim_motor else f"Simulacion Motor {sim_motor}"),
+            simulate_motor=sim_motor,
+        )
+
+    def _action_panic_close_all(self) -> dict[str, Any]:
+        broker = self._get_broker()
+        ok, msg = broker.close_all_positions("Boton de Panico pulsado desde el Centro de Mando Web")
+        state = self.store.get_state()
+        if state.get("pending_confirmations"):
+            state["pending_confirmations"] = []
+            self.store.save_state(state)
+        self._send_mobile_alert(f"<b>ALERTA DE CIERRE TOTAL AEGIS-QUANT</b>\n{msg}")
+        return {"ok": ok, "message": msg}
+
+    def _action_reset_account(self) -> dict[str, Any]:
+        cfg = self.store.get_config()
+        if cfg.get("environment") == "LIVE_REAL":
+            msg = "Acción bloqueada: No se puede reiniciar saldo en entorno Real (LIVE_REAL)."
+            self.store.append_log(msg, "WARN")
+            return {"ok": False, "message": msg}
+
+        cap = float(cfg.get("allocated_capital_usd", 10000.0))
+        fresh = self.store._default_state()
+        fresh["account"]["initial_capital"] = cap
+        fresh["account"]["cash_usd"] = cap
+        fresh["account"]["total_equity_usd"] = cap
+        fresh["account"]["peak_equity_usd"] = cap
+        fresh["logs"].insert(
+            0,
+            {
+                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "level": "INFO",
+                "msg": f"Cuenta Paper Trading reiniciada a ${cap:,.2f} en efectivo.",
+            },
+        )
+        self.store.save_state(fresh)
+        return {"ok": True, "message": f"Cuenta Paper Trading reiniciada a ${cap:,.2f}."}
+
+    def _action_test_signal(self) -> dict[str, Any]:
+        cfg = self.store.get_config()
+        notifier = MultiChannelNotifier(cfg)
+        ok, msg = notifier.signal.send_message(
+            "Aegis-Quant Signal Alert: Connection verified successfully. Real-time trading updates active."
+        )
+        self.store.append_log(f"Signal notification test: {msg}", "INFO" if ok else "WARN")
+        return {"ok": ok, "message": msg}
+
+    def _action_test_notification(self) -> dict[str, Any]:
+        cfg = self.store.get_config()
+        notifier = MultiChannelNotifier(cfg)
+        pulse = self.refresh_market_pulse()
+        state = self.store.get_state()
+        sample_msg = self._build_notification_message("Prueba de Notificación Móvil", [], pulse, state)
+        ok, msg = notifier.notify(sample_msg)
+        self.store.append_log(f"Mobile notification test: {msg}", "INFO" if ok else "WARN")
+        return {"ok": ok, "message": msg}
+
     def handle_action(self, action_payload: dict[str, Any]) -> dict[str, Any]:
-        """Procesa cualquier acción interactiva enviada desde la Web o Móvil."""
+        """Procesa cualquier acción interactiva enviada desde la Web o Móvil mediante despacho limpio."""
         action = action_payload.get("action", "")
-
-        if action == "TOGGLE_BOT":
-            cfg = self.store.get_config()
-            new_running = not cfg.get("bot_running", True)
-            self.store.update_config({"bot_running": new_running})
-            status_txt = "BOT INICIADO (Vigilancia horaria activa)" if new_running else "BOT PAUSADO por el usuario"
-            self.store.append_log(status_txt, "INFO" if new_running else "WARN")
-            self._send_mobile_alert(f"<b>Aegis-Quant:</b> {status_txt}")
-            return {"ok": True, "message": status_txt}
-
-        if action == "SCAN_NOW":
-            sim_motor = action_payload.get("simulate_motor")
-            return self.run_scan_and_sync(
-                trigger_source=("Escaneo Manual desde Web" if not sim_motor else f"Simulacion Motor {sim_motor}"),
-                simulate_motor=sim_motor,
-            )
-
-        if action == "APPROVE_PENDING":
-            return self.approve_pending()
-
-        if action == "REJECT_PENDING":
-            return self.reject_pending()
-
-        if action == "PANIC_CLOSE_ALL":
-            broker = self._get_broker()
-            ok, msg = broker.close_all_positions("Boton de Panico pulsado desde el Centro de Mando Web")
-            # Cancelar e invalidar cualquier propuesta de Copiloto pendiente para evitar ejecuciones obsoletas
-            state = self.store.get_state()
-            if state.get("pending_confirmations"):
-                state["pending_confirmations"] = []
-                self.store.save_state(state)
-            self._send_mobile_alert(f"<b>ALERTA DE CIERRE TOTAL AEGIS-QUANT</b>\n{msg}")
-            return {"ok": ok, "message": msg}
-
-        if action == "RESET_ACCOUNT":
-            cfg = self.store.get_config()
-            if cfg.get("environment") == "LIVE_REAL":
-                msg = "Acción bloqueada: No se puede reiniciar saldo en entorno Real (LIVE_REAL)."
-                self.store.append_log(msg, "WARN")
-                return {"ok": False, "message": msg}
-
-            cap = float(cfg.get("allocated_capital_usd", 10000.0))
-            fresh = self.store._default_state()
-            fresh["account"]["initial_capital"] = cap
-            fresh["account"]["cash_usd"] = cap
-            fresh["account"]["total_equity_usd"] = cap
-            fresh["account"]["peak_equity_usd"] = cap
-            fresh["logs"].insert(
-                0,
-                {
-                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "level": "INFO",
-                    "msg": f"Cuenta Paper Trading reiniciada a ${cap:,.2f} en efectivo.",
-                },
-            )
-            self.store.save_state(fresh)
-            return {"ok": True, "message": f"Cuenta Paper Trading reiniciada a ${cap:,.2f}."}
-
-        if action == "TEST_SIGNAL":
-            cfg = self.store.get_config()
-            notifier = MultiChannelNotifier(cfg)
-            ok, msg = notifier.signal.send_message(
-                "Aegis-Quant Signal Alert: Connection verified successfully. Real-time trading updates active."
-            )
-            self.store.append_log(f"Signal notification test: {msg}", "INFO" if ok else "WARN")
-            return {"ok": ok, "message": msg}
-
-        if action == "TEST_NOTIFICATION":
-            cfg = self.store.get_config()
-            notifier = MultiChannelNotifier(cfg)
-            pulse = self.refresh_market_pulse()
-            state = self.store.get_state()
-            sample_msg = self._build_notification_message("Prueba de Notificación Móvil", [], pulse, state)
-            ok, msg = notifier.notify(sample_msg)
-            self.store.append_log(f"Mobile notification test: {msg}", "INFO" if ok else "WARN")
-            return {"ok": ok, "message": msg}
-
-        return {"ok": False, "message": f"Unknown action: {action}"}
+        dispatch = {
+            "TOGGLE_BOT": self._action_toggle_bot,
+            "SCAN_NOW": self._action_scan_now,
+            "APPROVE_PENDING": lambda _: self.approve_pending(),
+            "REJECT_PENDING": lambda _: self.reject_pending(),
+            "PANIC_CLOSE_ALL": lambda _: self._action_panic_close_all(),
+            "RESET_ACCOUNT": lambda _: self._action_reset_account(),
+            "TEST_SIGNAL": lambda _: self._action_test_signal(),
+            "TEST_NOTIFICATION": lambda _: self._action_test_notification(),
+            "RECONCILE_NOW": lambda _: self.reconcile_state_with_broker(),
+        }
+        handler = dispatch.get(action)
+        if not handler:
+            return {"ok": False, "message": f"Unknown action: {action}"}
+        return handler(action_payload)
 
     def _send_mobile_alert(self, text: str) -> None:
         """Envía el mensaje formateado a través de los canales móviles activos."""
