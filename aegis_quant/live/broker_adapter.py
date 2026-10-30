@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from aegis_quant.live.config_store import BotConfigStore
+from aegis_quant.live.order_manager import IdempotentOrderManager
 from aegis_quant.tax.spanish_tax_engine import ECBExchangeRateProvider, map_to_ucits_metadata
 
 
@@ -131,6 +132,129 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         self.store.save_state(state)
         return state
 
+    def _close_exited_positions(
+        self,
+        old_positions: dict[str, dict[str, Any]],
+        target_weights: dict[str, dict[str, Any]],
+        now_str: str,
+        reason_summary: str,
+        acct: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Cierra posiciones existentes que ya no forman parte del objetivo."""
+        orders = []
+        for int_sym, old_p in old_positions.items():
+            if int_sym not in target_weights or target_weights[int_sym]["weight"] <= 0.001:
+                side = "SELL" if old_p["direction"] == "LONG" else "BUY_TO_COVER"
+                motor = old_p.get("motor", "REBALANCE")
+                client_oid = IdempotentOrderManager.generate_client_order_id(
+                    now_str[:10], motor, old_p["broker_symbol"], side
+                )
+                orders.append(
+                    {
+                        "time": now_str,
+                        "broker": "LOCAL_PAPER",
+                        "client_order_id": client_oid,
+                        "symbol": old_p["broker_symbol"],
+                        "side": side,
+                        "qty": old_p["qty"],
+                        "price": old_p["current_price"],
+                        "notional_usd": old_p["market_value_usd"],
+                        "motor": motor,
+                        "reason": f"Cierre / Salida de posición ({reason_summary})",
+                        "status": "FILLED",
+                    }
+                )
+                acct["realized_pnl_usd"] = round(
+                    float(acct.get("realized_pnl_usd", 0.0)) + float(old_p.get("unrealized_pnl_usd", 0.0)),
+                    2,
+                )
+        return orders
+
+    def _sync_single_target(
+        self,
+        int_sym: str,
+        info: dict[str, Any],
+        target_usd: float,
+        old_p: dict[str, Any] | None,
+        now_str: str,
+        reason_summary: str,
+        cfg: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Calcula el estado y la orden para un activo objetivo individual."""
+        b_sym = self.map_symbol(int_sym, cfg)
+        px = self.get_live_price(b_sym)
+        qty = round(target_usd / max(0.01, px), 4)
+        w = float(info.get("weight", 0.0))
+        old_w = float(old_p["weight_pct"]) / 100.0 if old_p else 0.0
+
+        order = None
+        if abs(w - old_w) >= 0.01 or not old_p:
+            diff_usd = round(target_usd - (old_p["market_value_usd"] if old_p else 0.0), 2)
+            side = "BUY" if diff_usd >= 0 else "SELL_PARTIAL"
+            if info.get("direction", "LONG") == "SHORT":
+                side = "SELL_SHORT"
+            motor = info.get("motor", "CORE_BULL")
+            client_oid = IdempotentOrderManager.generate_client_order_id(now_str[:10], motor, b_sym, side)
+            order = {
+                "time": now_str,
+                "broker": "LOCAL_PAPER",
+                "client_order_id": client_oid,
+                "symbol": b_sym,
+                "side": side,
+                "qty": round(abs(diff_usd) / max(0.01, px), 4),
+                "price": px,
+                "notional_usd": round(abs(diff_usd), 2),
+                "motor": motor,
+                "reason": info.get("reason", reason_summary),
+                "status": "FILLED",
+            }
+
+        position = {
+            "internal_symbol": int_sym,
+            "broker_symbol": b_sym,
+            "direction": info.get("direction", "LONG"),
+            "motor": info.get("motor", "CORE_BULL"),
+            "reason": info.get("reason", reason_summary),
+            "qty": qty,
+            "avg_entry_price": old_p["avg_entry_price"] if old_p else px,
+            "current_price": px,
+            "market_value_usd": target_usd,
+            "weight_pct": round(w * 100.0, 1),
+            "unrealized_pnl_usd": old_p["unrealized_pnl_usd"] if old_p else 0.0,
+            "unrealized_pnl_pct": old_p["unrealized_pnl_pct"] if old_p else 0.0,
+            "opened_at": old_p["opened_at"] if old_p else now_str,
+        }
+        return position, order
+
+    def _record_ledger_trades(self, executed_orders: list[dict[str, Any]], now_str: str) -> None:
+        """Registra transacciones en el libro mayor inmutable para fiscalidad."""
+        if not executed_orders:
+            return
+        fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
+        env = self.store.get_config().get("environment", "PAPER")
+        for o in executed_orders:
+            ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
+            self.store.append_trade_ledger(
+                {
+                    "timestamp": now_str,
+                    "environment": env,
+                    "order_id": f"ORD-{int(time.time() * 1000)}",
+                    "symbol": o.get("symbol"),
+                    "ucits_ticker": ucits_meta["primary_ucits"],
+                    "isin": ucits_meta["isin"],
+                    "side": o.get("side"),
+                    "qty": o.get("qty"),
+                    "price_usd": o.get("price"),
+                    "notional_usd": o.get("notional_usd"),
+                    "currency": "USD",
+                    "fx_eur_usd": fx_rate,
+                    "commission_usd": 0.0,
+                    "motor": o.get("motor"),
+                    "reason": o.get("reason"),
+                    "status": "FILLED",
+                }
+            )
+
     def execute_target_weights(
         self, target_weights: dict[str, dict[str, Any]], reason_summary: str
     ) -> tuple[bool, list[dict[str, Any]], str]:
@@ -150,29 +274,10 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
 
         old_positions = {p["internal_symbol"]: p for p in state.get("positions", [])}
         new_positions = []
-        executed_orders = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 1. Cerrar posiciones que ya no están en target_weights
-        for int_sym, old_p in old_positions.items():
-            if int_sym not in target_weights or target_weights[int_sym]["weight"] <= 0.001:
-                order = {
-                    "time": now_str,
-                    "broker": "LOCAL_PAPER",
-                    "symbol": old_p["broker_symbol"],
-                    "side": "SELL" if old_p["direction"] == "LONG" else "BUY_TO_COVER",
-                    "qty": old_p["qty"],
-                    "price": old_p["current_price"],
-                    "notional_usd": old_p["market_value_usd"],
-                    "motor": old_p.get("motor", "REBALANCE"),
-                    "reason": f"Cierre / Salida de posición ({reason_summary})",
-                    "status": "FILLED",
-                }
-                executed_orders.append(order)
-                acct["realized_pnl_usd"] = round(
-                    float(acct.get("realized_pnl_usd", 0.0)) + float(old_p.get("unrealized_pnl_usd", 0.0)),
-                    2,
-                )
+        executed_orders = self._close_exited_positions(old_positions, target_weights, now_str, reason_summary, acct)
 
         # 2. Abrir o ajustar posiciones objetivo
         used_cash = 0.0
@@ -183,58 +288,16 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
 
         for idx, (int_sym, info) in enumerate(active_targets):
             w = float(info.get("weight", 0.0))
-            b_sym = self.map_symbol(int_sym, cfg)
-            px = self.get_live_price(b_sym)
-
-            # Si la suma de pesos es 100%, asegurar que el último activo cuadre al céntimo
-            if abs(total_weight - 1.0) < 0.005 and idx == len(active_targets) - 1:
-                target_usd = round(total_eq - used_cash, 2)
-            else:
-                target_usd = round(total_eq * w, 2)
-
-            qty = round(target_usd / max(0.01, px), 4)
+            is_last = abs(total_weight - 1.0) < 0.005 and idx == len(active_targets) - 1
+            target_usd = round(total_eq - used_cash, 2) if is_last else round(total_eq * w, 2)
             used_cash += target_usd
 
-            old_p = old_positions.get(int_sym)
-            old_w = float(old_p["weight_pct"]) / 100.0 if old_p else 0.0
-
-            if abs(w - old_w) >= 0.01 or not old_p:
-                diff_usd = round(target_usd - (old_p["market_value_usd"] if old_p else 0.0), 2)
-                side = "BUY" if diff_usd >= 0 else "SELL_PARTIAL"
-                if info.get("direction", "LONG") == "SHORT":
-                    side = "SELL_SHORT"
-                executed_orders.append(
-                    {
-                        "time": now_str,
-                        "broker": "LOCAL_PAPER",
-                        "symbol": b_sym,
-                        "side": side,
-                        "qty": round(abs(diff_usd) / max(0.01, px), 4),
-                        "price": px,
-                        "notional_usd": round(abs(diff_usd), 2),
-                        "motor": info.get("motor", "CORE_BULL"),
-                        "reason": info.get("reason", reason_summary),
-                        "status": "FILLED",
-                    }
-                )
-
-            new_positions.append(
-                {
-                    "internal_symbol": int_sym,
-                    "broker_symbol": b_sym,
-                    "direction": info.get("direction", "LONG"),
-                    "motor": info.get("motor", "CORE_BULL"),
-                    "reason": info.get("reason", reason_summary),
-                    "qty": qty,
-                    "avg_entry_price": old_p["avg_entry_price"] if old_p else px,
-                    "current_price": px,
-                    "market_value_usd": target_usd,
-                    "weight_pct": round(w * 100.0, 1),
-                    "unrealized_pnl_usd": old_p["unrealized_pnl_usd"] if old_p else 0.0,
-                    "unrealized_pnl_pct": old_p["unrealized_pnl_pct"] if old_p else 0.0,
-                    "opened_at": old_p["opened_at"] if old_p else now_str,
-                }
+            pos, ord_item = self._sync_single_target(
+                int_sym, info, target_usd, old_positions.get(int_sym), now_str, reason_summary, cfg
             )
+            new_positions.append(pos)
+            if ord_item:
+                executed_orders.append(ord_item)
 
         acct["cash_usd"] = round(max(0.0, total_eq - used_cash), 2)
         acct["positions_value_usd"] = round(used_cash, 2)
@@ -244,30 +307,8 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         state["last_scan_time"] = now_str
         self.store.save_state(state)
 
-        # Registro contable inmutable para auditoría e IRPF (con metadatos UCITS/ISIN y cambio BCE)
-        fx_rate = ECBExchangeRateProvider(self.store.data_dir, allow_network=False).get_eur_usd_rate(now_str[:10])
-        for o in executed_orders:
-            ucits_meta = map_to_ucits_metadata(o.get("symbol", "SPY"))
-            self.store.append_trade_ledger(
-                {
-                    "timestamp": now_str,
-                    "environment": self.store.get_config().get("environment", "PAPER"),
-                    "order_id": f"ORD-{int(time.time() * 1000)}",
-                    "symbol": o.get("symbol"),
-                    "ucits_ticker": ucits_meta["primary_ucits"],
-                    "isin": ucits_meta["isin"],
-                    "side": o.get("side"),
-                    "qty": o.get("qty"),
-                    "price_usd": o.get("price"),
-                    "notional_usd": o.get("notional_usd"),
-                    "currency": "USD",
-                    "fx_eur_usd": fx_rate,
-                    "commission_usd": 0.0,
-                    "motor": o.get("motor"),
-                    "reason": o.get("reason"),
-                    "status": "FILLED",
-                }
-            )
+        # 3. Registro contable inmutable para auditoría e IRPF (con metadatos UCITS/ISIN y cambio BCE)
+        self._record_ledger_trades(executed_orders, now_str)
 
         msg = f"Sincronización Paper completada: {len(executed_orders)} órdenes ejecutadas | {len(new_positions)} posiciones activas."
         self.store.append_log(msg, "SUCCESS")
@@ -284,10 +325,14 @@ class LocalPaperBrokerAdapter(BaseBrokerAdapter):
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         orders = []
         for p in positions:
+            client_oid = IdempotentOrderManager.generate_client_order_id(
+                now_str[:10], "KILL_SWITCH", p["broker_symbol"], "LIQUIDATE_ALL"
+            )
             orders.append(
                 {
                     "time": now_str,
                     "broker": "LOCAL_PAPER",
+                    "client_order_id": client_oid,
                     "symbol": p["broker_symbol"],
                     "side": "LIQUIDATE_ALL",
                     "qty": p["qty"],
@@ -471,6 +516,8 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
             b_sym = self.map_symbol(int_sym, cfg)
             notional_usd = round(alloc_cap * w, 2)
             side = "buy" if info.get("direction", "LONG") == "LONG" else "sell"
+            motor = info.get("motor", "CORE_BULL")
+            client_oid = IdempotentOrderManager.generate_client_order_id(now_str[:10], motor, b_sym, side.upper())
 
             order_payload = json.dumps(
                 {
@@ -479,6 +526,7 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
                     "side": side,
                     "type": "market",
                     "time_in_force": "day",
+                    "client_order_id": client_oid,
                 }
             ).encode("utf-8")
 
@@ -495,12 +543,13 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
                         {
                             "time": now_str,
                             "broker": "ALPACA_PAPER",
+                            "client_order_id": client_oid,
                             "symbol": b_sym,
                             "side": side.upper(),
                             "qty": o_resp.get("qty") or "Fraccional",
                             "price": self.get_live_price(b_sym),
                             "notional_usd": notional_usd,
-                            "motor": info.get("motor", "CORE_BULL"),
+                            "motor": motor,
                             "reason": info.get("reason", reason_summary),
                             "status": o_resp.get("status", "ACCEPTED").upper(),
                         }

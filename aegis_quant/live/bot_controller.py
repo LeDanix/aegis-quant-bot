@@ -204,6 +204,8 @@ class LiveBotController:
             self.store.save_state(res.reconciled_state)
             self.store.append_log(res.summary_message, "WARN")
         return {
+            "ok": True,
+            "message": res.summary_message,
             "in_sync": res.in_sync,
             "action_taken": res.action_taken,
             "discrepancies_count": len(res.discrepancies),
@@ -526,117 +528,125 @@ class LiveBotController:
         self.tactical_status_cache = live_res["tactical"]
         return live_res["targets"]
 
+    @staticmethod
+    def _build_simulated_targets(
+        simulate_motor: str,
+        enabled: dict[str, bool],
+        max_fast: float,
+        max_cta: float,
+    ) -> dict[str, dict[str, Any]] | None:
+        """Genera asignaciones de prueba cuando el usuario pulsa simulación en sandbox."""
+        if not enabled.get(simulate_motor, True):
+            return None
+
+        simulations = {
+            "M1_PULLBACK": {
+                "QQQ": {
+                    "weight": max_fast,
+                    "direction": "LONG",
+                    "motor": "M1_PULLBACK",
+                    "reason": "Motor 1 (Pullback): RSI(2)<10 + 3 dias de caida en tendencia alcista",
+                },
+                "SPY": {
+                    "weight": round(1.0 - max_fast, 2),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": "Core Inteligente S&P 500 (Tendencia alcista en contango)",
+                },
+            },
+            "M2_VIX_DIV": {
+                "SPY": {
+                    "weight": max_fast,
+                    "direction": "LONG",
+                    "motor": "M2_VIX_DIV",
+                    "reason": "Motor 2 (Divergencia VIX): Compresion de VIX desde pico 5d con RSI(2)<20",
+                },
+                "QQQ": {
+                    "weight": round(1.0 - max_fast, 2),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": "Core Inteligente Nasdaq 100",
+                },
+            },
+            "M4_CTA_TREND": {
+                "ZS": {
+                    "weight": max_cta,
+                    "direction": "LONG",
+                    "motor": "M4_CTA_TREND",
+                    "reason": "Motor 4 (CTA Materias Primas): Ruptura Donchian 20d en Soja (ETF SOYB)",
+                },
+                "USO": {
+                    "weight": 0.25,
+                    "direction": "LONG",
+                    "motor": "M4_CTA_TREND",
+                    "reason": "Motor 4 (CTA Materias Primas): Tendencia alcista en Petroleo (USO)",
+                },
+                "SPY": {
+                    "weight": round(1.0 - max_cta - 0.25, 2),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": "Core Inteligente S&P 500",
+                },
+            },
+            "M5_VOL_CRUSH": {
+                "SPY": {
+                    "weight": max_fast,
+                    "direction": "LONG",
+                    "motor": "M5_VOL_CRUSH",
+                    "reason": "Motor 5 (Vol-Crush Institucional): Colapso VIX/VIX3M > 5%",
+                },
+                "QQQ": {
+                    "weight": round(1.0 - max_fast, 2),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": "Core Nasdaq 100",
+                },
+            },
+            "M3_BEAR_SHORT": {
+                "QQQ": {
+                    "weight": 0.35,
+                    "direction": "SHORT",
+                    "motor": "M3_BEAR_SHORT",
+                    "reason": "Motor 3 (Corto en Crisis): Agotamiento de rebote en mercado bajista",
+                },
+                "GLD": {
+                    "weight": max_cta,
+                    "direction": "LONG",
+                    "motor": "M4_CTA_TREND",
+                    "reason": "Motor 4 (Refugio en Oro GLD durante crisis)",
+                },
+            },
+            "M6_TOTM": {
+                "QQQ": {
+                    "weight": max_fast,
+                    "direction": "LONG",
+                    "motor": "M6_TOTM",
+                    "reason": "Motor 6 (Flujo Fin de Mes TOTM): Debilidad RSI(2)<35 previa a flujos institucionales",
+                },
+                "SPY": {
+                    "weight": round(1.0 - max_fast, 2),
+                    "direction": "LONG",
+                    "motor": "CORE_BULL",
+                    "reason": "Core Inteligente S&P 500 (Ventana TOTM en Contango)",
+                },
+            },
+        }
+        return simulations.get(simulate_motor)
+
     def compute_target_portfolio(
         self, simulate_motor: str | None = None, refresh_remote: bool = True
     ) -> dict[str, dict[str, Any]]:
-        """
-        Calcula las ponderaciones objetivo de la cartera:
-          - Modo simulación de motor táctico (para comprobación rápida).
-          - Evaluación dinámica en vivo de Motores M1–M5 + Core Adaptativo Modo 3 Élite.
-        """
-        cfg = self.store.get_config()
-        enabled = cfg.get("enabled_motors", {})
-        max_fast = float(cfg.get("max_fast_slot_pct", 55.0)) / 100.0
-        max_cta = float(cfg.get("max_cta_slot_pct", 40.0)) / 100.0
-
-        targets: dict[str, dict[str, Any]] = {}
-
-        # Simulación táctica de motores a petición del usuario
-        if simulate_motor == "M1_PULLBACK" and enabled.get("M1_PULLBACK", True):
-            targets["QQQ"] = {
-                "weight": max_fast,
-                "direction": "LONG",
-                "motor": "M1_PULLBACK",
-                "reason": "Motor 1 (Pullback): RSI(2)<10 + 3 dias de caida en tendencia alcista",
-            }
-            targets["SPY"] = {
-                "weight": round(1.0 - max_fast, 2),
-                "direction": "LONG",
-                "motor": "CORE_BULL",
-                "reason": "Core Inteligente S&P 500 (Tendencia alcista en contango)",
-            }
-            return targets
-
-        if simulate_motor == "M2_VIX_DIV" and enabled.get("M2_VIX_DIV", True):
-            targets["SPY"] = {
-                "weight": max_fast,
-                "direction": "LONG",
-                "motor": "M2_VIX_DIV",
-                "reason": "Motor 2 (Divergencia VIX): Compresion de VIX desde pico 5d con RSI(2)<20",
-            }
-            targets["QQQ"] = {
-                "weight": round(1.0 - max_fast, 2),
-                "direction": "LONG",
-                "motor": "CORE_BULL",
-                "reason": "Core Inteligente Nasdaq 100",
-            }
-            return targets
-
-        if simulate_motor == "M4_CTA_TREND" and enabled.get("M4_CTA_TREND", True):
-            targets["ZS"] = {
-                "weight": max_cta,
-                "direction": "LONG",
-                "motor": "M4_CTA_TREND",
-                "reason": "Motor 4 (CTA Materias Primas): Ruptura Donchian 20d en Soja (ETF SOYB)",
-            }
-            targets["USO"] = {
-                "weight": 0.25,
-                "direction": "LONG",
-                "motor": "M4_CTA_TREND",
-                "reason": "Motor 4 (CTA Materias Primas): Tendencia alcista en Petroleo (USO)",
-            }
-            targets["SPY"] = {
-                "weight": round(1.0 - max_cta - 0.25, 2),
-                "direction": "LONG",
-                "motor": "CORE_BULL",
-                "reason": "Core Inteligente S&P 500",
-            }
-            return targets
-
-        if simulate_motor == "M5_VOL_CRUSH" and enabled.get("M5_VOL_CRUSH", True):
-            targets["SPY"] = {
-                "weight": max_fast,
-                "direction": "LONG",
-                "motor": "M5_VOL_CRUSH",
-                "reason": "Motor 5 (Vol-Crush Institucional): Colapso VIX/VIX3M > 5%",
-            }
-            targets["QQQ"] = {
-                "weight": round(1.0 - max_fast, 2),
-                "direction": "LONG",
-                "motor": "CORE_BULL",
-                "reason": "Core Nasdaq 100",
-            }
-            return targets
-
-        if simulate_motor == "M3_BEAR_SHORT" and enabled.get("M3_BEAR_SHORT", True):
-            targets["QQQ"] = {
-                "weight": 0.35,
-                "direction": "SHORT",
-                "motor": "M3_BEAR_SHORT",
-                "reason": "Motor 3 (Corto en Crisis): Agotamiento de rebote en mercado bajista",
-            }
-            targets["GLD"] = {
-                "weight": max_cta,
-                "direction": "LONG",
-                "motor": "M4_CTA_TREND",
-                "reason": "Motor 4 (Refugio en Oro GLD durante crisis)",
-            }
-            return targets
-
-        if simulate_motor == "M6_TOTM" and enabled.get("M6_TOTM", True):
-            targets["QQQ"] = {
-                "weight": max_fast,
-                "direction": "LONG",
-                "motor": "M6_TOTM",
-                "reason": "Motor 6 (Flujo Fin de Mes TOTM): Debilidad RSI(2)<35 previa a flujos institucionales T+1..T+4",
-            }
-            targets["SPY"] = {
-                "weight": round(1.0 - max_fast, 2),
-                "direction": "LONG",
-                "motor": "CORE_BULL",
-                "reason": "Core Inteligente S&P 500 (Ventana TOTM en Contango)",
-            }
-            return targets
+        """Calcula las ponderaciones objetivo de la cartera."""
+        if simulate_motor:
+            cfg = self.store.get_config()
+            sim_targets = self._build_simulated_targets(
+                simulate_motor=simulate_motor,
+                enabled=cfg.get("enabled_motors", {}),
+                max_fast=float(cfg.get("max_fast_slot_pct", 55.0)) / 100.0,
+                max_cta=float(cfg.get("max_cta_slot_pct", 40.0)) / 100.0,
+            )
+            if sim_targets is not None:
+                return sim_targets
 
         # Evaluación dinámica en vivo de Motores M1–M6 + Core Modo 3 Élite
         return self._evaluate_live_engine(refresh_remote=refresh_remote)
