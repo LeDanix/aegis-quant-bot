@@ -237,6 +237,8 @@ class LiveBotController:
         diff_hours = int(round(offset_madrid - offset_ny))
         is_dst_mismatch = diff_hours != 6
 
+        is_open, market_status_desc = LiveBotController.is_market_open_now(now_ny)
+
         return {
             "ny_time": now_ny.strftime("%Y-%m-%d %H:%M:%S %Z"),
             "madrid_time": now_madrid.strftime("%Y-%m-%d %H:%M:%S %Z"),
@@ -244,6 +246,8 @@ class LiveBotController:
             "schedule_time_madrid": f"{madrid_scheduled_hhmm} {madrid_tz_abbr}",
             "time_diff_hours": diff_hours,
             "is_dst_mismatch": is_dst_mismatch,
+            "is_market_open": is_open,
+            "market_status_desc": market_status_desc,
             "mismatch_notice": (
                 f"Desfase estacional activo ({diff_hours}h de diferencia en vez de 6h). "
                 f"Wall Street cierra hoy a las {madrid_scheduled_hhmm} {madrid_tz_abbr} en España."
@@ -251,6 +255,44 @@ class LiveBotController:
                 else ""
             ),
         }
+
+    @staticmethod
+    def is_market_open_now(now_ny: Optional[datetime] = None) -> Tuple[bool, str]:
+        """
+        Determina con precisión al minuto si la sesión regular de Wall Street (NYSE/Nasdaq)
+        está actualmente abierta:
+        - Lunes a viernes
+        - No es festivo oficial NYSE
+        - Entre las 09:30:00 y las 16:00:00 hora de Nueva York (America/New_York).
+        """
+        if now_ny is None:
+            try:
+                now_ny = datetime.now(ZoneInfo("America/New_York"))
+            except Exception:
+                now_ny = datetime.now()
+
+        today_date = now_ny.date() if isinstance(now_ny, datetime) else now_ny
+        weekday = today_date.weekday()
+
+        if weekday == 5:
+            return False, "Mercado cerrado: Fin de semana (Sábado). Wall Street inactivo."
+        if weekday == 6:
+            return False, "Mercado cerrado: Fin de semana (Domingo). Wall Street inactivo."
+
+        holidays = get_nyse_holidays(today_date.year)
+        if today_date in holidays:
+            return False, f"Mercado cerrado: Festivo oficial en Wall Street ({holidays[today_date]})."
+
+        if isinstance(now_ny, datetime):
+            hhmm = now_ny.hour * 60 + now_ny.minute
+            open_mm = 9 * 60 + 30    # 09:30 ET
+            close_mm = 16 * 60       # 16:00 ET
+            if hhmm < open_mm:
+                return False, "Mercado cerrado: Pre-apertura (abre a las 09:30 NY)."
+            if hhmm >= close_mm:
+                return False, "Mercado cerrado: Fuera de sesión regular (cerró a las 16:00 NY)."
+
+        return True, "Mercado abierto: Sesión regular activa en Wall Street."
 
     @staticmethod
     def get_market_session_status(now_ny: Optional[datetime] = None) -> Tuple[bool, str]:
@@ -337,25 +379,35 @@ class LiveBotController:
             "TLT": "TLT",
             "USO": "USO",
             "ZS": "ZS%3DF",
+            "BTC": "BTC-USD",
         }
 
         def _fetch_one(item: Tuple[str, str]) -> Tuple[str, Dict[str, Any], Optional[float]]:
             sym, y_sym = item
             try:
-                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{y_sym}?interval=1d&range=5d"
+                # Usar range=1d para que chartPreviousClose corresponda a la sesión anterior exacta (ayer)
+                # y no a hace 5 días (lo que falseaba el cambio diario con range=5d).
+                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{y_sym}?interval=1d&range=1d"
                 req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(req, timeout=3.5) as resp:
                     data = json.loads(resp.read().decode("utf-8"))["chart"]["result"][0]["meta"]
                     px = data.get("regularMarketPrice")
-                    prev = data.get("chartPreviousClose")
+                    prev = data.get("chartPreviousClose") or data.get("previousClose")
+                    pct_direct = data.get("regularMarketChangePercent")
                     if px is not None:
                         px_val = round(float(px), 2)
-                        pct = round(((px_val - prev) / prev) * 100.0, 2) if prev and px_val else 0.0
+                        prev_val = round(float(prev), 2) if prev is not None else px_val
+                        if pct_direct is not None:
+                            pct = round(float(pct_direct), 2)
+                        elif prev_val and px_val:
+                            pct = round(((px_val - prev_val) / prev_val) * 100.0, 2)
+                        else:
+                            pct = 0.0
                         return (
                             sym,
                             {
                                 "price": px_val,
-                                "prev_close": round(float(prev), 2) if prev else px_val,
+                                "prev_close": prev_val,
                                 "change_pct": pct,
                             },
                             px_val,
@@ -894,6 +946,8 @@ class LiveBotController:
             "ny_time": t_info["ny_time"],
             "schedule_time_ny": t_info["schedule_time_ny"],
             "schedule_time_madrid": t_info["schedule_time_madrid"],
+            "is_market_open": t_info.get("is_market_open", False),
+            "market_status_desc": t_info.get("market_status_desc", ""),
             "time_info": t_info,
             "market_pulse": self.market_pulse_cache,
             "config": cfg,

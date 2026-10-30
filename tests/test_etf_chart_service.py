@@ -12,12 +12,12 @@ class TestEtfChartService(unittest.TestCase):
         self.service = EtfChartService(base_dir=BASE_DIR)
 
     def test_all_six_managed_etfs_load_cleanly(self) -> None:
-        self.assertEqual(ORDERED_ETF_SYMBOLS, ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS"])
+        self.assertEqual(ORDERED_ETF_SYMBOLS, ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS", "BTC"])
         for sym in ORDERED_ETF_SYMBOLS:
             res = self.service.get_etf_payload(sym)
             self.assertTrue(res["ok"])
             self.assertEqual(res["selected_symbol"], sym)
-            self.assertEqual(len(res["catalog"]), 6)
+            self.assertEqual(len(res["catalog"]), 7)
 
             etf = res["etf"]
             self.assertEqual(etf["meta"]["symbol"], sym)
@@ -25,7 +25,7 @@ class TestEtfChartService(unittest.TestCase):
 
             s = etf["series"]
             n = len(s["dates"])
-            self.assertGreater(n, 4000)
+            self.assertGreater(n, 3000)
             self.assertEqual(len(s["opens"]), n)
             self.assertEqual(len(s["highs"]), n)
             self.assertEqual(len(s["lows"]), n)

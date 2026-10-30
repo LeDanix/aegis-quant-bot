@@ -34,6 +34,7 @@ class MetaLabelRiskManager:
         stop_distance_pct: float,
         meta_confidence: float = 1.0,
         engine_id: str = "",
+        symbol: str = "",
     ) -> float:
         eff_stop = max(1.35, stop_distance_pct)
         conf_mult = meta_confidence if self.use_meta_confidence else 1.0
@@ -41,7 +42,10 @@ class MetaLabelRiskManager:
         # Presupuesto de riesgo equilibrado por familia de motor para que un trade CTA largo
         # de 30 días nunca bloquee la liquidez de los motores rápidos de 4 días (M1/M2/M3/M5).
         engine_cap = self.max_cta_weight if engine_id == "M4_CTA_TREND" else self.max_tactical_weight
-        return round(min(engine_cap, max(0.15, raw_w)), 4)
+        if symbol == "BTC":
+            engine_cap = min(engine_cap, 0.15)
+        min_w = 0.05 if symbol == "BTC" else 0.15
+        return round(min(engine_cap, max(min_w, raw_w)), 4)
 
     def classify_regime(self, spy_bar: EnrichedBar) -> str:
         """

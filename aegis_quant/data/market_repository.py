@@ -24,6 +24,7 @@ class MarketDataRepository:
         "TLT":   {"yahoo": "TLT",      "name": "US Treasury 20+ Yr Bond",    "asset_class": "bond_safe"},
         "USO":   {"yahoo": "USO",      "name": "WTI Crude Oil ETF",          "asset_class": "commodity_cyc"},
         "ZS":    {"yahoo": "ZS%3DF",   "name": "CME Soybean Futures (Soja)", "asset_class": "commodity_agri"},
+        "BTC":   {"yahoo": "BTC-USD",  "name": "Bitcoin (BTC-USD / BTCE)",   "asset_class": "crypto_cta"},
     }
 
     # Símbolos auxiliares usados en investigación (no forman parte del universo operativo).

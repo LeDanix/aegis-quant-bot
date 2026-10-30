@@ -119,7 +119,7 @@ class AegisPortfolioEngine:
                     t.meta_confidence = round(min(1.35, t.meta_confidence + 0.20), 2)
 
         if _is_on("M4_CTA_TREND"):
-            for cta_sym in ("GLD", "USO", "ZS", "TLT"):
+            for cta_sym in ("GLD", "USO", "ZS", "TLT", "BTC"):
                 if cta_sym in self.universe:
                     raw.extend(
                         self.m4_cta_trend.simulate(
@@ -153,7 +153,7 @@ class AegisPortfolioEngine:
                 continue
 
             desired_w = risk_manager.compute_tactical_weight(
-                t.stop_distance_pct, t.meta_confidence, engine_id=t.engine_id
+                t.stop_distance_pct, t.meta_confidence, engine_id=t.engine_id, symbol=t.symbol
             )
             w = round(min(desired_w, avail_weight), 4)
             t.position_weight = w
@@ -447,7 +447,7 @@ class AegisPortfolioEngine:
                     signals.append(sig)
 
         if en.get("M4_CTA_TREND", True):
-            for cta_sym in ("GLD", "USO", "ZS", "TLT"):
+            for cta_sym in ("GLD", "USO", "ZS", "TLT", "BTC"):
                 if cta_sym not in self.universe:
                     continue
                 sig = self.m4_cta_trend.evaluate_live(cta_sym, self.universe[cta_sym])

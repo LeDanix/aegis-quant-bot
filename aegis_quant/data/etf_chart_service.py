@@ -87,9 +87,19 @@ ETF_UNIVERSE_META: Dict[str, Dict[str, str]] = {
         "ter": "0,49% (SOYB)",
         "engines": "Motor 4 · Tendencia Multi-Activo CTA",
     },
+    "BTC": {
+        "symbol": "BTC",
+        "display_name": "Bitcoin Spot / Physical ETP",
+        "asset_class": "Activo Digital Asimétrico (Cripto)",
+        "ucits_ticker": "BTCE / 21BC",
+        "isin": "DE000A27Z304 / CH1199067054",
+        "venue": "Tradegate (TGATE) / Xetra · EUR",
+        "ter": "0,21% (21BC) / 0,60% (BTCE)",
+        "engines": "Motor 4 · Tendencia Multi-Activo CTA (Cap 15%)",
+    },
 }
 
-ORDERED_ETF_SYMBOLS: List[str] = ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS"]
+ORDERED_ETF_SYMBOLS: List[str] = ["SPY", "QQQ", "GLD", "TLT", "USO", "ZS", "BTC"]
 
 ETF_HOURLY_YAHOO_TICKERS: Dict[str, str] = {
     "SPY": "SPY",
@@ -98,6 +108,7 @@ ETF_HOURLY_YAHOO_TICKERS: Dict[str, str] = {
     "TLT": "TLT",
     "USO": "USO",
     "ZS": "ZS=F",
+    "BTC": "BTC-USD",
 }
 
 

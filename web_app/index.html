@@ -192,8 +192,8 @@
               <span>Última sincronización: <span id="pt-last-scan" class="font-mono tabular-nums font-semibold text-slate-800 dark:text-slate-200">--</span></span>
               <span class="hidden sm:inline text-slate-300 dark:text-slate-700">·</span>
               <span>Cierre diario: <span id="pt-sched-label" class="font-mono tabular-nums font-semibold text-slate-800 dark:text-slate-200">15:55 NY (21:55 Madrid)</span></span>
-              <span id="pt-dst-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                NY / Madrid
+              <span id="pt-dst-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-xs transition-colors" title="Estado de la sesión de Wall Street (NYSE/Nasdaq) y desfase horario">
+                ○ Mercado Cerrado · DST Desfase EU/US (5h · EDT/CET)
               </span>
             </div>
           </div>
@@ -575,7 +575,7 @@
               Seleccionar ETF a visualizar
             </label>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Universo de 6 ETFs operados por Aegis-Quant (referencia EE. UU. y equivalente UCITS en Tradegate)
+              Universo de 7 ETFs operados por Aegis-Quant (referencia EE. UU. y equivalente UCITS en Tradegate)
             </p>
           </div>
           <div class="w-full sm:w-96 shrink-0">
@@ -587,12 +587,13 @@
               <option value="TLT">TLT — Bonos Tesoro EE. UU. 20+ (UCITS: DTLA)</option>
               <option value="USO">USO — Petróleo WTI Energy ETF (UCITS: CRUD)</option>
               <option value="ZS">ZS — Soja Agrícola ETF (UCITS: SOYB)</option>
+              <option value="BTC">BTC — Bitcoin Spot / Physical ETP (UCITS: BTCE / 21BC)</option>
             </select>
           </div>
         </div>
 
-        <!-- ACCESO RÁPIDO A LOS 6 ETFS -->
-        <div id="etf-quick-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+        <!-- ACCESO RÁPIDO A LOS 7 ETFS -->
+        <div id="etf-quick-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 pt-1">
           <button type="button" onclick="selectEtfSymbol('SPY')" class="p-2.5 rounded-md border border-brand-700 bg-brand-50/70 dark:bg-slate-800 dark:border-brand-500 text-left transition">
             <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>SPY</span><span class="text-[10px] text-brand-700 dark:text-brand-300">SPYL</span></div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">S&amp;P 500</div>
@@ -616,6 +617,10 @@
           <button type="button" onclick="selectEtfSymbol('ZS')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
             <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>ZS</span><span class="text-[10px] text-slate-400">SOYB</span></div>
             <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Soja Agrícola</div>
+          </button>
+          <button type="button" onclick="selectEtfSymbol('BTC')" class="p-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-left transition">
+            <div class="flex items-center justify-between text-xs font-mono font-bold text-slate-900 dark:text-slate-100"><span>BTC</span><span class="text-[10px] text-amber-700 dark:text-amber-300">BTCE</span></div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">Bitcoin ETP</div>
           </button>
         </div>
       </div>
@@ -671,10 +676,8 @@
               </button>
             </div>
 
-            <!-- Selector de Horizonte Temporal (1D y 1S usan resolución horaria, 1M a Todo diaria) -->
+            <!-- Selector de Horizonte Temporal (1M a Todo con ventana rodante) -->
             <div class="inline-flex rounded-md border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-50 dark:bg-slate-800 text-[11px] font-mono">
-              <button id="etf-range-1D" type="button" onclick="setEtfRange('1D')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition" title="1 Día (Velas de 1 hora)">1D</button>
-              <button id="etf-range-1S" type="button" onclick="setEtfRange('1S')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition" title="1 Semana (Velas de 1 hora)">1S</button>
               <button id="etf-range-1M" type="button" onclick="setEtfRange('1M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">1M</button>
               <button id="etf-range-3M" type="button" onclick="setEtfRange('3M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">3M</button>
               <button id="etf-range-6M" type="button" onclick="setEtfRange('6M')" class="px-2 py-1 rounded font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">6M</button>
@@ -688,8 +691,8 @@
         <!-- Leyenda técnica limpia y estado de refresco horario -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 dark:text-slate-400">
           <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0.5 bg-brand-700 dark:bg-brand-400 inline-block"></span> Precio ETF</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0 border-t-2 border-dashed border-amber-600 inline-block"></span> Media SMA(50)</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-3 h-0 border-t-2 border-dashed border-slate-500 inline-block"></span> Directriz Institucional SMA(200)</span>
+          <span class="inline-flex items-center gap-1.5"><span style="width: 14px; height: 0; border-top: 2px dashed #d97706; display: inline-block; vertical-align: middle;"></span> Media SMA(50)</span>
+          <span class="inline-flex items-center gap-1.5"><span style="width: 14px; height: 0; border-top: 2px dashed #64748b; display: inline-block; vertical-align: middle;"></span> Directriz Institucional SMA(200)</span>
           <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300 dark:bg-slate-700 inline-block"></span> Volumen</span>
           
           <div class="ml-auto flex items-center gap-2">
@@ -853,31 +856,93 @@
 
       <!-- SUB-TAB 2: ARQUITECTURA DE ESTRATEGIA Y EJECUCIÓN TRADEGATE -->
       <div id="perf-view-guide" class="space-y-4 sm:space-y-6 hidden">
-        <div class="panel p-4 sm:p-6 space-y-4">
-          <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">Arquitectura Híbrida Modo 3 Élite (6 Motores + Núcleo Adaptativo)</h2>
-          <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            La inversión pasiva captura mercados alcistas pero sufre caídas superiores al 50% en crisis sistémicas; los sistemas puramente tácticos evitan desplomes pero mantienen exceso de liquidez improductiva en ciclos expansivos. Modo 3 Élite combina ambos bloques sin apalancamiento ni deuda (exposición máxima total del 100%):
-          </p>
+        <!-- BLOQUE 1: FUNDAMENTOS Y GESTIÓN OPERATIVA (4 TARJETAS INTERACTIVAS CLICABLES) -->
+        <div class="space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">Fundamentos, Gestión de Capital y Operativa Real</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Pulsa cualquier tarjeta para abrir la ficha técnica interactiva con diagramas, reglas cuantitativas y ejemplos</p>
+            </div>
+            <span class="text-[11px] font-mono font-semibold px-2.5 py-1 rounded bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0 self-start sm:self-auto">3 Módulos de Estudio</span>
+          </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1 text-xs">
-            <div class="p-4 rounded-md border border-brand-200 dark:border-brand-800 bg-brand-50/60 dark:bg-slate-800 space-y-1.5">
-              <h3 class="font-bold text-brand-900 dark:text-brand-200 text-sm">Capa 1: Núcleo Dual-Momentum con Volatility Targeting</h3>
-              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
-                En régimen de Contango (VIX &lt; VIX3M) y tendencia alcista sobre SMA(200), asigna la liquidez no ocupada por motores tácticos entre S&amp;P 500 y Nasdaq 100, modulando exposición hacia una volatilidad objetivo del 16% anual.
-              </p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs">
+            <!-- Tarjeta 1: Arquitectura Híbrida -->
+            <div onclick="openStrategyExplainer('ARCHITECTURE')"
+              class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/20 dark:hover:bg-slate-800/80 transition group">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-1.5">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">Cúspide de la Pirámide</span>
+                  <span class="text-[10px] text-slate-400 font-mono">0% Apalancamiento</span>
+                </div>
+                <h3 class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 text-sm transition">
+                  Arquitectura Híbrida Modo 3 Élite
+                </h3>
+                <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Simbiosis entre la <b>Capa 1 (Núcleo Dual-Momentum con Volatility Targeting al 16% sobre capital ocioso)</b> y la <b>Capa 2 (Escudo total en Backwardation y 6 motores tácticos)</b>. Elimina tanto el desplome de la inversión pasiva como el *cash drag* improductivo.
+                </p>
+              </div>
+              <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+                <span>Ver fundamento y diagrama de capas</span>
+                <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+              </div>
             </div>
 
-            <div class="p-4 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-1.5">
-              <h3 class="font-bold text-slate-900 dark:text-slate-100 text-sm">Capa 2: Escudo en Backwardation y 6 Motores Descorrelacionados</h3>
-              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
-                Cuando la estructura VIX/VIX3M entra en Backwardation (&ge; 1.0), el núcleo pasivo de bolsa se reduce al 0% y el capital queda reservado para los 6 motores tácticos de reversión, volatilidad, cobertura CTA, cortos y flujo mensual.
-              </p>
+            <!-- Tarjeta 2: Gestión de Capital y Concurrencia -->
+            <div onclick="openStrategyExplainer('CAPITAL_CONCURRENCY')"
+              class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/20 dark:hover:bg-slate-800/80 transition group">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-1.5">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">Paridad de Riesgo &amp; Concurrencia</span>
+                  <span class="text-[10px] text-slate-400 font-mono">R = 2.5%</span>
+                </div>
+                <h3 class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 text-sm transition">
+                  Gestión de Capital y Resolución de Concurrencia
+                </h3>
+                <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Dimensionamiento sistemático por <b>Riesgo Fijo (2,5%) dividido por la Distancia al Stop Loss</b>, tope del 40% en M4 y límite de 3 slots. Explica qué ocurre cuando M4 da señal con la liquidez ocupada por M1: <b>por qué nunca se desinvierte forzosamente</b>.
+                </p>
+              </div>
+              <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+                <span>Ver dimensionamiento y resolución de conflictos</span>
+                <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+              </div>
+            </div>
+
+            <!-- Tarjeta 3: Ejecución Real desde España y Fiscalidad -->
+            <div onclick="openStrategyExplainer('EXECUTION_SPAIN')"
+              class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/20 dark:hover:bg-slate-800/80 transition group">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-1.5">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">Opción A: Tradegate (TGATE)</span>
+                  <span class="text-[10px] text-slate-400 font-mono">21:55 CET / IBKR</span>
+                </div>
+                <h3 class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 text-sm transition">
+                  Ejecución Real en España y Fiscalidad AEAT
+                </h3>
+                <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Operativa europea en Euros cumpliendo PRIIPs/MiFID II mediante <b>órdenes Limit DAY a las 21:55 CET</b> en Tradegate sobre 7 ETFs UCITS de réplica física. Tratamiento fiscal en IRPF: <b>FIFO por ISIN, regla de los 2 meses y casillas 0326–0335</b>.
+                </p>
+              </div>
+              <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
+                <span>Ver operativa Tradegate y régimen fiscal</span>
+                <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- CUADRÍCULA SIMÉTRICA 3x2 DE LOS 6 MOTORES CUANTITATIVOS (INTERACTIVA) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+        <!-- BLOQUE 2: CUADRÍCULA SIMÉTRICA 3x2 DE LOS 6 MOTORES CUANTITATIVOS (INTERACTIVA) -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">Los 6 Motores Cuantitativos Descorrelacionados (M1–M6)</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Pulsa cualquier motor para examinar su ficha con código Python y gráfica de velas reales</p>
+            </div>
+            <span class="text-[11px] text-slate-400 font-mono">Modo 3 Élite</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
           <!-- Motor 1 -->
           <div onclick="openMotorDetailModal('M1_PULLBACK')"
             class="panel p-4 space-y-3 flex flex-col justify-between cursor-pointer border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-brand-600 dark:hover:border-brand-500 hover:bg-brand-50/30 dark:hover:bg-slate-800/80 transition group">
@@ -932,9 +997,9 @@
             <div class="space-y-1.5">
               <div class="flex items-center justify-between gap-1.5">
                 <span class="font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition">Motor 4: Tendencia Multi-Activo CTA (M4)</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Commodities</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Oro / Bonos / Petróleo / Soja / BTC</span>
               </div>
-              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Captura rupturas Donchian de 20 sesiones con alineación de medias en activos refugio e inflacionarios: Oro (GLD), Bonos Largo Plazo (TLT), Petróleo (USO) y Soja (SOYB).</p>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed">Captura rupturas Donchian de 20 sesiones con confirmación de medias en activos descorrelacionados: Oro (4GLD), Bonos (DTLA), Petróleo (CRUD), Soja (SOYB) y Bitcoin (BTCE).</p>
             </div>
             <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold text-brand-700 dark:text-brand-300">
               <span>Ver ficha explicativa y velas</span>
@@ -974,14 +1039,8 @@
             </div>
           </div>
         </div>
-
-        <!-- RESUMEN OPERATIVO OPCIÓN A: EJECUCIÓN EUROPEA EN TRADEGATE -->
-        <div class="panel p-4 sm:p-5 space-y-2.5 text-xs">
-          <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Ejecución Real desde España — Opción A: ETFs UCITS en Tradegate (08:00–22:00 CET)</h3>
-          <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
-            Para ejecutar la señal de las 21:55 CET (15:55 NY) cumpliendo la normativa europea PRIIPs sin apalancamiento de futuros, las órdenes se enrutan a <b>Tradegate Exchange (TGATE)</b> en Interactive Brokers en Euros mediante <b>órdenes limitadas (Limit, vigencia DAY, margen máx. 0,08%)</b> sobre réplicas UCITS acumulativas: <code>SPYL / SXR8</code> (S&amp;P 500), <code>EQQQ</code> (Nasdaq 100), <code>4GLD / SGLD</code> (Oro), <code>DTLA</code> (Bonos 20+ años), <code>CRUD</code> (Petróleo), <code>SOYB</code> (Soja) y <code>DXS3</code> (ETF inverso -1x para cortos puntuales del Motor 3).
-          </p>
         </div>
+      </div>
       </div>
 
       <!-- SUB-TAB 3: CRISIS & ROBUSTNESS -->
@@ -1177,7 +1236,7 @@
               <span id="aeat-kpi-deferred-sub" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono block truncate">Art. 33.5.f LIRPF</span>
             </div>
 
-            <div class="p-3.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60">
+            <div class="p-3.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/60" title="Patrimonio total custodiado en el broker extranjero convertido a EUR al tipo oficial del BCE frente al umbral declarativo de 50.000 € del Modelo 720">
               <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium block truncate">Control Modelo 720 (50k €)</span>
               <div id="aeat-kpi-720" class="kpi-num text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 font-mono mt-0.5">Exento</div>
               <span id="aeat-kpi-720-sub" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono block truncate">-- € (0% del umbral)</span>
@@ -1246,42 +1305,116 @@
           <div>
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider font-mono">Backtest Fiscal 2007–2026</span>
-              <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">Cascada Histórica de Costes Operativos e IRPF (Modo 3 Élite · 6 Motores)</h2>
+              <h2 class="text-sm font-bold text-slate-900 dark:text-slate-100">Cascada Histórica de Costes Operativos e IRPF (Modo 3 Élite con Bitcoin)</h2>
             </div>
             <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
-              Simulación de $10,000 iniciales deduciendo comisiones de Interactive Brokers (0.05%), spread (0.02%), TER UCITS (0.10%) y liquidación anual del IRPF (19%–28%) con compensación de pérdidas a 4 años.
+              Simulación auditada de $10.000 iniciales deduciendo comisiones de Interactive Brokers (0.05%), spread (0.02%), TER UCITS/ETP (0.10%) y liquidación anual del IRPF (19%–28%) con compensación de pérdidas a 4 años.
             </p>
           </div>
           <div class="text-left md:text-right shrink-0">
             <span class="text-xs text-slate-500 dark:text-slate-400 block">Impacto Fiscal + Operativo:</span>
-            <span id="tax-drag-badge" class="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums">-4.33% CAGR</span>
+            <span id="tax-drag-badge" class="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums">-5.07% CAGR</span>
           </div>
         </div>
 
         <!-- 4 KPIs HISTÓRICOS FISCALES (ACTUALIZADOS DINÁMICAMENTE POR JS) -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div class="panel p-3.5 sm:p-4 space-y-1 border-l-2 border-brand-700">
-            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Neto en Bolsillo</span>
-            <div id="tax-kpi-net-cap" class="kpi-num text-base sm:text-xl font-bold text-brand-700 dark:text-brand-300 font-mono">$164,521.64</div>
-            <div id="tax-kpi-net-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">+1,545% (15.21% CAGR)</div>
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Neto en Bolsillo</span>
+              <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-300 font-semibold border border-brand-200 dark:border-brand-800">2 Vías IRPF</span>
+            </div>
+            <div id="tax-kpi-net-cap" class="kpi-num text-base sm:text-xl font-bold text-brand-700 dark:text-brand-300 font-mono">$267,425.58</div>
+            <div id="tax-kpi-net-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">+2,574% (18.06% CAGR)</div>
           </div>
 
           <div class="panel p-3.5 sm:p-4 space-y-1 border-l-2 border-slate-400">
-            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Bruto (6 Motores)</span>
-            <div id="tax-kpi-gross-cap" class="kpi-num text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">$341,057.69</div>
-            <div id="tax-kpi-gross-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">+3,311% (19.54% CAGR)</div>
+            <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Capital Bruto (Con Bitcoin)</span>
+            <div id="tax-kpi-gross-cap" class="kpi-num text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">$614,368.50</div>
+            <div id="tax-kpi-gross-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">+6,044% (23.13% CAGR)</div>
           </div>
 
           <div class="panel p-3.5 sm:p-4 space-y-1 border-l-2 border-slate-400">
             <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Total IRPF Liquidado</span>
-            <div id="tax-kpi-total-tax" class="kpi-num text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">$39,087.84</div>
-            <div id="tax-kpi-fees-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate">Costes bróker/TER: $6,084</div>
+            <div id="tax-kpi-total-tax" class="kpi-num text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 font-mono">$66,988.94</div>
+            <div id="tax-kpi-fees-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate">Costes bróker/TER: $8,661</div>
           </div>
 
           <div class="panel p-3.5 sm:p-4 space-y-1 border-l-2 border-brand-700">
             <span class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">Ventaja Neta vs S&amp;P 500</span>
-            <div id="tax-kpi-ratio-spy" class="kpi-num text-base sm:text-xl font-bold text-brand-700 dark:text-brand-300 font-mono">3.73x Capital</div>
-            <div id="tax-kpi-ratio-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">$164.5k vs $44.1k SPY neto</div>
+            <div id="tax-kpi-ratio-spy" class="kpi-num text-base sm:text-xl font-bold text-brand-700 dark:text-brand-300 font-mono">5.97x Capital</div>
+            <div id="tax-kpi-ratio-sub" class="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono tabular-nums">$267.4k vs $44.8k SPY neto</div>
+          </div>
+        </div>
+
+        <!-- DESGLOSE COMPARATIVO: LAS 2 VÍAS DE PAGO DEL IRPF (RETIRADA VS LIQUIDEZ EXTERNA) -->
+        <div class="panel p-4 sm:p-5 space-y-3.5 border-l-4 border-brand-700">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-300 uppercase tracking-wider font-mono border border-brand-200 dark:border-brand-800">Estrategia Fiscal de Bolsillo</span>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100">Modalidades de Liquidación del IRPF: Retirada de Cartera vs Pago con Liquidez Propia</h3>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                El IRPF se liquida una única vez al año (en la Declaración de la Renta entre mayo y junio). El inversor puede elegir si autofinanciar el pago retirando efectivo de Interactive Brokers o abonarlo desde su nómina/ahorros personales sin desinvertir.
+              </p>
+            </div>
+            <div class="shrink-0 text-left sm:text-right">
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">Ventaja por Liquidez Externa:</span>
+              <span class="text-sm font-bold text-brand-700 dark:text-brand-300 font-mono">+$212,326.10 (+79,4%)</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <!-- Vía A -->
+            <div class="p-3.5 rounded-md bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 dark:text-slate-100">Vía A: Liquidación Autofinanciada (Retirada de Cartera)</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold">Por defecto en Backtest</span>
+              </div>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                En mayo de cada ejercicio se retiran de la cuenta los impuestos devengados para pagar a la AEAT. <b>No requiere aportar ningún dinero de tu sueldo</b>, pero el capital retirado deja de componer en los años futuros (arrastre fiscal o <i>Tax Drag</i>).
+              </p>
+              <div class="pt-2 border-t border-slate-200 dark:border-slate-700 grid grid-cols-3 gap-2 font-mono text-center">
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">CAGR Neto</div>
+                  <div class="font-bold text-slate-900 dark:text-slate-100 text-xs">18.06%</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">IRPF Retirado</div>
+                  <div class="font-bold text-slate-900 dark:text-slate-100 text-xs">$66,988.94</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">Neto Final</div>
+                  <div class="font-bold text-brand-700 dark:text-brand-300 text-xs">$267,425.58</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vía B -->
+            <div class="p-3.5 rounded-md bg-brand-50/40 dark:bg-slate-800/70 border border-brand-200 dark:border-brand-800/80 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-brand-900 dark:text-brand-200">Vía B: Pago con Liquidez Externa (Sin Tocar la Inversión)</span>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-900 text-brand-800 dark:text-brand-200 font-semibold">Máximo Interés Compuesto</span>
+              </div>
+              <p class="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
+                Pagas la cuota anual del IRPF (entre ~400 $ y ~1.500 $/año durante los primeros 10 años) con tus ahorros o nómina personal. <b>El 100% del capital permanece en Interactive Brokers</b> trabajando al 22.41% CAGR operativo puro.
+              </p>
+              <div class="pt-2 border-t border-brand-200 dark:border-brand-800/60 grid grid-cols-3 gap-2 font-mono text-center">
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">Saldo en Bróker</div>
+                  <div class="font-bold text-slate-900 dark:text-slate-100 text-xs">$546,740.62</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">IRPF de Nómina</div>
+                  <div class="font-bold text-slate-900 dark:text-slate-100 text-xs">-$66,988.94</div>
+                </div>
+                <div>
+                  <div class="text-[10px] text-slate-500 dark:text-slate-400">Patrimonio Limpio</div>
+                  <div class="font-bold text-brand-700 dark:text-brand-300 text-xs">$479,751.68</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1350,6 +1483,13 @@
             <h4 class="font-bold text-slate-900 dark:text-slate-100">Obligación Informativa Modelo 720</h4>
             <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
               Al custodiar valores en Interactive Brokers (Irlanda), únicamente existe obligación de presentar el Modelo 720 informativo (entre enero y marzo, sin pago de impuestos) si el saldo a 31 de diciembre o saldo medio del 4T supera los 50.000 €.
+            </p>
+          </div>
+
+          <div class="panel p-4 space-y-1.5 md:col-span-2">
+            <h4 class="font-bold text-slate-900 dark:text-slate-100">Integración Fiscal de Bitcoin (ETP Físico Regulado en Tradegate / Xetra)</h4>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+              La operativa de Bitcoin en el bot se canaliza mediante ETPs con respaldo físico 100% y custodia segregada (BTCE, ISIN <code>DE000A27Z304</code> o 21BC, ISIN <code>CH1199067054</code> cotizados en EUR en Tradegate/Xetra). A efectos de la AEAT, tributan como valores negociados ordinarios en la <b>Base Imponible del Ahorro (19% al 28%, Casillas 0326–0335 Renta WEB)</b> con idéntica compensación FIFO y regla de 60 días. Al ser un valor cotizado en bolsa europea, <b>no aplica el Modelo 721</b> de criptoactivos, integrándose de forma unificada en el cómputo de 50.000 € del <b>Modelo 720</b> de Interactive Brokers.
             </p>
           </div>
         </div>
@@ -1511,6 +1651,40 @@
         <button id="mdm-btn-filter-trades" type="button" onclick="jumpToMotorInSimulator()" class="touch-target px-4 py-2 rounded-md bg-brand-700 hover:bg-brand-800 text-white font-semibold text-xs transition">
           Ver Todas las Operaciones en Simulador
         </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL DE EXPLICACIÓN PROFUNDA DE ESTRATEGIA (ARQUITECTURA, CONCURRENCIA, TRADEGATE, BITCOIN) -->
+  <!-- ======================================================================= -->
+  <div id="strategy-explainer-modal" class="fixed inset-0 z-50 bg-black/60 hidden items-center justify-center p-2 sm:p-4 overflow-y-auto" onclick="if(event.target===this) closeStrategyExplainerModal()">
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl text-xs overflow-hidden">
+      
+      <!-- CABECERA DE LA FICHA DE ESTRATEGIA -->
+      <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span id="sem-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800 shrink-0">--</span>
+            <h3 id="sem-title" class="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">Ficha Técnica de Estrategia</h3>
+          </div>
+          <p id="sem-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">Fundamento algorítmico y operativa institucional</p>
+        </div>
+        <button onclick="closeStrategyExplainerModal()" type="button" aria-label="Cerrar ficha" class="touch-target p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-lg font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- CUERPO DESPLAZABLE -->
+      <div id="sem-content" class="p-4 sm:p-6 overflow-y-auto space-y-4">
+        <!-- Renderizado dinámico en app.js -->
+      </div>
+
+      <!-- PIE DE ACCIONES -->
+      <div class="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/50 dark:bg-slate-900/60">
+        <button type="button" onclick="closeStrategyExplainerModal()" class="touch-target px-4 py-2 rounded-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs">
+          Cerrar
+        </button>
+        <div id="sem-actions" class="flex items-center gap-2"></div>
       </div>
 
     </div>
@@ -1738,6 +1912,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=20261027f"></script>
+  <script src="/static/app.js?v=20261030b"></script>
 </body>
 </html>

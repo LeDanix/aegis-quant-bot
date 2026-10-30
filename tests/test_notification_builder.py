@@ -149,6 +149,51 @@ class TestNotificationBuilder(unittest.TestCase):
         self.assertFalse(closed)
         self.assertIn("Sesión de negociación activa", reason)
 
+    def test_is_market_open_now_and_time_info(self):
+        import datetime
+        from zoneinfo import ZoneInfo
+
+        # Pre-apertura (09:15 ET)
+        pre = datetime.datetime(2026, 10, 30, 9, 15, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(pre)
+        self.assertFalse(is_open)
+        self.assertIn("Pre-apertura", desc)
+
+        # Mercado abierto en sesión regular (10:30 ET)
+        open_time = datetime.datetime(2026, 10, 30, 10, 30, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(open_time)
+        self.assertTrue(is_open)
+        self.assertIn("activa", desc)
+
+        # Mercado abierto justo antes del cierre (15:55 ET)
+        near_close = datetime.datetime(2026, 10, 30, 15, 55, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(near_close)
+        self.assertTrue(is_open)
+
+        # Fuera de sesión regular (16:05 ET)
+        after_close = datetime.datetime(2026, 10, 30, 16, 5, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(after_close)
+        self.assertFalse(is_open)
+        self.assertIn("Fuera de sesión", desc)
+
+        # Fin de semana (Sábado a las 11:00 ET)
+        sat = datetime.datetime(2026, 10, 31, 11, 0, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(sat)
+        self.assertFalse(is_open)
+        self.assertIn("Sábado", desc)
+
+        # Festivo oficial NYSE
+        xmas = datetime.datetime(2026, 12, 25, 11, 0, tzinfo=ZoneInfo("America/New_York"))
+        is_open, desc = LiveBotController.is_market_open_now(xmas)
+        self.assertFalse(is_open)
+        self.assertIn("Festivo oficial", desc)
+
+        # get_time_info() contiene los metadatos de sesión
+        t_info = LiveBotController.get_time_info()
+        self.assertIn("is_market_open", t_info)
+        self.assertIn("market_status_desc", t_info)
+        self.assertIsInstance(t_info["is_market_open"], bool)
+
 
 if __name__ == "__main__":
     unittest.main()

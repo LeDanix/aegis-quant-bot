@@ -45916,5 +45916,23 @@
     "close": 19.94,
     "adj_close": 19.94,
     "volume": 0
+  },
+  {
+    "date": "2026-10-27",
+    "open": 19.65,
+    "high": 19.87,
+    "low": 19.44,
+    "close": 19.57,
+    "adj_close": 19.57,
+    "volume": 0
+  },
+  {
+    "date": "2026-10-28",
+    "open": 19.5,
+    "high": 19.7,
+    "low": 18.92,
+    "close": 19.22,
+    "adj_close": 19.22,
+    "volume": 0
   }
 ]

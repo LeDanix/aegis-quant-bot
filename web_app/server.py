@@ -7,6 +7,7 @@ Endpoints:
   - GET  /api/etf/history    : Serie diaria OHLCV, SMA(50/200), RSI(2) y catálogo de los 6 ETFs operativos.
   - GET  /api/tax/live-audit : Auditoría fiscal automática AEAT (FIFO, regla 2 meses, BCE EUR/USD, Modelo 720, Renta WEB F2).
   - GET  /api/tax/export.csv : Exportación CSV UTF-8 BOM para Excel y Renta WEB.
+  - GET  /api/btc/study      : Simulación experimental de Bitcoin en M4 (2020–2026), métricas y velas.
   - POST /api/live/action    : Ejecuta acciones de mando (Iniciar/Parar, Escanear, Simular Motor M1-M6, Pánico, Test Móvil).
   - POST /api/live/config    : Actualiza parámetros del bot en caliente desde la web o móvil.
 """
@@ -136,6 +137,21 @@ class AegisRequestHandler(SimpleHTTPRequestHandler):
                     force_refresh=force_refresh,
                 )
             )
+            return
+
+        if parsed.path == "/api/btc/study":
+            btc_study_path = os.path.join(self.base_dir, "data", "btc_simulation_study.json")
+            if os.path.exists(btc_study_path):
+                with open(btc_study_path, "rb") as f:
+                    data_bytes = f.read()
+                use_gzip = len(data_bytes) > 1024 and self._client_accepts_gzip()
+                if use_gzip:
+                    payload = gzip.compress(data_bytes, compresslevel=6)
+                else:
+                    payload = data_bytes
+                self._send_bytes(payload, use_gzip=use_gzip, status_code=200)
+            else:
+                self._send_json({"ok": False, "error": "btc_simulation_study.json not found"}, status_code=404)
             return
 
         if parsed.path == "/api/tax/live-audit":

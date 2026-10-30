@@ -168,6 +168,30 @@ UCITS_CATALOG: Dict[str, Dict[str, str]] = {
         "venue": "Tradegate (TGATE)",
         "currency": "EUR",
     },
+    "BTC": {
+        "ucits_ticker": "BTCE / 21BC",
+        "primary_ucits": "BTCE",
+        "isin": "DE000A27Z304",
+        "issuer": "ETC Group Physical Bitcoin (BTCE)",
+        "venue": "Tradegate / Xetra (TGATE)",
+        "currency": "EUR",
+    },
+    "BTCE": {
+        "ucits_ticker": "BTCE",
+        "primary_ucits": "BTCE",
+        "isin": "DE000A27Z304",
+        "issuer": "ETC Group Physical Bitcoin (BTCE)",
+        "venue": "Tradegate / Xetra (TGATE)",
+        "currency": "EUR",
+    },
+    "21BC": {
+        "ucits_ticker": "21BC",
+        "primary_ucits": "21BC",
+        "isin": "CH1199067054",
+        "issuer": "21Shares Bitcoin Core ETP",
+        "venue": "Tradegate / Xetra (TGATE)",
+        "currency": "EUR",
+    },
 }
 
 # Tabla base determinista de referencias históricas EUR/USD del BCE para funcionamiento offline

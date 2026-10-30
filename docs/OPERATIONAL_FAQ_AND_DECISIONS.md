@@ -24,6 +24,7 @@ Para operar de forma 100% legal, líquida y sin trabas administrativas desde Esp
 | **TLT** (Bonos 20+ Años) | **`DTLA`** | `IE00BFM6TC58` | BlackRock iShares | Tradegate (`TGATE`) · EUR | **> 4.800 Millones de €** | Física Directa (Deuda Tesoro USA, Acc) |
 | **USO** (Petróleo WTI) | **`CRUD`** / **`OD7F`** | `GB00B15KXV33` | WisdomTree | Tradegate (`TGATE`) · EUR | **> 1.200 Millones de €** | Sintética con colateral AAA |
 | **ZS** (Soja Agrícola) | **`SOYB`** / **`OD7Z`** | `GB00B15KY211` | WisdomTree | Tradegate (`TGATE`) · EUR | **> 40 Millones de €** | ETC regulado sobre futuros |
+| **BTC** (Bitcoin Físico) | **`BTCE`** / **`21BC`** | `DE000A27Z304` / `CH1199067054` | ETC Group / 21Shares | Tradegate / Xetra · EUR | **> 1.500 Millones de €** | ETP con Respaldo Físico Segregado (Bóveda Fría) |
 | **SPY Corto (`M3`)** | **`DXS3`** (-1x Diario) | `LU0322251520` | Xtrackers (DWS) | Tradegate (`TGATE`) · EUR | **> 180 Millones de €** | Swap UCITS Inverso -1x (Sin margen) |
 
 ### C. Solvencia y Fiabilidad de los ETFs UCITS
@@ -62,48 +63,73 @@ Si en un ejercicio fiscal el bot experimentase un año negativo:
 **No.** El hecho imponible que genera la obligación tributaria es la **venta** de las participaciones dentro del bróker. Una vez presentada la declaración del IRPF anual y pagada la cuota correspondiente, ese dinero es **100% tuyo y legalmente limpio**.  
 Transferir fondos desde Interactive Brokers a tu cuenta bancaria personal en España (BBVA, Santander, etc.) es un simple movimiento entre cuentas propias: **no tributa de nuevo ni se declara como un nuevo ingreso**.
 
-### E. Declaraciones Informativas: El Modelo 720
+### E. Declaraciones Informativas: El Modelo 720 y Cifras en Vivo
 Interactive Brokers opera para clientes de la UE a través de su filial europea (**IBKR Ireland - IBIE**).  
 Si el saldo a 31 de diciembre o el saldo medio del cuarto trimestre de los valores depositados en el extranjero supera los **50.000 €**, la ley española exige presentar el **Modelo 720** (declaración meramente informativa entre el 1 de enero y el 31 de marzo, sin coste impositivo).
 
+> [!NOTE]
+> **¿Por qué aparecen 9.192,08 € (Paper) y 9.208,10 € (IBKR) en el panel de control?**  
+> Estas cifras representan el **patrimonio total de la cuenta en Interactive Brokers convertido a Euros** utilizando el tipo de cambio oficial diario del Banco Central Europeo (BCE, en este caso 1.0860 EUR/USD):
+> - **Entorno Paper:** $9,982.60 USD / 1.0860 = **9.192,08 €** (18,4% del límite de 50k €).
+> - **Entorno IBKR Real:** $10,000.00 USD / 1.0860 = **9.208,10 €** (18,4% del límite de 50k €).  
+> Ambas cantidades se sitúan muy lejos de los 50.000 € obligatorios, por lo que el sistema marca con total rigor el estado legal **"Exento"**.
+
+### F. Tratamiento Fiscal de Bitcoin vía ETP Físico (Tradegate / Xetra)
+Al incorporar Bitcoin al Motor 4 mediante un **ETP con respaldo físico 100% y custodia segregada en frío** (ej. `BTCE`, ISIN `DE000A27Z304` en EUR):
+1. **Calificación Jurídica:** Tributa estrictamente como **valor mobiliario cotizado** en la Base Imponible del Ahorro (19% al 28%, Casillas 0326–0335 de Renta WEB), idéntico a un ETF de acciones u oro.
+2. **Exención del Modelo 721:** No es una tenencia en exchange cripto extranjero ni wallet privada, por lo que **NO se declara en el Modelo 721**.
+3. **Integración en el Modelo 720:** Computa dentro de la cesta única de valores extranjeros de Interactive Brokers, sumándose al total de la cartera frente al umbral de 50.000 €.
+4. **Regla de los 2 Meses (Art. 33.5.f LIRPF):** El bot audita automáticamente que si se vende con minusvalía y se recompra `DE000A27Z304` en ±60 días, la pérdida queda diferida temporalmente hasta la venta definitiva.
+
 ---
 
-## 3. Costes Operacionales Reales y Cascada de Rentabilidad (6 Motores · 2007–2026)
+## 3. Costes Operacionales Reales y Cascada de Rentabilidad (Modo 3 Élite con Bitcoin · 2007–2026)
 
 ### A. Desglose de Gastos Operacionales en Interactive Brokers
 1. **Comisión de Bróker (Tarifa *Tiered*):** 0,05% por orden (mínimo de ~1,25 € a 2,00 € en Europa).
 2. **Deslizamiento (*Slippage* / *Bid-Ask Spread*):** ~0,02%–0,05% operando con órdenes limitadas en horario coincidente con Wall Street.
-3. **TER del ETF:** ~0,10% medio ponderado anual (descontado internamente del valor liquidativo; `0,03%` en `SPYL`).
+3. **TER del ETF/ETP:** ~0,10% medio ponderado anual (descontado internamente del valor liquidativo; `0,03%` en `SPYL`).
 4. **Custodia y Mantenimiento:** **0,00 €** (IBKR no cobra comisiones de custodia ni de inactividad).
 
-### B. Cascada Auditada de Rendimiento Real — Modo 3 Élite con 6 Motores ($10,000 | 2007–2026)
+### B. Cascada Auditada de Rendimiento Real — Modo 3 Élite con Bitcoin ($10,000 | 2007–2026)
 
 ```text
 Capital Inicial (2007)                                       : $10,000.00
-  ├── Retorno Bruto del Algoritmo (19.54% CAGR · 780 trades) : $341,057.69 (+3,310.58%)
+  ├── Retorno Bruto del Algoritmo (23.13% CAGR · Con BTC)    : $614,368.50 (+6,043.69%)
   │
-  ├── (-) Costes Operacionales (Comisiones + Spread + TER)   : -$6,083.93 (-0.70% CAGR)
-  │    └── Capital Neto Operacional                          : $303,668.08 (+2,936.68% | 18.84% CAGR)
+  ├── (-) Costes Operacionales (Comisiones + Spread + TER)   : -$8,661.21 (-0.72% CAGR)
+  │    └── Capital Neto Operacional                          : $546,740.62 (+5,367.41% | 22.41% CAGR)
   │
-  ├── (-) Impuestos IRPF España (Base del Ahorro año a año)  : -$39,087.84 (-3.63% CAGR)
+  ├── (-) Impuestos IRPF España (Base del Ahorro año a año)  : -$66,988.94 (-4.34% CAGR)
   │
-  └── (=) CAPITAL FINAL NETO EN TU BOLSILLO                  : $164,521.64 (+1,545.22% | 15.21% CAGR)
+  └── (=) CAPITAL FINAL NETO EN TU BOLSILLO                  : $267,425.58 (+2,574.26% | 18.06% CAGR)
 ```
 
 **Comparativa frente al S&P 500 Buy & Hold:**
-- **S&P 500 Bruto:** $53,757.52 (8.88% CAGR | -56.47% MaxDD)
-- **S&P 500 Neto tras TER (0,07%) e IRPF único al liquidar:** **$44,104.42**
-- **Ventaja Patrimonial Neta:** **3,73 veces más capital limpio en tu bolsillo** que la inversión pasiva tradicional, reduciendo la caída máxima a la cuarta parte (`-14,86%` frente a `-56,47%`).
+- **S&P 500 Bruto:** $54,630.40 (8.96% CAGR | -56.47% MaxDD)
+- **S&P 500 Neto tras TER (0,07%) e IRPF único al liquidar:** **$44,784.02**
+- **Ventaja Patrimonial Neta:** **5,97 veces más capital limpio en tu bolsillo** que la inversión pasiva tradicional (+$222.641 USD de beneficio neto extra), manteniendo el blindaje contra desplomes severos.
 
 ---
 
 ## 4. Estrategia de Capital: Reinversión vs Retirada Anual (Interés Compuesto)
 
-### A. Comparativa de Estrategias
-- **Estrategia A (Dejar el dinero reinvertido — Recomendada):**  
-  Aprovecha el crecimiento exponencial del interés compuesto. Al reinvertir el capital neto tras pagar impuestos, la base operativa crece anualmente ($10k $\rightarrow$ $12k $\rightarrow$ $16k $\rightarrow$ ... $\rightarrow$ **$164,521**).
-- **Estrategia B (Retirar las ganancias cada año):**  
-  El bot opera perpetuamente sobre la base fija de $10,000. Retiras entre 1.500 € y 2.500 € al año para gastos personales, pero renuncias a construir un patrimonio superior a los 160.000 $.
+### A. Modalidades de Pago del IRPF (Retirada de Cartera vs Liquidez Externa)
+El IRPF sobre plusvalías no se retiene en el momento de cada venta en Interactive Brokers, sino que se liquida **una sola vez al año** en la declaración de la Renta (mayo–junio). Esto abre dos vías operativas:
+
+1. **Vía A: Liquidación Autofinanciada (Retirada de Cartera — Por defecto en el Backtest):**
+   - El inversor retira anualmente de Interactive Brokers la cuota exacta de IRPF a pagar a la AEAT.
+   - **Aportación externa:** **0,00 €**.
+   - **Capital final neto en bolsillo:** **$267,425.58 USD** (+2.574% | 18.06% CAGR).
+   - **Coste oculto:** El capital retirado sufre el *Tax Drag* (deja de componer en los ejercicios futuros).
+
+2. **Vía B: Pago con Liquidez Externa / Nómina (Blindaje del Interés Compuesto):**
+   - El inversor paga la cuota anual del IRPF (entre ~400 $ y ~1.500 $/año durante los primeros 10 años) con sus ahorros o nómina personal en España, **sin retirar ni un céntimo de Interactive Brokers**.
+   - El 100% del capital permanece en la cuenta componiendo a la tasa neta operativa completa (**22.41% CAGR**).
+   - **Capital final en Interactive Brokers:** **$546,740.62 USD**.
+   - **Patrimonio neto real (Saldo en Bróker menos Impuestos aportados externamente):**
+     $$546,740.62 - 66,988.94 = \mathbf{\$479,751.68 \text{ USD Limpios}}$$
+   - **Ventaja patrimonial extra:** **+$212,326.10 USD (+79,4% de beneficio limpio adicional)** únicamente por permitir que el interés compuesto actúe sin interrupción.
 
 ### B. La Regla de Oro Institucional (Plan de Dos Fases)
 1. **Fase de Acumulación (Años 1 al 5-7):** No retirar dinero. Dejar que la cartera supere el umbral de los **50.000 € - 100.000 €**.
@@ -245,4 +271,13 @@ El sistema incluye en producción el paquete [`aegis_quant/tax/spanish_tax_engin
 | **2026-10-26** | Manual de Uso Oficial Publicado (`docs/MANUAL_DE_USO.md`) | Redactado y publicado el manual exhaustivo de la plataforma estructurado según las 5 secciones (`Inicio`, `Cartera`, `ETFs`, `Análisis`, `Sistema`) y el panel de configuración, detallando la rutina diaria de las 21:55 CET, operativa en Euros en Tradegate, y funcionamiento del Módulo Fiscal AEAT. |
 | **2026-10-27** | Actualización Horaria Aislada de Gráficas de ETFs & Horizontes 1D/1S | Implementado refresco horario automático (1H / 3600s TTL) para las gráficas interactivas de ETFs (`EtfChartService`) con **modo por defecto en Velas OHLC**. La resolución temporal se ha unificado de forma transparente en el selector de horizontes: **`1D` (1 Día) y `1S` (1 Semana) usan resolución de velas horarias (1H)** con ventana rodante completa hacia atrás (24 horas y 7 días continuos hasta el momento actual), mientras que **`1M` a `Todo` emplean velas diarias con ventana rodante natural** (1 mes, 3 meses, etc.). La directriz **SMA(50) se homogeneiza en línea punteada/discontinua al igual que la SMA(200)** tanto en el gráfico como en la leyenda técnica. Se elimina el selector manual de temporalidad para máxima simplicidad. Se garantiza **aislamiento absoluto del bot cuantitativo**: los ficheros `data/<SYMBOL>_daily.json` permanecen de solo lectura y la caché horaria se gestiona en `data/cache_etf_hourly/` (216 KB total). Hilo demonio de templado en segundo plano en `server.py`, badge de estado y botón de actualización inmediata en frontend. Suite ampliada a **59 tests unitarios**. |
 | **2026-10-27** | Especificación de Requisitos de Fiabilidad del Sistema & Suite UX/E2E | Documentados los 12 requisitos formales de fiabilidad operativa en [`docs/REQUISITOS_Y_TESTS_FIABILIDAD.md`](docs/REQUISITOS_Y_TESTS_FIABILIDAD.md) (REQ-01 a REQ-12: Hot-swapping M1-M6, Pánico con invalidación de propuestas, Persistencia atómica, Fiscalidad AEAT, Contratos API, Cortafuegos Kill-Switch -8% DD, Flujo Copiloto completo, Blindaje de Cuenta Real LIVE_REAL contra resets accidentales, Rebalanceos con Deltas Parciales y Conservación de Liquidez, Compensación de pérdidas a 4 años, Régimen Defensivo en Backwardation y Resiliencia ante datos nulos). Suite completa ampliada a **71 tests unitarios e integrados (100% pasando)**. |
+| **2026-10-28** | Normalización de Rangos ETFs (1M a Todo) & Corrección Pulso de Mercado | **1)** En la vista de gráficas de ETFs (`web_app/index.html` y `web_app/static/app.js`), se retiran los botones `1D` y `1S` para normalizar los horizontes a la escala diaria estándar (`1M`, `3M`, `6M`, `1A`, `5A`, `Todo`), manteniendo el modo por defecto en velas OHLC, SMA(50) y SMA(200) punteadas, y zoom por ventana rodante natural exacta. **2)** Corrección en `refresh_market_pulse()` de [`aegis_quant/live/bot_controller.py`](aegis_quant/live/bot_controller.py): la llamada a Yahoo Finance utilizaba previamente `range=5d`, donde `chartPreviousClose` correspondía al cierre de hace 5 sesiones bursátiles (falseando el signo de la sesión diaria); corregido a `range=1d` y priorizando `regularMarketChangePercent` oficial para reflejar exactamente la variación del día (ayer vs hoy). |
+| **2026-10-29** | Sizing de Posiciones & Concurrencia de Motores (M1 vs M4) + Homogeneización de Estrategia en Modales Interactivos + Simulación Empírica de Bitcoin en M4 (2020–2026) | **1)** Homogeneización visual de la subsección `Estrategia` (dentro de `Análisis`): estructurada en 4 tarjetas operativas clickeables con modales dedicados (`ARCHITECTURE`, `CAPITAL_CONCURRENCY`, `EXECUTION_SPAIN` y `BITCOIN_STUDY`) manteniendo el mismo estándar de las fichas M1–M6. Detallada la fórmula de sizing ($2,5\% \times \text{Confianza} / \max(1,35\%, \text{StopDist}\%)$) y la regla de no-desinversión de M1 ante señales de M4 (por preservación de esperanza matemática, fricción de doble spread y fiscalidad IRPF). **2)** Simulación empírica de Bitcoin en Motor 4 CTA: corrección del error de doble escalado temporal en la interfaz (la curva simulada 2007–2026 acumulaba ya el crecimiento y en JavaScript se multiplicaba artificialmente por el factor de Modo 3 Élite, generando un salto vertical anómalo en 2020 y un capital distorsionado de $4M). Se establece la curva continua completa 2007–2026 (1.663 puntos) con Bitcoin activo desde el inicio de su serie oficial regulada (septiembre de 2014) y un **techo prudencial estricto de asignación del 15%** (frente al 40% general de M4). Resultados auditados: Horizonte Completo 2007–2026: Base $342.365 (19,55% CAGR, -14,86% MaxDD) vs Con BTC $601.284 (23,00% CAGR, -15,56% MaxDD, 34 trades); Horizonte Reciente 2020–2026 ($10k base): Base $47.969 (25,91% CAGR, -13,07% MaxDD) vs Con BTC $60.368 (30,24% CAGR, -13,07% MaxDD, 17 trades). 0 operaciones en el crash de 2022. Suite de 71 tests unitarios pasando al 100%. |
+| **2026-10-29** | Integración Oficial de Bitcoin (M4 CTA Cap 15%), Catálogo de 7 ETFs, Vehículo IBKR y Correcciones UX/Fiscales | **1) Incorporación Oficial de Bitcoin:** Integrado como quinto activo de Motor 4 CTA en `AegisPortfolioEngine`, `MarketDataRepository` y `LiveBotController`, con `data/BTC_daily.json` (3.047 sesiones desde 2014) y cap estricto del 15% en `MetaLabelRiskManager`. Reejecutado `main_backtest.py` generando el nuevo `aegis_backtest_summary.json` (Modo 3 Élite final: $614.368,50, CAGR 23,13%, MaxDD -15,71%, 780+ trades). **2) Vehículo Operativo para España/IBKR:** Seleccionado el ETP físico en EUR **`BTCE` (ETC Group Physical Bitcoin, ISIN `DE000A27Z304`, TER 0,60%)** y **`21BC` (21Shares Bitcoin Core ETP, ISIN `CH1199067054`, TER 0,21%)** negociables en Tradegate/Xetra. Integrados en `UCITS_CATALOG` de `SpanishTaxAuditor`. **3) Pestaña ETFs:** Expandido el selector a 7 ETFs (`SPY`, `QQQ`, `GLD`, `TLT`, `USO`, `ZS`, `BTC`) en `EtfChartService`, `index.html` y `app.js`. **4) Corrección Modo Oscuro:** Sustituidas clases no compiladas en `STRATEGY_TOPICS.ARCHITECTURE` (`dark:bg-slate-800/80` -> `dark:bg-slate-800`) haciendo legible el texto de la Capa 2. **5) Auditoría FIFO 0€:** Explicado el origen del 0€ en Renta WEB (las pruebas de sandbox de 25/10 abrieron y cerraron al mismo segundo con 0€ de plusvalía; y las ventas con pérdida en SPY quedan bloqueadas como Diferidas 2M por recompra/mantenimiento homogéneo <60 días según Art. 33.5.f LIRPF, siendo 0€ la cuota tributable correcta). Suite completa de 71 tests pasando al 100%. |
+| **2026-10-29** | Adaptación Fiscal con Bitcoin, Desglose 2 Vías de Pago IRPF y Protocolo de Transición a Real con 300 € (Modo AUTO_100) | **1) Cascada Fiscal con Bitcoin:** Auditada la rentabilidad neta tras IRPF progresivo a 19 ejercicios ($267.425,58 netos limpios, 18.06% CAGR vs 44.784 $ en S&P 500 Buy & Hold). Cifras de control Modelo 720 aclaradas (conversión BCE 1.0860 del saldo Paper 9.192 € vs IBKR 9.208 €). Corregidas líneas SMA50/SMA200 en leyenda de ETFs con CSS directo `#d97706` y `#64748b`. **2) Desglose de las 2 Vías de Pago del IRPF:** Explicado matemáticamente el *Tax Drag* sobre el interés compuesto (la brecha de $346k no se la lleva Hacienda, sino que $271k corresponden a interés compuesto perdido por retirar impuestos anualmente). Integrado en `web_app/index.html` el panel comparativo: Vía A (Autofinanciada, $267.4k) vs Vía B (Pago desde Nómina/Ahorros sin desinvertir de IBKR, $479.8k limpios, +79,4% de beneficio extra). **3) Protocolo de Transición a Dinero Real:** Creada y actualizada la guía oficial [`docs/TRANSICION_DINERO_REAL_CHECKLIST.md`](docs/TRANSICION_DINERO_REAL_CHECKLIST.md) con el checklist pre-vuelo, adopción del modo 100% automático (`AUTO_100` sin latencia humana para el cierre de Tradegate a las 22:00 CET) y capital de prueba optimizado a **300 €** (multiactivo simultáneo con riesgo máximo histórico acotado a ~47 € y kill-switch a -24 €). |
+| **2026-10-29** | Interés Compuesto Dinámico (10k a 12k) y Discretización Entera en Tradegate (Múltiplos de 18 € en SOYB) | **1) Dinamismo de Capital:** Confirmado que el bot dimensiona posiciones sobre el 100% del saldo real vivo de la cuenta (`Total Equity` / `Net Liquidation Value`). Al crecer la cuenta de 10.000 € a 12.000 €, los porcentajes se calculan sobre 12.000 € para garantizar el interés compuesto sin dejar beneficios ociosos en efectivo. El control de capital se ejerce de forma óptima depositando en IBKR únicamente los fondos asignados a la estrategia. **2) Discretización Entera (Múltiplos de 18 € en SOYB):** En Tradegate/IBKR no hay acciones fraccionadas. El bot aplica la función de suelo `floor(Presupuesto / Precio_Unitario)`. Si a SOYB (~18 €) le corresponden 30 €, compra 1 acción (18 €) y los 12 € sobrantes se preservan en liquidez de seguridad. Si el presupuesto no alcanza para 1 acción (ej. 45 € para Oro `4GLD` a ~80 €), la orden es de 0 acciones y se preserva el efectivo intacto. Documentado en detalle en [`docs/TRANSICION_DINERO_REAL_CHECKLIST.md`](docs/TRANSICION_DINERO_REAL_CHECKLIST.md#3-restricciones-de-negociacion-por-multiplos-enteros-ej-soyb-a-18--spyl-a-14--y-conservacion-de-liquidez). |
+| **2026-10-30** | Limpieza de Interfaz: Retirada de Simulación Preliminar de Bitcoin | **1) Retirada de Botón Redundante:** Eliminado el botón `+ Simulación Bitcoin M4` de la gráfica principal de rentabilidad acumulada, dado que Bitcoin ya está formalmente integrado y activo dentro de la curva oficial del Modo 3 Élite ($614.368,50). **2) Retirada de Tarjeta Experimental:** Eliminada la tarjeta de estudio experimental preliminar en la subsección `Estrategia`, homogeneizando la cuadrícula de fundamentos a 3 módulos simétricos (`Arquitectura Híbrida`, `Gestión de Capital y Concurrencia`, `Ejecución Real en España y Fiscalidad`). **3) Oficialización en Motor 4:** Actualizada la ficha técnica de Motor 4 (`M4_CTA_TREND`) en frontend para reflejar formalmente la cesta completa de los 5 activos operativos descorrelacionados (Oro `4GLD`, Bonos `DTLA`, Petróleo `CRUD`, Soja `SOYB` y Bitcoin `BTCE`). Suite completa de 71 tests pasando al 100%. |
+| **2026-10-30** | Indicador Visual Dinámico de Sesión Abierta/Cerrada en Badge Horario DST | **1) Semáforo Operativo Dinámico:** El cuadro de cabecera (`#pt-dst-badge`) que señaliza el desfase horario estacional (DST) se transforma en un indicador de sesión en tiempo real: se muestra en **Verde institucional** (`bg-emerald-50 dark:bg-emerald-950/70 border-emerald-300 text-emerald-800`) cuando el mercado de Wall Street (NYSE/Nasdaq) está **ABIERTO** (lunes a viernes de 09:30 a 16:00 NY, no festivo), y en **Amarillo/Ámbar** (`bg-amber-50 dark:bg-amber-950/70 border-amber-300 text-amber-800`) cuando está **CERRADO** (pre-apertura matinal en Europa, fuera de horario, fin de semana o festivo). **2) Información de Desfase Horario Preservada:** El texto y tooltip del cuadro mantienen la señalización explícita del desfase estacional (ej. `● Mercado Abierto · DST Desfase EU/US (5h · EDT/CET)` vs `○ Mercado Cerrado · DST Desfase EU/US (5h · EDT/CET)`). **3) Sincronización Backend/Frontend:** Implementado `LiveBotController.is_market_open_now(now_ny)` expuesto en `/api/live/status` y cálculo cliente en `app.js` como contingencia. Suite ampliada a **72 tests unitarios (100% pasando)**. |
+
+
 

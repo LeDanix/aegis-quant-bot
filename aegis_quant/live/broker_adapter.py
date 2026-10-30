@@ -455,8 +455,10 @@ class AlpacaPaperBrokerAdapter(BaseBrokerAdapter):
                 target_weights, reason_summary
             )
 
-        # Enviar órdenes fraccionadas por valor nocional (USD) a Alpaca Paper API
-        alloc_cap = float(cfg.get("allocated_capital_usd", 10000.0))
+        # Enviar órdenes fraccionadas por valor nocional (USD) sobre el patrimonio total dinámico (Interés Compuesto)
+        state = self.get_portfolio_snapshot()
+        total_live_eq = float(state.get("account", {}).get("total_equity_usd", 0.0))
+        alloc_cap = total_live_eq if total_live_eq > 10.0 else float(cfg.get("allocated_capital_usd", 10000.0))
         executed_orders = []
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

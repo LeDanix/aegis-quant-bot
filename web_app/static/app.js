@@ -50,7 +50,12 @@ let frictionChart = null;
 let taxChart = null;
 let etfChart = null;
 let motorExampleChart = null;
+let strategyExplainerChart = null;
 let ACTIVE_EXPLAINER_MOTOR = 'M1_PULLBACK';
+let ACTIVE_EXPLAINER_TOPIC = 'ARCHITECTURE';
+let SHOW_BTC_EQUITY_CURVE = false;
+let BTC_STUDY_DATA = null;
+let btcStudyInFlight = false;
 
 // Metadatos de los 6 Motores Cuantitativos + Núcleo Modo 3 Élite
 const MOTOR_META = {
@@ -88,7 +93,7 @@ const MOTOR_META = {
     color: '#b45309',
     pillCls: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-slate-800 dark:text-amber-300 dark:border-slate-700',
     symbolShape: 'rect',
-    plainExplanation: 'Ruptura de canal Donchian de 20 sesiones con alineación de medias en activos descorrelacionados (Oro GLD, Bonos TLT, Petróleo USO o Soja ZS), protegiendo frente a inflación y crisis.',
+    plainExplanation: 'Ruptura de canal Donchian de 20 sesiones con alineación de medias en activos descorrelacionados (Oro GLD, Bonos TLT, Petróleo USO, Soja ZS o Bitcoin BTC), protegiendo frente a inflación y crisis.',
   },
   M5_VOL_CRUSH: {
     id: 'M5_VOL_CRUSH',
@@ -1719,9 +1724,9 @@ const MOTOR_EXPLAINER_DATA = {
   "M4_CTA_TREND": {
     "badge": "M4 Tendencia CTA",
     "title": "Motor 4: Tendencia Multi-Activo CTA",
-    "subtitle": "Seguimiento sistem\u00e1tico de tendencias en Oro, Petr\u00f3leo, Bonos y Materias Primas",
+    "subtitle": "Seguimiento sistem\u00e1tico de tendencias en Oro, Petr\u00f3leo, Bonos, Soja y Bitcoin",
     "dir": "LONG",
-    "assets": "GLD (Oro), USO (Petr\u00f3leo), ZS/SOYB (Soja), TLT (Bonos)",
+    "assets": "GLD (Oro), USO (Petr\u00f3leo), ZS/SOYB (Soja), TLT (Bonos), BTC (Bitcoin)",
     "holding": "15\u201340 sesiones (m\u00e1x. 45 d\u00edas)",
     "stop": "Trailing stop din\u00e1mico Donchian 10d / 3x ATR",
     "target": "Corte de trailing stop o p\u00e9rdida de SMA(50)",
@@ -1729,7 +1734,7 @@ const MOTOR_EXPLAINER_DATA = {
     "winRate": "42.3%",
     "sumRet": "+93.16%",
     "pf": "1.93",
-    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>Las materias primas y los bonos soberanos responden a ciclos macroecon\u00f3micos lentos y persistentes: inflaci\u00f3n, shocks de oferta geopol\u00edticos o pol\u00edticas monetarias de bancos centrales. A diferencia de las acciones (que revierten r\u00e1pido a la media), las materias primas presentan <i>autocorrelaci\u00f3n positiva de largo plazo</i>: cuando una tendencia arranca, suele extenderse durante semanas o meses.</p><p>El Motor 4 implementa la metodolog\u00eda cl\u00e1sica de los grandes fondos CTA (Commodity Trading Advisors como Winton o AQR): entra en rupturas del canal Donchian de 20 sesiones con confirmaci\u00f3n de medias (SMA50 > SMA200) y deja correr los beneficios con un stop din\u00e1mico que persigue al precio.</p>",
+    "why": "<p><b>\u00bfPor qu\u00e9 existe esta ventaja y qu\u00e9 sentido tiene?</b><br>Las materias primas, los bonos soberanos y el Bitcoin responden a ciclos de tendencia y liquidez persistentes: inflaci\u00f3n, shocks de oferta geopol\u00edticos, pol\u00edticas monetarias o adopci\u00f3n de activos digitales con oferta fija. A diferencia de las acciones (que revierten r\u00e1pido a la media), estos activos presentan <i>autocorrelaci\u00f3n positiva de largo plazo</i>: cuando una tendencia arranca, suele extenderse durante semanas o meses.</p><p>El Motor 4 implementa la metodolog\u00eda cl\u00e1sica de los grandes fondos CTA (Commodity Trading Advisors como Winton o AQR): entra en rupturas del canal Donchian de 20 sesiones con confirmaci\u00f3n de medias (SMA50 > SMA200) y deja correr los beneficios con un stop din\u00e1mico que persigue al precio.</p>",
     "code": "def _check_entry(self, b: EnrichedBar, symbol: str):\n    # Ruptura Donchian de 20 d\u00edas con alineaci\u00f3n alcista de medias m\u00f3viles\n    if (\n        b.close > b.sma50\n        and b.sma50 > b.sma200\n        and b.close > b.prev_high_20   # Nuevo m\u00e1ximo de 20 sesiones\n        and b.atr14 > 0\n    ):\n        return True, f\"Ruptura Donchian 20d en {symbol}\"\n    return False, \"\"\n\n# Salida con Trailing Stop: max(Stop Inicial, M\u00ednimo 10 d\u00edas, Cierre M\u00e1x - 3x ATR)",
     "sample": {
       "sym": "USO",
@@ -2512,6 +2517,740 @@ function renderMotorExampleCandles(motorId) {
   motorExampleChart.resize();
 }
 
+
+// ============================================================================
+// MÓDULO DE ESTUDIO DE ESTRATEGIA (ARQUITECTURA, CONCURRENCIA, TRADEGATE, BITCOIN)
+// ============================================================================
+
+async function fetchBtcStudyData(callback) {
+  if (BTC_STUDY_DATA) {
+    if (callback) callback(BTC_STUDY_DATA);
+    return BTC_STUDY_DATA;
+  }
+  if (btcStudyInFlight) return;
+  btcStudyInFlight = true;
+  try {
+    const res = await fetch('/api/btc/study');
+    if (res.ok) {
+      BTC_STUDY_DATA = await res.json();
+      if (callback) callback(BTC_STUDY_DATA);
+    }
+  } catch (err) {
+    console.error('Error fetching BTC study:', err);
+  } finally {
+    btcStudyInFlight = false;
+  }
+  return BTC_STUDY_DATA;
+}
+
+async function toggleBtcEquityCurve() {
+  // Deprecado: Bitcoin ya está integrado de forma permanente y oficial en Modo 3 Élite
+  return;
+}
+
+const STRATEGY_TOPICS = {
+  ARCHITECTURE: {
+    badge: 'Cúspide de la Pirámide',
+    title: 'Arquitectura Híbrida Modo 3 Élite (6 Motores + Núcleo Adaptativo)',
+    subtitle: 'Simbiosis entre Inversión Pasiva y Cobertura Táctica (0% Apalancamiento / Deuda)',
+    render: () => `
+      <div class="space-y-4 text-xs leading-relaxed">
+        <!-- 1. Tarjetas de parámetros clave -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono tabular-nums">
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Apalancamiento</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">0% (Sin Deuda)</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Volatilidad Objetivo</span>
+            <span class="font-bold text-brand-700 dark:text-brand-300">16.0% Anual</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Escudo en Estrés</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">0% Bolsa Pasiva</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Motores Tácticos</span>
+            <span class="font-bold text-brand-700 dark:text-brand-300">6 Descorrelacionados</span>
+          </div>
+        </div>
+
+        <!-- 2. Fundamento y problema que resuelve -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+            El Problema Estructural que Resuelve Modo 3 Élite
+          </div>
+          <p class="text-slate-700 dark:text-slate-300">
+            <b>1. El fallo de la inversión pasiva tradicional (Buy &amp; Hold):</b> Funciona bien durante ciclos alcistas seculares, pero sufre caídas devastadoras superiores al 50% en crisis sistémicas (-56.5% en 2008, -34.1% en 2020), tardando años en recuperar el capital.
+          </p>
+          <p class="text-slate-700 dark:text-slate-300">
+            <b>2. El fallo de los sistemas 100% tácticos de reversión:</b> Esquivan los desplomes con gran eficacia, pero sufren de <i>cash drag</i> (exceso de liquidez en cuenta bancaria perdiendo contra la inflación y perdiéndose grandes tramos de mercados alcistas).
+          </p>
+          <p class="text-slate-700 dark:text-slate-300">
+            <b>La solución híbrida:</b> Modo 3 Élite mantiene el capital 100% productive en mercados alcistas sanos (Capa 1), pero activa un cortafuegos inmediato que reduce la bolsa al 0% en cuanto detecta pánico institucional (Capa 2), dando prioridad absoluta a los 6 motores tácticos.
+          </p>
+        </div>
+
+        <!-- 3. Explicación detallada de las 2 Capas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-md border border-brand-200 dark:border-brand-800 bg-brand-50/40 dark:bg-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-brand-900 dark:text-brand-200 text-xs">Capa 1: Núcleo Adaptativo (Capital Ocioso)</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-brand-100 text-brand-800 dark:bg-brand-950 dark:text-brand-300">Régimen Contango</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+              En régimen de <b>Contango (VIX &lt; VIX3M)</b> y con el S&amp;P 500 sobre su media de 200 días (SMA200), el dinero que no esté ocupado por operaciones tácticas se asigna a <b>Dual-Momentum entre SPY y QQQ</b>, regulando la exposición hacia una volatilidad anualizada del 16% (Volatility Targeting).
+            </p>
+          </div>
+
+          <div class="p-3.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-900 dark:text-slate-100 text-xs">Capa 2: Escudo en Backwardation y 6 Motores</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">Régimen Estrés</span>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
+              Cuando la estructura de volatilidad entra en <b>Backwardation (VIX &ge; VIX3M)</b>, la bolsa pasiva se recorta al <b>0%</b>. La liquidez queda reservada para los 6 motores tácticos (rebotes rápidos M1/M2/M5/M6, cortos M3 y seguimiento CTA en Oro/Bonos/Bitcoin M4).
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. Diagrama visual de flujo -->
+        <div class="panel p-4 space-y-2.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Diagrama de Decisión Diario (Evaluado a las 21:55 CET)
+          </div>
+          <div class="p-3 rounded bg-slate-950 text-slate-200 font-mono text-[11px] leading-relaxed border border-slate-800 overflow-x-auto">
+[Reloj 21:55 CET] &rarr; Escaneo de Mercado Institucional
+       │
+       ├─&gt; 1. ¿Hay señales en M1–M6? ──&gt; SÍ: Reserva capital táctico (Sizing Paridad Riesgo 2.5%)
+       │
+       └─&gt; 2. Capital Restante (Ocioso) = 100% - Exposición Táctica
+                 │
+                 ├─&gt; VIX/VIX3M &lt; 0.96 &amp; SPY &gt; SMA200 (Contango): Dual-Momentum SPY/QQQ (VolTarget 16%)
+                 └─&gt; VIX/VIX3M &ge; 1.00 o SPY &lt; SMA200 (Estrés): 0% Bolsa Pasiva · Refugio en Oro/Bonos
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  CAPITAL_CONCURRENCY: {
+    badge: 'Paridad de Riesgo & Concurrencia',
+    title: 'Gestión de Capital, Paridad de Riesgo y Resolución de Concurrencia',
+    subtitle: 'Sizing Sistemático ATR, Techo del 40% en M4 y Política Estricta de No-Liquidación',
+    render: () => `
+      <div class="space-y-4 text-xs leading-relaxed">
+        <!-- 1. Tarjetas clave -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono tabular-nums">
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Riesgo por Operación</span>
+            <span class="font-bold text-brand-700 dark:text-brand-300">R = 2.5%</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Tope Motor 4 (CTA)</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">Máx. 40% Cartera</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Slots Concurrentes</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">Máx. 3 Posiciones</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Liquidez Mínima Libre</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">15.0% Efectivo</span>
+          </div>
+        </div>
+
+        <!-- 2. Cómo decide el algoritmo el tamaño de cada posición -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+            ¿Cómo Decide el Algoritmo qué Cantidad Asignar a Cada ETF?
+          </div>
+          <p class="text-slate-700 dark:text-slate-300">
+            No se utilizan porcentajes arbitrarios (como poner un 20% a todo). Se utiliza el principio de <b>Paridad de Riesgo por Volatilidad</b>:
+          </p>
+          <div class="p-3 rounded bg-slate-950 text-slate-200 font-mono text-[11px] leading-relaxed border border-slate-800">
+Peso de la Posición = (Riesgo Base 2.5% × Convicción Meta-Labeling) / Distancia al Stop Loss %
+          </div>
+          <p class="text-slate-700 dark:text-slate-300">
+            <b>Ejemplo Práctico Accesible:</b>
+          </p>
+          <ul class="list-disc list-inside space-y-1 text-slate-600 dark:text-slate-300 pl-1">
+            <li><b>Activo de Baja Volatilidad (SPY):</b> Si el stop loss está ceñido a un 2.5% de caída, el bot asigna hasta un <b>50% del capital</b>. Si la operación toca el stop, la cartera pierde un 2.5% × 50% = <b>1.25%</b>.</li>
+            <li><b>Activo de Alta Volatilidad (Petróleo o Bitcoin):</b> Si el stop loss está a un 8.0% de distancia por su alta oscilación, el bot <b>reduce automáticamente el tamaño de la posición al 15%</b>. Si toca el stop, la cartera pierde 8.0% × 15% = <b>1.20%</b>.</li>
+          </ul>
+          <p class="text-[11px] text-brand-700 dark:text-brand-300 font-semibold pt-1">
+            &rarr; Conclusión: Da igual lo volátil que sea un activo, el algoritmo ajusta el capital para que el riesgo en dólares sea siempre idéntico y seguro.
+          </p>
+        </div>
+
+        <!-- 3. Resolución de concurrencia: M1 vs M4 -->
+        <div class="panel p-4 space-y-2.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Concurrencia: Si M4 da señal y todo el capital está invertido por M1, ¿qué ocurre?
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 font-semibold text-red-700 dark:text-red-400">
+            Respuesta: La nueva señal de M4 se descarta. NUNCA se desinvierte forzosamente M1.
+          </p>
+          <div class="space-y-2 text-slate-600 dark:text-slate-300 text-[11px]">
+            <p>El algoritmo aplica la regla: <code>if avail_weight &lt; 0.15: continue</code>. Si no hay al menos un 15% de efectivo libre en caja, la señal se rechaza. Esta decisión matemática responde a 4 motivos cuantitativos:</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div class="p-2.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">1. Esperanza Matemática</span>
+                M1 tiene un 72.6% de acierto y busca un rebote estadístico en 2–3 días. Cortarlo antes destruye el ratio riesgo/beneficio planificado.
+              </div>
+              <div class="p-2.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">2. Costes de Horquilla (Spreads)</span>
+                Vender una posición prematura y abrir otra genera dobles comisiones y pérdidas por la horquilla entre precio de compra y venta.
+              </div>
+              <div class="p-2.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">3. Fricción Fiscal en España</span>
+                Cada venta genera un hecho imponible inmediato en el IRPF y activa el bloqueo de minusvalías por la regla de los 2 meses.
+              </div>
+              <div class="p-2.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">4. Rotación Natural Rápida</span>
+                M1 dura de media 2 a 3 sesiones. El capital se libera en cuestión de 48–72 horas, y M4 tiene un tope del 40% para nunca bloquear la cartera.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  EXECUTION_SPAIN: {
+    badge: 'Opción A: Tradegate (TGATE)',
+    title: 'Ejecución Real en España — Tradegate e Integración Fiscal AEAT',
+    subtitle: 'Cumplimiento PRIIPs/MiFID II, Órdenes Limit DAY a las 21:55 CET y Módulo Fiscal',
+    render: () => `
+      <div class="space-y-4 text-xs leading-relaxed">
+        <!-- 1. Tarjetas clave -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono tabular-nums">
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Hora de Ejecución</span>
+            <span class="font-bold text-brand-700 dark:text-brand-300">21:55 CET (15:55 NY)</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Mercado Oficial</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">Tradegate (TGATE)</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Tipo de Orden</span>
+            <span class="font-bold text-slate-900 dark:text-slate-100">Limit DAY (+0.08%)</span>
+          </div>
+          <div class="p-2.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span class="text-[10px] text-slate-400 font-sans block">Moneda de Liquidación</span>
+            <span class="font-bold text-brand-700 dark:text-brand-300">EUR (€) Sin FX Drag</span>
+          </div>
+        </div>
+
+        <!-- 2. La rutina diaria de las 21:55 CET -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+            La Rutina Diaria de las 21:55 CET
+          </div>
+          <p class="text-slate-700 dark:text-slate-300">
+            Exactamente 5 minutos antes del cierre de Wall Street, el bot ejecuta el escaneo de mercado sobre los 6 motores. Si se activa una señal, genera una propuesta con el número exacto de participaciones en Euros para enviar a Interactive Brokers.
+          </p>
+          <p class="text-slate-700 dark:text-slate-300">
+            <b>Por qué Tradegate Exchange:</b> La directiva europea PRIIPs prohíbe comercializar fondos estadounidenses directos (como SPY o QQQ) a minoristas en Europa por no tener folleto KID en español. Tradegate opera hasta las 22:00 CET y negocia réplicas UCITS acumulativas en Euros, permitiendo operar a la vez que Wall Street sin apalancamiento de futuros y sin comisiones de cambio de divisa.
+          </p>
+        </div>
+
+        <!-- 3. Catálogo de los 7 ETFs UCITS -->
+        <div class="panel p-4 space-y-2.5">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Catálogo Oficial de Réplicas UCITS Acumulativas en Tradegate
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-[11px] font-mono tabular-nums">
+              <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                <tr>
+                  <th class="p-2 font-semibold font-sans">Activo EE. UU.</th>
+                  <th class="p-2 font-semibold font-sans">Réplica Tradegate</th>
+                  <th class="p-2 font-semibold font-sans">ISIN Homogéneo</th>
+                  <th class="p-2 font-semibold font-sans">Emisor Oficial</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">SPY (S&amp;P 500)</td><td class="p-2 text-brand-700 dark:text-brand-300">SPYL / SXR8</td><td class="p-2">IE000XZSV718</td><td class="p-2 text-slate-500">SPDR S&amp;P 500 UCITS ETF</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">QQQ (Nasdaq 100)</td><td class="p-2 text-brand-700 dark:text-brand-300">EQQQ</td><td class="p-2">IE0032077012</td><td class="p-2 text-slate-500">Invesco EQQQ Nasdaq-100 UCITS</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">GLD (Oro Físico)</td><td class="p-2 text-brand-700 dark:text-brand-300">4GLD / SGLD</td><td class="p-2">DE000A0S9GB0</td><td class="p-2 text-slate-500">Xetra-Gold / Invesco Physical Gold</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">TLT (Bonos 20+)</td><td class="p-2 text-brand-700 dark:text-brand-300">DTLA</td><td class="p-2">IE00BFM6TC58</td><td class="p-2 text-slate-500">iShares $ Treasury Bond 20+yr</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">USO (Petróleo)</td><td class="p-2 text-brand-700 dark:text-brand-300">CRUD</td><td class="p-2">GB00B15KXV33</td><td class="p-2 text-slate-500">WisdomTree WTI Crude Oil ETC</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">ZS (Soja Agrícola)</td><td class="p-2 text-brand-700 dark:text-brand-300">SOYB</td><td class="p-2">GB00B15KY211</td><td class="p-2 text-slate-500">WisdomTree Soybeans ETC</td></tr>
+                <tr><td class="p-2 font-bold text-slate-900 dark:text-slate-100">M3 Cortos (-1x)</td><td class="p-2 text-brand-700 dark:text-brand-300">DXS3</td><td class="p-2">LU0322251520</td><td class="p-2 text-slate-500">Xtrackers S&amp;P 500 Inverse Daily (-1x)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. Fiscalidad en España -->
+        <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Módulo Fiscal Español Integrado (AEAT / IRPF)
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-[11px] text-slate-600 dark:text-slate-300">
+            <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Criterio FIFO por ISIN</span>
+              Consume estrictamente las participaciones más antiguas agrupadas por código ISIN homogéneo, incorporando comisiones al valor de adquisición.
+            </div>
+            <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Regla de los 2 Meses (Art. 33.5.f)</span>
+              Vigila la ventana de ±60 días naturales. Si se recompra un ISIN vendido con pérdida, bloquea la minusvalía y muestra el contador de días para liberarla.
+            </div>
+            <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Tipo de Cambio Diario BCE</span>
+              Aplica los tipos oficiales del Banco Central Europeo de cada fecha exacta para compras y ventas si existiese divisa en dólares.
+            </div>
+            <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Renta WEB (Casillas 0326–0335)</span>
+              Genera los totales por emisor para copiar directamente en el Apartado F2 de Hacienda y vigila el umbral de 50.000 € del Modelo 720.
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  BITCOIN_STUDY: {
+    badge: 'M4 CTA Experimental',
+    title: 'Estudio Cuantitativo: Inclusión de Bitcoin en Motor 4 (Cap Prudencial 15%)',
+    subtitle: 'Simulación Empírica de Seguimiento de Tendencia Donchian, Asimetría Alcista y Blindaje en Crisis',
+    render: () => {
+      const btc = BTC_STUDY_DATA?.summary;
+      const m07Base = btc?.metrics_07_baseline;
+      const m07Btc = btc?.metrics_07_with_btc;
+      const m20Base = btc?.metrics_20_baseline;
+      const m20Btc = btc?.metrics_20_with_btc;
+
+      const finalEq07 = m07Btc?.final_equity?.toLocaleString('en-US') || '601,284';
+      const baseEq07 = m07Base?.final_equity?.toLocaleString('en-US') || '342,365';
+      const cagr07 = m07Btc?.cagr_pct?.toFixed(2) || '23.00';
+      const baseCagr07 = m07Base?.cagr_pct?.toFixed(2) || '19.55';
+
+      const finalEq20 = m20Btc?.final_equity?.toLocaleString('en-US') || '60,368';
+      const baseEq20 = m20Base?.final_equity?.toLocaleString('en-US') || '47,969';
+      const cagr20 = m20Btc?.cagr_pct?.toFixed(2) || '30.24';
+      const baseCagr20 = m20Base?.cagr_pct?.toFixed(2) || '25.91';
+
+      return `
+        <div class="space-y-4 text-xs leading-relaxed">
+          <!-- 1. Doble bloque de KPIs por horizonte temporal -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Horizonte Completo 2007-2026 -->
+            <div class="panel p-3 space-y-2 bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-1.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                  1. Horizonte Completo (2007–2026)
+                </span>
+                <span class="text-[10px] font-mono text-amber-700 dark:text-amber-300 font-semibold">BTC activo desde Sep 2014</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 font-mono tabular-nums text-center pt-1">
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">Capital Final</span>
+                  <span class="font-bold text-amber-800 dark:text-amber-200 text-xs sm:text-sm">$${finalEq07}</span>
+                  <span class="text-[9px] text-slate-400 font-sans block">vs $${baseEq07} base</span>
+                </div>
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">CAGR Anual</span>
+                  <span class="font-bold text-amber-800 dark:text-amber-200 text-xs sm:text-sm">${cagr07}%</span>
+                  <span class="text-[9px] text-slate-400 font-sans block">+3.45% neto</span>
+                </div>
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">Max Drawdown</span>
+                  <span class="font-bold text-slate-800 dark:text-slate-200 text-xs sm:text-sm">${m07Btc?.max_dd_pct || '-15.56'}%</span>
+                  <span class="text-[9px] text-slate-400 font-sans block">vs -14.86% base</span>
+                </div>
+              </div>
+              <div class="text-[10px] text-slate-500 font-sans flex justify-between pt-0.5">
+                <span>34 operaciones de Bitcoin (2014–2026)</span>
+                <span>64.7% Win Rate · Profit Factor 6.67</span>
+              </div>
+            </div>
+
+            <!-- Horizonte Reciente 2020-2026 -->
+            <div class="panel p-3 space-y-2 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60">
+              <div class="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/60 pb-1.5">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  2. Horizonte Reciente (2020–2026)
+                </span>
+                <span class="text-[10px] font-mono text-amber-800 dark:text-amber-300 font-semibold">Mercado Maduro / ETPs</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 font-mono tabular-nums text-center pt-1">
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">Capital Final</span>
+                  <span class="font-bold text-amber-800 dark:text-amber-200 text-xs sm:text-sm">$${finalEq20}</span>
+                  <span class="text-[9px] text-slate-400 font-sans block">vs $${baseEq20} base</span>
+                </div>
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">CAGR Anual</span>
+                  <span class="font-bold text-amber-800 dark:text-amber-200 text-xs sm:text-sm">${cagr20}%</span>
+                  <span class="text-[9px] text-slate-400 font-sans block">+4.33% neto</span>
+                </div>
+                <div class="p-2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                  <span class="text-[10px] text-slate-400 font-sans block">Max Drawdown</span>
+                  <span class="font-bold text-brand-700 dark:text-brand-300 text-xs sm:text-sm">${m20Btc?.max_dd_pct || '-13.07'}%</span>
+                  <span class="text-[9px] text-brand-700 dark:text-brand-300 font-sans block">Idéntico</span>
+                </div>
+              </div>
+              <div class="text-[10px] text-slate-500 font-sans flex justify-between pt-0.5">
+                <span>17 operaciones de Bitcoin (2020–2026)</span>
+                <span>61.5% Win Rate · Profit Factor 2.11</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nota Técnica de Riesgo: Cap del 15% y Validación Histórica -->
+          <div class="panel p-3.5 bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:text-brand-300">
+              ¿Por qué se aplica un Techo Máximo Prudencial del 15% a Bitcoin?
+            </div>
+            <p class="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+              En el Motor 4 clásico (materias primas y bonos), el sizing por volatilidad permite que activos con poco ATR ocupen hasta el 40% de la cartera. En Bitcoin, debido a su extrema convexidad, si se le permitiese un 40% de peso su beneficio aumentaría drásticamente, pero el riesgo de sufrir un hueco de mercado (*gap*) durante un fin de semana pondría en riesgo la preservación del capital.
+            </p>
+            <p class="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+              Fijando un <b>cap prudente del 15%</b>, se obtiene un incremento sustancial de retorno (+3.45% anual en el horizonte completo y +4.33% anual en el periodo 2020–2026) <b>manteniendo el drawdown estrictamente contenido en el -15.56%</b>.
+            </p>
+          </div>
+
+          <!-- 2. Gráfica interactiva de velas con compras y ventas -->
+          <div class="panel p-4 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <div>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Gráfica Diaria de Velas OHLC de Bitcoin (2014–2026) · Puntos de Entrada y Salida
+                </h4>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                  Rupturas Donchian 20d (flechas verdes) y salidas por Trailing Stop ATR o rotación 45 sesiones (flechas ámbar/rojas)
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 text-[11px] font-mono text-brand-700 dark:text-brand-300">
+                  <span class="w-2 h-2 rounded-full bg-brand-600 inline-block"></span> Compra M4
+                </span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-mono text-amber-600 dark:text-amber-400">
+                  <span class="w-2 h-2 rounded-full bg-amber-600 inline-block"></span> Salida Ganadora
+                </span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-mono text-red-600 dark:text-red-400">
+                  <span class="w-2 h-2 rounded-full bg-red-600 inline-block"></span> Stop Loss
+                </span>
+              </div>
+            </div>
+
+            <!-- Contenedor ECharts para velas de Bitcoin -->
+            <div id="btc-candlestick-chart" class="w-full h-[280px] sm:h-[320px]"></div>
+
+            <div class="p-3 rounded-md bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+              <b>Blindaje Cuantitativo en 2022:</b> Durante el desplome de 2022, Bitcoin cayó de $69.000 a $15.500 (-76.6%). Dado que el Motor 4 exige como condición previa que el precio cotice por encima de la SMA(200) y que la SMA(50) esté ascendiendo, <b>el bot NO abrió ni una sola compra en Bitcoin durante todo 2022 (0% de exposición)</b>, esquivando el crash en su totalidad mientras el Buy &amp; Hold colapsaba.
+            </div>
+          </div>
+
+          <!-- 3. Tabla comparativa de Bitcoin frente a los otros activos de M4 -->
+          <div class="panel p-4 space-y-2.5">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Comparativa Diferencial: Bitcoin frente a los Otros Activos del Motor 4 CTA
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-[11px] font-mono tabular-nums">
+                <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  <tr>
+                    <th class="p-2 font-semibold font-sans">Activo CTA</th>
+                    <th class="p-2 font-semibold font-sans">Volatilidad</th>
+                    <th class="p-2 font-semibold font-sans">Max Drawdown</th>
+                    <th class="p-2 font-semibold font-sans">Trades M4</th>
+                    <th class="p-2 font-semibold font-sans">Naturaleza Cuantitativa</th>
+                    <th class="p-2 font-semibold font-sans">Rol en Cartera</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr class="bg-amber-50/40 dark:bg-amber-950/20 font-bold">
+                    <td class="p-2 text-amber-800 dark:text-amber-300">BTC (Bitcoin)</td>
+                    <td class="p-2 text-amber-700 dark:text-amber-400">54.2%</td>
+                    <td class="p-2 text-red-600">-76.6%</td>
+                    <td class="p-2">17 trades</td>
+                    <td class="p-2 font-sans font-normal text-slate-700 dark:text-slate-200">Megatendencia exponencial asimétrica</td>
+                    <td class="p-2 font-sans font-normal text-amber-800 dark:text-amber-200">Acelera retorno con trailing stop estricto</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2 font-bold text-slate-900 dark:text-slate-100">GLD (Oro Físico)</td>
+                    <td class="p-2">14.1%</td>
+                    <td class="p-2 text-slate-600">-21.8%</td>
+                    <td class="p-2">62 trades</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Refugio monetario soberano</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Crisis Alpha descorrelacionada</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2 font-bold text-slate-900 dark:text-slate-100">USO (Petróleo WTI)</td>
+                    <td class="p-2">38.4%</td>
+                    <td class="p-2 text-red-600">-88.2%</td>
+                    <td class="p-2">48 trades</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Shock de oferta geopolítico</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Cobertura frente a picos de inflación</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2 font-bold text-slate-900 dark:text-slate-100">SOYB (Soja Agrícola)</td>
+                    <td class="p-2">21.6%</td>
+                    <td class="p-2 text-slate-600">-44.9%</td>
+                    <td class="p-2">40 trades</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Materia prima blanda alimentaria</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Descorrelación total de tipos y bolsa</td>
+                  </tr>
+                  <tr>
+                    <td class="p-2 font-bold text-slate-900 dark:text-slate-100">TLT (Bonos 20+ Años)</td>
+                    <td class="p-2">15.3%</td>
+                    <td class="p-2 text-slate-600">-48.5%</td>
+                    <td class="p-2">39 trades</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Renta fija soberana largo plazo</td>
+                    <td class="p-2 font-sans text-slate-600 dark:text-slate-400">Vuelo a la calidad en shocks deflacionarios</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 4. Resumen de las 17 operaciones -->
+          <div class="panel p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Registro Auditado de las 17 Operaciones de Bitcoin (2020–2026)
+              </span>
+              <span class="text-[10px] font-mono text-slate-400">Cap 15% por trade</span>
+            </div>
+            <div class="max-h-48 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded">
+              <table class="w-full text-left text-[11px] font-mono tabular-nums">
+                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 sticky top-0">
+                  <tr>
+                    <th class="p-1.5 font-sans">Entrada</th>
+                    <th class="p-1.5 font-sans">Salida</th>
+                    <th class="p-1.5 font-sans">Días</th>
+                    <th class="p-1.5 font-sans text-right">Ret. Activo</th>
+                    <th class="p-1.5 font-sans text-right">Ret. Cartera</th>
+                    <th class="p-1.5 font-sans">Motivo Salida</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-[10px]">
+                  ${(BTC_STUDY_DATA?.trades || []).map(t => {
+                    const isWin = (t.portfolio_ret_pct || 0) >= 0;
+                    const col = isWin ? 'text-brand-700 dark:text-brand-300 font-bold' : 'text-red-600 dark:text-red-400 font-bold';
+                    return `
+                      <tr>
+                        <td class="p-1.5">${t.entry_date}</td>
+                        <td class="p-1.5">${t.exit_date}</td>
+                        <td class="p-1.5">${t.days}d</td>
+                        <td class="p-1.5 text-right ${col}">${(t.raw_ret_pct > 0 ? '+' : '') + Number(t.raw_ret_pct).toFixed(1)}%</td>
+                        <td class="p-1.5 text-right ${col}">${(t.portfolio_ret_pct > 0 ? '+' : '') + Number(t.portfolio_ret_pct).toFixed(2)}%</td>
+                        <td class="p-1.5 text-slate-500 truncate max-w-[150px]">${t.exit_reason || '--'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 5. Viabilidad operativa y fiscal en España -->
+          <div class="panel p-4 space-y-2 bg-slate-50/70 dark:bg-slate-800/50">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Viabilidad Operativa en IBKR y Fiscalidad en España
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px] text-slate-600 dark:text-slate-300">
+              <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Operativa en IBKR vía ETP Europeo</span>
+                No se pueden comprar ETFs de EE. UU. (IBIT), pero sí ETPs físicos en XETRA en EUR (ej. <b>BTCE</b>, ISIN <code>DE000A27Z304</code>). Se compra como un ETF normal sin riesgo divisa.
+              </div>
+              <div class="p-2.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <span class="font-bold text-slate-900 dark:text-slate-100 block mb-0.5">Tributación Renta WEB (Casillas 0326–0335)</span>
+                Al ser un valor cotizado en bolsa europea, tributa en la Base del Ahorro (19%–28%) y computa en el Modelo 720 tradicional, <b>sin requerir el complejo Modelo 721 de criptomonedas</b>.
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+};
+
+function openStrategyExplainer(topicId) {
+  const data = STRATEGY_TOPICS[topicId] || STRATEGY_TOPICS.ARCHITECTURE;
+  ACTIVE_EXPLAINER_TOPIC = topicId;
+  const modal = document.getElementById('strategy-explainer-modal');
+  if (!modal) return;
+
+  const setTxt = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  setTxt('sem-badge', data.badge);
+  setTxt('sem-title', data.title);
+  setTxt('sem-subtitle', data.subtitle);
+
+  const contentEl = document.getElementById('sem-content');
+  if (contentEl) {
+    contentEl.innerHTML = data.render();
+  }
+
+  const actionsEl = document.getElementById('sem-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = '';
+  }
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+
+  if (topicId === 'BITCOIN_STUDY') {
+    fetchBtcStudyData(() => {
+      // Re-render content once data is in place
+      if (ACTIVE_EXPLAINER_TOPIC === 'BITCOIN_STUDY') {
+        const cEl = document.getElementById('sem-content');
+        if (cEl) cEl.innerHTML = STRATEGY_TOPICS.BITCOIN_STUDY.render();
+        setTimeout(() => {
+          renderBtcExplainerChart();
+        }, 60);
+      }
+    });
+  }
+}
+
+function closeStrategyExplainerModal() {
+  const modal = document.getElementById('strategy-explainer-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  if (strategyExplainerChart) {
+    strategyExplainerChart.dispose();
+    strategyExplainerChart = null;
+  }
+}
+
+function renderBtcExplainerChart() {
+  const el = document.getElementById('btc-candlestick-chart');
+  if (!el || !BTC_STUDY_DATA || !BTC_STUDY_DATA.chart_data) return;
+
+  if (strategyExplainerChart) {
+    strategyExplainerChart.dispose();
+  }
+  strategyExplainerChart = echarts.init(el);
+
+  const th = getChartTheme();
+  const cData = BTC_STUDY_DATA.chart_data;
+  const isMobile = window.innerWidth < 640;
+
+  const upColor = th.dark ? '#5c9d82' : '#065f46';
+  const downColor = th.dark ? '#ef4444' : '#b91c1c';
+
+  // MarkPoints para las 17 operaciones
+  const markPoints = [];
+  (BTC_STUDY_DATA.trades || []).forEach((t, i) => {
+    markPoints.push({
+      name: `Entrada #${i + 1}`,
+      coord: [t.entry_date, t.entry_price],
+      value: `COMPRA`,
+      itemStyle: { color: upColor },
+      label: { color: '#fff', fontSize: 9, fontWeight: 'bold' }
+    });
+    markPoints.push({
+      name: `Salida #${i + 1}`,
+      coord: [t.exit_date, t.exit_price],
+      value: `${t.portfolio_ret_pct > 0 ? '+' : ''}${t.portfolio_ret_pct.toFixed(1)}%`,
+      itemStyle: { color: t.portfolio_ret_pct >= 0 ? '#d97706' : downColor },
+      label: { color: '#fff', fontSize: 9, fontWeight: 'bold' }
+    });
+  });
+
+  const option = {
+    backgroundColor: th.bg,
+    animationDuration: 300,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross', lineStyle: { color: th.crosshair } },
+      backgroundColor: th.tooltipBg,
+      borderColor: th.tooltipBorder,
+      textStyle: { color: th.tooltipText, fontSize: 11 },
+      formatter: (params) => {
+        if (!params || !params[0]) return '';
+        const idx = params[0].dataIndex;
+        const d = cData.dates[idx];
+        const [o, c, l, h] = cData.candles[idx];
+        const s50 = cData.sma50[idx];
+        const s200 = cData.sma200[idx];
+        return `
+          <div style="font-family:'JetBrains Mono',monospace;">
+            <b>BTC-USD · ${d}</b><br/>
+            Apertura: $${Number(o).toLocaleString('en-US')}<br/>
+            Cierre: $${Number(c).toLocaleString('en-US')}<br/>
+            Mín: $${Number(l).toLocaleString('en-US')} · Máx: $${Number(h).toLocaleString('en-US')}<br/>
+            <span style="color:#d97706">SMA50: $${Number(s50).toLocaleString('en-US')}</span> · <span style="color:#64748b">SMA200: $${Number(s200).toLocaleString('en-US')}</span>
+          </div>
+        `;
+      }
+    },
+    grid: {
+      left: isMobile ? 48 : 58,
+      right: isMobile ? 14 : 20,
+      top: 25,
+      bottom: 25,
+    },
+    xAxis: {
+      type: 'category',
+      data: cData.dates,
+      axisLine: { lineStyle: { color: th.axisLine } },
+      axisLabel: { color: th.axisLabel, fontSize: 10 },
+    },
+    yAxis: {
+      type: 'log',
+      scale: true,
+      splitLine: { lineStyle: { color: th.splitLine } },
+      axisLabel: {
+        color: th.axisLabel,
+        fontSize: 10,
+        formatter: (v) => '$' + (v >= 1000 ? Math.round(v / 1000) + 'k' : v)
+      }
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0] },
+      { type: 'slider', xAxisIndex: [0], bottom: '0px', height: 16, borderColor: th.zoomBorder }
+    ],
+    series: [
+      {
+        name: 'Bitcoin OHLC',
+        type: 'candlestick',
+        data: cData.candles,
+        itemStyle: {
+          color: upColor,
+          color0: downColor,
+          borderColor: upColor,
+          borderColor0: downColor,
+        },
+        markPoint: {
+          data: markPoints,
+          symbolSize: 45,
+        }
+      },
+      {
+        name: 'SMA(50)',
+        type: 'line',
+        data: cData.sma50,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { color: '#d97706', width: 1.5, type: 'dashed' },
+      },
+      {
+        name: 'SMA(200)',
+        type: 'line',
+        data: cData.sma200,
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { color: '#64748b', width: 1.5, type: 'dashed' },
+      }
+    ]
+  };
+
+  strategyExplainerChart.setOption(option);
+  strategyExplainerChart.resize();
+}
+
 function confirmScanNowModal() {
   openDestructiveConfirmModal('SCAN_NOW');
 }
@@ -2706,7 +3445,62 @@ function updateMainCharts() {
   const modeValues = curve.map((pt) => pt.bot_eq);
   const sp500Values = curve.map((pt) => pt.spy_eq);
 
-  const scatterData = getFilteredScatterTrades(modeData, dates, th.scatterBorder);
+  // Superposición opcional de Simulación Bitcoin M4 (2020-2026)
+  let btcModeValues = [];
+  let btcDdValues = [];
+  let btcScatterData = [];
+
+  if (SHOW_BTC_EQUITY_CURVE && BTC_STUDY_DATA && Array.isArray(BTC_STUDY_DATA.monthly_curve_btc)) {
+    const btcCurveMap = {};
+    BTC_STUDY_DATA.monthly_curve_btc.forEach((pt) => {
+      btcCurveMap[pt.date] = pt;
+    });
+
+    let lastKnownBtcEq = modeValues[0] || 10000;
+    let lastKnownBtcDd = 0;
+
+    dates.forEach((d, i) => {
+      if (btcCurveMap[d]) {
+        lastKnownBtcEq = Math.round(btcCurveMap[d].bot_eq);
+        lastKnownBtcDd = btcCurveMap[d].bot_dd;
+      }
+      btcModeValues.push(lastKnownBtcEq);
+      btcDdValues.push(lastKnownBtcDd);
+    });
+
+    if (Array.isArray(BTC_STUDY_DATA.trades)) {
+      BTC_STUDY_DATA.trades.forEach((t) => {
+        let closestDate = dates[0];
+        for (let i = 0; i < dates.length; i++) {
+          if (dates[i] <= t.exit_date) closestDate = dates[i];
+          else break;
+        }
+        const cIdx = dates.indexOf(closestDate);
+        const eqAtPt = cIdx >= 0 ? btcModeValues[cIdx] : 0;
+        const isWin = (t.portfolio_ret_pct || 0) >= 0;
+        btcScatterData.push({
+          name: 'M4 CTA (BTC)',
+          value: [closestDate, eqAtPt],
+          tradeObj: {
+            ...t,
+            engine_id: 'M4_CTA_TREND',
+            symbol: 'BTC (Bitcoin)',
+            direction: 'LONG',
+          },
+          itemStyle: {
+            color: isWin ? '#d97706' : '#b91c1c',
+            borderColor: '#ffffff',
+            borderWidth: 1.5,
+          },
+          symbol: 'diamond',
+          symbolSize: 10,
+        });
+      });
+    }
+  }
+
+  const baseScatter = getFilteredScatterTrades(modeData, dates, th.scatterBorder);
+  const scatterData = SHOW_BTC_EQUITY_CURVE ? [...baseScatter, ...btcScatterData] : baseScatter;
 
   const mainOption = {
     backgroundColor: th.bg,
@@ -3419,23 +4213,61 @@ function updateScheduleAndDstUI(data, cfg) {
   const isDstShift = data?.is_dst_mismatch === true || (diffHours !== 6);
 
   if (schedLabel) {
-    if (data.schedule_time_ny && data.schedule_time_madrid) {
+    if (data?.schedule_time_ny && data?.schedule_time_madrid) {
       schedLabel.textContent = `${data.schedule_time_ny} (${data.schedule_time_madrid})`;
-    } else if (data.next_run_display) {
+    } else if (data?.next_run_display) {
       schedLabel.textContent = data.next_run_display;
     } else {
-      schedLabel.textContent = `15:55 ${nyName} · ${(cfg.schedule_time_cet || (diffHours === 5 ? '20:55' : '21:55'))} ${madName}`;
+      schedLabel.textContent = `15:55 ${nyName} · ${(cfg?.schedule_time_cet || (diffHours === 5 ? '20:55' : '21:55'))} ${madName}`;
     }
   }
 
   if (dstBadge) {
-    const customLabel = data.dst_badge || data.dst_status || null;
-    if (isDstShift) {
-      dstBadge.textContent = customLabel || `DST Desfase EU/US (${diffHours}h · ${nyName}/${madName})`;
-      dstBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 dark:bg-slate-800 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800';
+    // Determinar si el mercado (NYSE/Nasdaq) está abierto ahora
+    let isMarketOpen = false;
+    if (typeof data?.is_market_open === 'boolean') {
+      isMarketOpen = data.is_market_open;
+    } else if (typeof data?.time_info?.is_market_open === 'boolean') {
+      isMarketOpen = data.time_info.is_market_open;
     } else {
-      dstBadge.textContent = customLabel || `${nyName} · ${madName} (+${diffHours}h)`;
-      dstBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
+      // Cálculo de contingencia cliente
+      try {
+        const nyParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/New_York',
+          hour12: false,
+          weekday: 'short',
+          hour: 'numeric',
+          minute: 'numeric',
+        }).formatToParts(now);
+        const getVal = (t) => nyParts.find((p) => p.type === t)?.value;
+        const day = getVal('weekday');
+        if (day !== 'Sat' && day !== 'Sun') {
+          const hh = parseInt(getVal('hour') || '0', 10);
+          const mm = parseInt(getVal('minute') || '0', 10);
+          const totalMin = hh * 60 + mm;
+          isMarketOpen = totalMin >= 570 && totalMin < 960; // 09:30 a 16:00 ET
+        }
+      } catch (e) {
+        isMarketOpen = false;
+      }
+    }
+
+    const customLabel = data?.dst_badge || data?.dst_status || null;
+    const baseDstText = isDstShift
+      ? `DST Desfase EU/US (${diffHours}h · ${nyName}/${madName})`
+      : `NYSE · ${nyName}/${madName} (+${diffHours}h)`;
+
+    if (isMarketOpen) {
+      // MERCADO ABIERTO -> CUADRO EN VERDE
+      dstBadge.textContent = customLabel ? `● ${customLabel}` : `● Mercado Abierto · ${baseDstText}`;
+      dstBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-xs transition-colors';
+      dstBadge.title = `Mercado estadounidense (NYSE/Nasdaq) ABIERTO en horario regular (09:30 a 16:00 ${nyName}). Cotizaciones en vivo activas.`;
+    } else {
+      // MERCADO CERRADO -> CUADRO EN AMARILLO
+      dstBadge.textContent = customLabel ? `○ ${customLabel}` : `○ Mercado Cerrado · ${baseDstText}`;
+      dstBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-xs transition-colors';
+      const reasonDesc = data?.market_status_desc || data?.time_info?.market_status_desc || `Mercado fuera de sesión regular (09:30 a 16:00 ${nyName}).`;
+      dstBadge.title = `${reasonDesc} El bot de Aegis vigila 24/7 y ejecutará el rebalanceo al cierre (${data?.schedule_time_madrid || (diffHours === 5 ? '20:55 CET' : '21:55 CET')}).`;
     }
   }
 }
@@ -4143,7 +4975,7 @@ function renderLiveTaxAudit(report) {
       m720.required ? 'text-amber-700 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'
     }`;
   }
-  setTxt('aeat-kpi-720-sub', `${fmtEUR(m720.current_equity_eur || 0)} (${m720.threshold_usage_pct || 0}% de 50.000 €)`);
+  setTxt('aeat-kpi-720-sub', `Patrimonio: ${fmtEUR(m720.current_equity_eur || 0)} (${m720.threshold_usage_pct || 0}% de 50k €)`);
 
   // Ventanas activas de 60 días (Regla Antiaplicación)
   const lockBanner = document.getElementById('aeat-lockouts-banner');
@@ -4357,7 +5189,7 @@ function initTaxView(triggerAudit = true) {
       },
       legend: {
         type: 'scroll',
-        data: ['Modo 3 Élite Bruto (6M)', 'Neto Operativo (Comisiones+TER)', 'Neto en Bolsillo (Tras IRPF)', 'S&P 500 Buy & Hold'],
+        data: ['Modo 3 Élite Bruto (Con Bitcoin)', 'Neto Operativo (Comisiones+TER)', 'Neto en Bolsillo (Tras IRPF)', 'S&P 500 Buy & Hold'],
         top: 0,
         textStyle: { color: th.text, fontSize: isMobile ? 10 : 11 },
       },
@@ -4383,7 +5215,7 @@ function initTaxView(triggerAudit = true) {
       },
       series: [
         {
-          name: 'Modo 3 Élite Bruto (6M)',
+          name: 'Modo 3 Élite Bruto (Con Bitcoin)',
           type: 'line',
           data: grossData,
           showSymbol: false,
